@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'lightggLastSync',
             'aegisLayoutSide',
             'aegisDbMode',
+            'aegisMode',
             'aegisTwoTier',
             'aegisHoverEnabled',
             'aegisArmorSource',
@@ -121,12 +122,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-            // Set Aegis DB Mode buttons
+            // Set Aegis DB Mode buttons & Spreadsheet Mode visibility
             const dbModeVal = res.aegisDbMode || 'both';
             const segmentedControl = document.getElementById('aegis-db-segmented');
             if (segmentedControl) {
                 segmentedControl.querySelectorAll('button').forEach(btn => {
                     if (btn.getAttribute('data-value') === dbModeVal) {
+                        btn.classList.add('active');
+                    }
+                    else {
+                        btn.classList.remove('active');
+                    }
+                });
+                const aegisModeGroup = document.getElementById('aegis-mode-toggle-group');
+                if (aegisModeGroup) {
+                    if (dbModeVal === 'wishlist' || sourceVal === 'lightgg') {
+                        aegisModeGroup.style.display = 'none';
+                    }
+                    else {
+                        aegisModeGroup.style.display = 'block';
+                    }
+                }
+            }
+            // Set Aegis Mode (PvE vs PvP) segmented control
+            const aegisModeVal = res.aegisMode || 'pve';
+            const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
+            if (aegisModeSegmented) {
+                aegisModeSegmented.querySelectorAll('button').forEach(btn => {
+                    if (btn.getAttribute('data-value') === aegisModeVal) {
                         btn.classList.add('active');
                     }
                     else {
@@ -236,6 +259,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (val) {
                     chrome.storage.local.set({ aegisDbMode: val }, () => {
                         updateUI();
+                    });
+                }
+            }
+        });
+    }
+    // Handle Aegis Mode (PvE vs PvP) segmented control click
+    const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
+    if (aegisModeSegmented) {
+        aegisModeSegmented.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.tagName === 'BUTTON') {
+                const val = target.getAttribute('data-value');
+                if (val) {
+                    chrome.storage.local.get(['aegisSheetDbPvE', 'aegisSheetDbPvP'], (res) => {
+                        const activeDb = val === 'pvp' ? res.aegisSheetDbPvP : res.aegisSheetDbPvE;
+                        const updateObj = { aegisMode: val };
+                        if (activeDb) {
+                            updateObj.aegisSheetDb = activeDb;
+                        }
+                        chrome.storage.local.set(updateObj, () => {
+                            updateUI();
+                        });
                     });
                 }
             }

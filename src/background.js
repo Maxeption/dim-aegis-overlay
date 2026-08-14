@@ -66,13 +66,14 @@ async function fetchAndCacheWishlist(url) {
     }
 }
 const SHEET_ID = '1JM-0SlxVDAi-C6rGVlLxa-J1WGewEeL8Qvq4htWZHhY';
+const PVP_SHEET_ID = '1TVgtTRWNGEPi6OMlTLxXFSKUTi_ycwykhwuw8EW_jJ0';
 const ARMOR_SHEET_ID = '14LnzOhmeXzKaSV3OR35pQJkclg6vLC4YmKtlKTctY3o';
 const ARMOR_GID = '631213508';
 const ALL_TABS = [
     'Autos', 'Bows', 'HCs', 'Pulses', 'Scouts', 'Sidearms', 'SMGs',
     'BGLs', 'Fusions', 'Glaives', 'Shotguns', 'Snipers',
     'Rocket Sidearms', 'Traces', 'HGLs', 'LFRs', 'LMGs', 'Rockets',
-    'Swords', 'Other',
+    'Swords', 'Other', 'Exotic Weapons',
 ];
 function parseCSV(text) {
     const normalizedText = text.replace(/\r\n|\r/g, '\n');
@@ -127,155 +128,165 @@ function stripEdition(name) {
         .replace(/\s+(brave|pantheon|rotn|legacy|adept|timelost|harrowed|re-issue|reissued)$/gi, '')
         .trim();
 }
-/**
- * Fetches Aegis spreadsheet tabs, parses them and caches the output database in local storage.
- */
-async function fetchAndCacheAegisSheet() {
-    console.log('DIM Aegis Overlay: Fetching Aegis Master Spreadsheet...');
+async function fetchSpreadsheetDatabase(sheetId, tabs) {
     const weapons = {};
     const variants = {};
     const categories = {};
-    try {
-        const promises = ALL_TABS.map(async (tab) => {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-                const res = await fetch(url, { credentials: 'omit' });
-                if (!res.ok) {
-                    console.warn(`[Aegis] Skipping tab "${tab}": HTTP ${res.status} ${res.statusText}`);
-                    return;
-                }
-                const csvText = await res.text();
-                // Google sometimes returns an HTML login-redirect page instead of CSV
-                if (csvText.trimStart().startsWith('<')) {
-                    console.warn(`[Aegis] Skipping tab "${tab}": received HTML instead of CSV (possible auth redirect)`);
-                    return;
-                }
-                const rows = parseCSV(csvText);
-                if (rows.length < 2)
-                    return;
-                const header = rows[0];
-                const idx = {};
-                header.forEach((col, i) => {
-                    idx[col.trim()] = i;
-                });
-                const getVal = (row, keys) => {
-                    const keyList = Array.isArray(keys) ? keys : [keys];
-                    for (const k of keyList) {
-                        const i = idx[k];
-                        if (i !== undefined) {
-                            return (row[i] ?? '').trim();
-                        }
-                    }
-                    return '';
-                };
-                const categoryWeapons = [];
-                for (let r = 1; r < rows.length; r++) {
-                    const row = rows[r];
-                    const nameVal = getVal(row, 'Name');
-                    if (!nameVal)
-                        continue;
-                    const weaponName = nameVal.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
-                    const normalized = normName(weaponName);
-                    const baseNormalized = normName(stripEdition(weaponName));
-                    const versionTag = extractVersionTag(weaponName);
-                    const weaponData = {
-                        name: weaponName,
-                        energy: getVal(row, ['Energy', 'INFO Energy']),
-                        frame: getVal(row, 'Frame'),
-                        barrel: getVal(row, ['PERKS Barrel', 'Barrel']),
-                        mag: getVal(row, ['Mag', 'PERKS Mag']),
-                        perk1: getVal(row, ['Perk 1', 'PERKS Perk 1']),
-                        perk2: getVal(row, ['Perk 2', 'PERKS Perk 2']),
-                        origin: getVal(row, ['Origin Trait', 'Origin']),
-                        source: getVal(row, 'Source'),
-                        notes: getVal(row, ['ANALYSIS Notes', 'Notes']),
-                        rank: getVal(row, 'Rank'),
-                        tier: getVal(row, 'Tier'),
-                        versionTag: versionTag || undefined,
-                        mw: getVal(row, ['MW', 'PERKS MW']),
-                    };
-                    weapons[normalized] = weaponData;
-                    if (!variants[baseNormalized]) {
-                        variants[baseNormalized] = [];
-                    }
-                    if (!variants[baseNormalized].some((v) => v.name === weaponName)) {
-                        variants[baseNormalized].push(weaponData);
-                    }
-                    if (!weapons[baseNormalized]) {
-                        weapons[baseNormalized] = weaponData;
-                    }
-                    categoryWeapons.push(weaponData);
-                }
-                // Sort by rank ascending
-                categoryWeapons.sort((a, b) => {
-                    const rA = parseInt(a.rank, 10);
-                    const rB = parseInt(b.rank, 10);
-                    return (isNaN(rA) ? 999 : rA) - (isNaN(rB) ? 999 : rB);
-                });
-                categories[tab] = categoryWeapons;
-            }
-            catch (tabErr) {
-                console.warn(`[Aegis] Skipping tab "${tab}" due to error: ${tabErr.message}`);
-            }
-        });
-        await Promise.all(promises);
-        // Fetch armor sets sheet
-        console.log('DIM Aegis Overlay: Fetching Aegis Armor Spreadsheet...');
-        const armorUrl = `https://docs.google.com/spreadsheets/d/${ARMOR_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${ARMOR_GID}`;
-        const armor = {};
+    const promises = tabs.map(async (tab) => {
         try {
-            const armorRes = await fetch(armorUrl, { credentials: 'omit' });
-            if (!armorRes.ok) {
-                console.warn(`[Aegis] Armor sheet fetch failed (HTTP ${armorRes.status}), skipping armor data.`);
-            }
-            else {
-                const armorCsvText = await armorRes.text();
-                if (armorCsvText.trimStart().startsWith('<')) {
-                    console.warn('[Aegis] Armor sheet returned HTML instead of CSV, skipping armor data.');
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+            const res = await fetch(url, { credentials: 'omit' });
+            if (!res.ok)
+                return;
+            const csvText = await res.text();
+            if (csvText.trimStart().startsWith('<'))
+                return;
+            const rows = parseCSV(csvText);
+            if (rows.length < 2)
+                return;
+            let headerRowIndex = 0;
+            for (let r = 0; r < Math.min(rows.length, 3); r++) {
+                if (rows[r].some(c => c.trim().toLowerCase() === 'name')) {
+                    headerRowIndex = r;
+                    break;
                 }
-                else {
-                    const armorRows = parseCSV(armorCsvText);
-                    if (armorRows.length >= 3) {
-                        for (let r = 2; r < armorRows.length; r++) {
-                            const row = armorRows[r];
-                            const setName = (row[0] ?? '').trim();
-                            if (!setName || setName === 'Set Name' || setName === 'Set Pick List') {
-                                continue;
-                            }
-                            if ((row[1] ?? '').trim() === 'Name' && (row[5] ?? '').trim() === 'Name') {
-                                continue;
-                            }
-                            if (setName.toLowerCase().includes('notes:') || setName.toLowerCase().includes('credit:')) {
-                                continue;
-                            }
-                            const armorData = {
-                                setName,
-                                piece2Name: (row[1] ?? '').trim(),
-                                piece2Desc: (row[2] ?? '').trim(),
-                                piece2Numbers: (row[3] ?? '').trim(),
-                                piece2Rating: (row[4] ?? '').trim(),
-                                piece4Name: (row[5] ?? '').trim(),
-                                piece4Desc: (row[6] ?? '').trim(),
-                                piece4Numbers: (row[7] ?? '').trim(),
-                                piece4Rating: (row[8] ?? '').trim(),
-                                source: (row[9] ?? '').trim(),
-                                sourceType: (row[10] ?? '').trim(),
-                            };
-                            const normalized = setName.toLowerCase().trim();
-                            armor[normalized] = armorData;
+            }
+            const header = rows[headerRowIndex];
+            const idx = {};
+            header.forEach((col, i) => {
+                idx[col.trim()] = i;
+            });
+            const getVal = (row, keys) => {
+                for (const k of keys) {
+                    const i = idx[k];
+                    if (i !== undefined) {
+                        return (row[i] ?? '').trim();
+                    }
+                }
+                return '';
+            };
+            const categoryWeapons = [];
+            for (let r = headerRowIndex + 1; r < rows.length; r++) {
+                const row = rows[r];
+                const nameVal = getVal(row, ['Name']);
+                if (!nameVal || nameVal.toLowerCase() === 'name')
+                    continue;
+                const weaponName = nameVal.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+                const normalized = normName(weaponName);
+                const baseNormalized = normName(stripEdition(weaponName));
+                const versionTag = extractVersionTag(weaponName);
+                const usageVal = getVal(row, ['Usage', 'ANALYSIS Notes', 'Notes', 'Role / Notes']);
+                const descVal = getVal(row, ['Description']);
+                const roamSymbol = getVal(row, ['ANALYSIS Roam', 'Roam']);
+                const dpsSymbol = getVal(row, ['DPS']);
+                const challSymbol = getVal(row, ['Chall', 'Challenge']);
+                const speedSymbol = getVal(row, ['Speed', 'Speedrun']);
+                const trialsSymbol = getVal(row, ['ANALYSIS Trials', 'Trials']);
+                const compSymbol = getVal(row, ['Comp', 'Competitive']);
+                const quickplaySymbol = getVal(row, ['Quickplay', '6v6']);
+                const vsDrSymbol = getVal(row, ['vs DR', 'vsDR']);
+                const duelSymbol = getVal(row, ['Duel', 'Dueling']);
+                const tagsVal = getVal(row, ['Tags']);
+                const stunVal = getVal(row, ['Stun']);
+                const hasViability = roamSymbol || dpsSymbol || challSymbol || speedSymbol || trialsSymbol || compSymbol || quickplaySymbol || vsDrSymbol || duelSymbol || tagsVal || stunVal;
+                const weaponData = {
+                    name: weaponName,
+                    energy: getVal(row, ['Energy', 'INFO Energy', 'Slot', 'Affinity', 'Type']),
+                    frame: getVal(row, ['Frame', 'Tags']),
+                    barrel: getVal(row, ['PERKS Barrel', 'Barrel']),
+                    mag: getVal(row, ['Mag', 'PERKS Mag', 'Magazine']),
+                    perk1: getVal(row, ['Perk 1', 'PERKS Perk 1', 'Column 1']),
+                    perk2: getVal(row, ['Perk 2', 'PERKS Perk 2', 'Column 2']),
+                    origin: getVal(row, ['Origin Trait', 'Origin', 'Stun']),
+                    source: getVal(row, ['Source', 'Where to get']),
+                    notes: usageVal || (descVal !== usageVal ? '' : descVal),
+                    description: descVal && descVal !== usageVal ? descVal : undefined,
+                    rank: getVal(row, ['Rank', 'WEAPON #', '#']),
+                    tier: getVal(row, ['Tier']),
+                    versionTag: versionTag || undefined,
+                    mw: getVal(row, ['MW', 'PERKS MW']),
+                    stun: stunVal || undefined,
+                    exoticViability: hasViability ? {
+                        roam: roamSymbol || undefined,
+                        dps: dpsSymbol || undefined,
+                        chall: challSymbol || undefined,
+                        speed: speedSymbol || undefined,
+                        trials: trialsSymbol || undefined,
+                        comp: compSymbol || undefined,
+                        quickplay: quickplaySymbol || undefined,
+                        vsDr: vsDrSymbol || undefined,
+                        duel: duelSymbol || undefined,
+                        tags: tagsVal || undefined,
+                        stun: stunVal || undefined,
+                    } : undefined,
+                };
+                weapons[normalized] = weaponData;
+                if (!variants[baseNormalized]) {
+                    variants[baseNormalized] = [];
+                }
+                if (!variants[baseNormalized].some((v) => v.name === weaponName)) {
+                    variants[baseNormalized].push(weaponData);
+                }
+                if (!weapons[baseNormalized]) {
+                    weapons[baseNormalized] = weaponData;
+                }
+                categoryWeapons.push(weaponData);
+            }
+            categoryWeapons.sort((a, b) => {
+                const rA = parseInt(a.rank, 10);
+                const rB = parseInt(b.rank, 10);
+                return (isNaN(rA) ? 999 : rA) - (isNaN(rB) ? 999 : rB);
+            });
+            categories[tab] = categoryWeapons;
+        }
+        catch (tabErr) {
+            console.warn(`[Aegis] Skipping tab "${tab}": ${tabErr.message}`);
+        }
+    });
+    await Promise.all(promises);
+    // Fetch LowCo armor sets sheet
+    const armorUrl = `https://docs.google.com/spreadsheets/d/${ARMOR_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${ARMOR_GID}`;
+    const armor = {};
+    try {
+        const armorRes = await fetch(armorUrl, { credentials: 'omit' });
+        if (armorRes.ok) {
+            const armorCsvText = await armorRes.text();
+            if (!armorCsvText.trimStart().startsWith('<')) {
+                const armorRows = parseCSV(armorCsvText);
+                if (armorRows.length >= 3) {
+                    for (let r = 2; r < armorRows.length; r++) {
+                        const row = armorRows[r];
+                        const setName = (row[0] ?? '').trim();
+                        if (!setName || setName === 'Set Name' || setName === 'Set Pick List' || setName.toLowerCase().includes('notes:')) {
+                            continue;
                         }
+                        if ((row[1] ?? '').trim() === 'Name')
+                            continue;
+                        const armorData = {
+                            setName,
+                            piece2Name: (row[1] ?? '').trim(),
+                            piece2Desc: (row[2] ?? '').trim(),
+                            piece2Numbers: (row[3] ?? '').trim(),
+                            piece2Rating: (row[4] ?? '').trim(),
+                            piece4Name: (row[5] ?? '').trim(),
+                            piece4Desc: (row[6] ?? '').trim(),
+                            piece4Numbers: (row[7] ?? '').trim(),
+                            piece4Rating: (row[8] ?? '').trim(),
+                            source: (row[9] ?? '').trim(),
+                            sourceType: (row[10] ?? '').trim(),
+                        };
+                        armor[setName.toLowerCase().trim()] = armorData;
                     }
                 }
             }
         }
-        catch (armorErr) {
-            console.warn(`[Aegis] Armor sheet error: ${armorErr.message}, skipping armor data.`);
-        }
-        // Fetch Aegis's own Set Bonuses tab
-        console.log('DIM Aegis Overlay: Fetching Aegis Set Bonuses tab...');
-        const aegisArmorUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Set Bonuses')}`;
+    }
+    catch (armorErr) { }
+    // Fetch Set Bonuses tab from the spreadsheet
+    const aegisArmorUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Set Bonuses')}`;
+    const armorAegis = {};
+    try {
         const aegisArmorRes = await fetch(aegisArmorUrl, { credentials: 'omit' });
-        const armorAegis = {};
         if (aegisArmorRes.ok) {
             const csvText = await aegisArmorRes.text();
             const rows = parseCSV(csvText);
@@ -328,21 +339,36 @@ async function fetchAndCacheAegisSheet() {
                 }
             }
         }
-        // Copy source info from LowCo to Aegis where applicable
-        for (const [key, aegisData] of Object.entries(armorAegis)) {
-            const lowcoData = armor[key];
-            if (lowcoData) {
-                if (lowcoData.source)
-                    aegisData.source = lowcoData.source;
-                if (lowcoData.sourceType)
-                    aegisData.sourceType = lowcoData.sourceType;
-            }
+    }
+    catch (err) { }
+    for (const [key, aegisData] of Object.entries(armorAegis)) {
+        const lowcoData = armor[key];
+        if (lowcoData) {
+            if (lowcoData.source)
+                aegisData.source = lowcoData.source;
+            if (lowcoData.sourceType)
+                aegisData.sourceType = lowcoData.sourceType;
         }
+    }
+    return { weapons, variants, categories, armor, armorAegis };
+}
+/**
+ * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet tabs, parses them, and caches the output databases in local storage.
+ */
+async function fetchAndCacheAegisSheet() {
+    try {
+        const aegisSheetDbPvE = await fetchSpreadsheetDatabase(SHEET_ID, ALL_TABS);
+        const pvpTabs = [...ALL_TABS, 'Legendary Weapons'];
+        const aegisSheetDbPvP = await fetchSpreadsheetDatabase(PVP_SHEET_ID, pvpTabs);
+        const storage = await chrome.storage.local.get(['aegisMode']);
+        const aegisMode = storage.aegisMode || 'pve';
+        const activeDb = aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE;
         await chrome.storage.local.set({
-            aegisSheetDb: { weapons, variants, categories, armor, armorAegis },
+            aegisSheetDbPvE,
+            aegisSheetDbPvP,
+            aegisSheetDb: activeDb,
             aegisSheetLastSync: Date.now(),
         });
-        console.log('DIM Aegis Overlay: Aegis spreadsheet sync completed successfully.');
         return { success: true };
     }
     catch (err) {

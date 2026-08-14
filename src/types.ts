@@ -42,6 +42,9 @@ export interface LocalStorageSchema {
   parsedCount?: number;
   enhancedToNormal?: Record<number, number>;
   aegisSheetDb?: AegisSheetDatabase;
+  aegisSheetDbPvE?: AegisSheetDatabase;
+  aegisSheetDbPvP?: AegisSheetDatabase;
+  aegisMode?: 'pve' | 'pvp';
   aegisSheetLastSync?: number;
   aegisChaseList?: Record<string, {
     name: string;
@@ -71,10 +74,25 @@ export interface AegisSheetWeapon {
   origin: string;
   source?: string;
   notes: string;
+  description?: string;
   rank: string;
   tier: string;
   versionTag?: string;
   mw?: string;
+  stun?: string;
+  exoticViability?: {
+    roam?: string;
+    dps?: string;
+    chall?: string;
+    speed?: string;
+    trials?: string;
+    comp?: string;
+    quickplay?: string;
+    vsDr?: string;
+    duel?: string;
+    tags?: string;
+    stun?: string;
+  };
 }
 
 /**

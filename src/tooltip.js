@@ -98,70 +98,27 @@ function positionTooltip(target, tooltip) {
     tooltip.style.visibility = '';
     const tooltipWidth = tooltipRect.width || 260;
     const tooltipHeight = tooltipRect.height || 180;
-    const gap = 8;
-    const margin = 8;
-    let top = 0;
-    let left = 0;
-    let placed = false;
-    // Try placement 1: Above (preferred)
-    const topAbove = targetRect.top - tooltipHeight - gap;
-    const leftCentered = targetRect.left + (targetRect.width - tooltipWidth) / 2;
-    if (topAbove >= margin &&
-        leftCentered >= margin &&
-        leftCentered + tooltipWidth <= window.innerWidth - margin) {
-        top = topAbove;
-        left = leftCentered;
-        placed = true;
-    }
-    // Try placement 2: Below
-    if (!placed) {
-        const topBelow = targetRect.bottom + gap;
-        if (topBelow + tooltipHeight <= window.innerHeight - margin &&
-            leftCentered >= margin &&
-            leftCentered + tooltipWidth <= window.innerWidth - margin) {
-            top = topBelow;
-            left = leftCentered;
-            placed = true;
-        }
-    }
-    // Try placement 3: Right
-    if (!placed) {
-        const leftRight = targetRect.right + gap;
-        const topCentered = targetRect.top + (targetRect.height - tooltipHeight) / 2;
-        if (leftRight + tooltipWidth <= window.innerWidth - margin &&
-            topCentered >= margin &&
-            topCentered + tooltipHeight <= window.innerHeight - margin) {
-            top = topCentered;
-            left = leftRight;
-            placed = true;
-        }
-    }
-    // Try placement 4: Left
-    if (!placed) {
-        const leftLeft = targetRect.left - tooltipWidth - gap;
-        const topCentered = targetRect.top + (targetRect.height - tooltipHeight) / 2;
-        if (leftLeft >= margin &&
-            topCentered >= margin &&
-            topCentered + tooltipHeight <= window.innerHeight - margin) {
-            top = topCentered;
-            left = leftLeft;
-            placed = true;
-        }
-    }
-    // Fallback: Default to Above or Below (whichever has more space), and clamp both coordinates to viewport
-    if (!placed) {
-        // If target is in the upper half of viewport, place below; otherwise place above
-        if (targetRect.top + targetRect.height / 2 < window.innerHeight / 2) {
-            top = targetRect.bottom + gap;
+    const gap = 10;
+    const margin = 10;
+    // Primary preference: Right side of the target element, aligned with target top
+    let left = targetRect.right + gap;
+    let top = targetRect.top;
+    // If placing to the right overflows the viewport boundary
+    if (left + tooltipWidth > window.innerWidth - margin) {
+        // Try placing to the left of the target element
+        const leftOnLeft = targetRect.left - tooltipWidth - gap;
+        if (leftOnLeft >= margin) {
+            left = leftOnLeft;
         }
         else {
-            top = targetRect.top - tooltipHeight - gap;
+            // Clamp to right edge of screen if left side also overflows
+            left = window.innerWidth - tooltipWidth - margin;
         }
-        left = leftCentered;
-        // Clamp to keep fully inside viewport
-        top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
-        left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
     }
+    // Ensure left is at least margin
+    left = Math.max(margin, left);
+    // Smart boundary clamp for vertical axis so top/bottom never clips off screen
+    top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
     tooltip.style.top = `${top + window.scrollY}px`;
     tooltip.style.left = `${left + window.scrollX}px`;
 }
@@ -196,7 +153,7 @@ function extractRecommendedMod(notes) {
  * @param weaponName The weapon's display name.
  * @param localPerksMap Dictionary of socketed perk info extracted from this weapon.
  */
-export function showTooltip(target, result, weaponName, localPerksMap, activeHashes, isLightGG, sheetWeapon, bestAlternative, isBestInClass, sheetPerks, globalPerkNameToIcon, sheetArmor, equippedMasterwork) {
+export function showTooltip(target, result, weaponName, localPerksMap, activeHashes, isLightGG, sheetWeapon, bestAlternative, isBestInClass, sheetPerks, globalPerkNameToIcon, sheetArmor, equippedMasterwork, aegisMode) {
     const tooltip = getOrCreateTooltip();
     const isLightGGMode = !!isLightGG;
     if (sheetArmor) {
@@ -358,12 +315,34 @@ export function showTooltip(target, result, weaponName, localPerksMap, activeHas
         </div>
       `;
         }
-        if (sheetWeapon.notes || recsHtml) {
+        if (sheetWeapon.notes || sheetWeapon.description || recsHtml || sheetWeapon.exoticViability) {
+            const sectionTitle = aegisMode === 'pvp' ? 'Finnald PvP Meta Analysis' : 'Aegis Meta Analysis';
+            const viabilityHtml = sheetWeapon.exoticViability ? renderViabilityMatrix(sheetWeapon.exoticViability, aegisMode) : '';
+            let analysisBlock = '';
+            if (sheetWeapon.notes) {
+                analysisBlock = `
+          <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #ebcb8b; border-radius: 0 6px 6px 0; padding: 6px 9px;">
+            <div style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Strategic Analysis</div>
+            <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetWeapon.notes)}</div>
+          </div>
+        `;
+            }
+            let mechanicsBlock = '';
+            if (sheetWeapon.description) {
+                mechanicsBlock = `
+          <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #88c0d0; border-radius: 0 6px 6px 0; padding: 6px 9px;">
+            <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Exotic Mechanics</div>
+            <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetWeapon.description)}</div>
+          </div>
+        `;
+            }
             sheetBodyHtml = `
         <div class="aegis-tooltip-section aegis-meta-section">
-          <div class="aegis-tooltip-section-title">Aegis Meta Analysis</div>
+          <div class="aegis-tooltip-section-title">${sectionTitle}</div>
           ${recsHtml}
-          ${sheetWeapon.notes ? `<div class="aegis-tooltip-meta-note">${sheetWeapon.notes}</div>` : ''}
+          ${viabilityHtml}
+          ${analysisBlock}
+          ${mechanicsBlock}
         </div>
       `;
         }
@@ -374,11 +353,62 @@ export function showTooltip(target, result, weaponName, localPerksMap, activeHas
         recsRowHtml += `<span class="aegis-mod-badge" title="Recommended Weapon Mod">Mod: ${recMod}</span>`;
         recsRowHtml += '</div>';
     }
+    let elementBadgeHtml = '';
+    let stunBadgeHtml = '';
+    if (sheetWeapon) {
+        const energy = getWeaponEnergy(sheetWeapon);
+        if (energy) {
+            const lowerEnergy = energy.toLowerCase();
+            let iconUrl = '';
+            if (lowerEnergy.includes('solar')) {
+                iconUrl = ELEMENT_ICONS.solar;
+            }
+            else if (lowerEnergy.includes('arc')) {
+                iconUrl = ELEMENT_ICONS.arc;
+            }
+            else if (lowerEnergy.includes('void')) {
+                iconUrl = ELEMENT_ICONS.void;
+            }
+            else if (lowerEnergy.includes('stasis')) {
+                iconUrl = ELEMENT_ICONS.stasis;
+            }
+            else if (lowerEnergy.includes('strand')) {
+                iconUrl = ELEMENT_ICONS.strand;
+            }
+            else if (lowerEnergy.includes('kinetic')) {
+                iconUrl = ELEMENT_ICONS.kinetic;
+            }
+            if (iconUrl) {
+                elementBadgeHtml = `<img src="${iconUrl}" title="${energy} Damage" alt="${energy}" style="width: 17px; height: 17px; object-fit: contain; vertical-align: middle; display: inline-block;" />`;
+            }
+        }
+        const stunVal = getWeaponStun(sheetWeapon);
+        if (stunVal) {
+            const lowerStun = stunVal.toLowerCase();
+            const stunImgs = [];
+            if (lowerStun.includes('barrier')) {
+                stunImgs.push(`<img src="${STUN_ICONS.barrier}" title="Anti-Barrier" alt="Barrier" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle; display: inline-block;" />`);
+            }
+            if (lowerStun.includes('overload')) {
+                stunImgs.push(`<img src="${STUN_ICONS.overload}" title="Overload" alt="Overload" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle; display: inline-block;" />`);
+            }
+            if (lowerStun.includes('unstoppable')) {
+                stunImgs.push(`<img src="${STUN_ICONS.unstoppable}" title="Unstoppable" alt="Unstoppable" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle; display: inline-block;" />`);
+            }
+            if (stunImgs.length > 0) {
+                stunBadgeHtml = `<span style="display: inline-flex; align-items: center; gap: 3px;" title="${stunVal}">${stunImgs.join('')}</span>`;
+            }
+        }
+    }
     // Assemble premium HTML content
     let html = `
     <div class="aegis-tooltip-header">
-      <div class="aegis-tooltip-title-row">
-        <span class="aegis-tooltip-weapon-name">${weaponName}</span>
+      <div class="aegis-tooltip-title-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+          <span class="aegis-tooltip-weapon-name">${weaponName}</span>
+          ${elementBadgeHtml}
+          ${stunBadgeHtml}
+        </div>
         <span class="aegis-tooltip-grade ${gradeClass}">${result.grade}</span>
       </div>
       ${tagsHtml}
@@ -590,4 +620,548 @@ export function hideTooltip() {
     if (tooltipEl) {
         tooltipEl.classList.add('hidden');
     }
+}
+export function formatFormattedNotes(text) {
+    if (!text)
+        return '';
+    const normalized = text.replace(/\r\n|\r/g, '\n').replace(/;\s*(?=[A-Z0-9])/g, '\n');
+    const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length > 1) {
+        const listItems = lines.map(line => {
+            const cleanLine = line.replace(/^[•\-\*]\s*/, '');
+            return `<li style="margin-bottom: 3px; line-height: 1.5;">${highlightKeyTerms(cleanLine)}</li>`;
+        }).join('');
+        return `<ul style="margin: 3px 0 0 0; padding-left: 14px; list-style-type: disc;">${listItems}</ul>`;
+    }
+    return highlightKeyTerms(text);
+}
+// Static Bungie CDN Icon URLs
+const ELEMENT_ICONS = {
+    strand: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_b2fe51a94f3533f97079dfa0d27a4096.png',
+    stasis: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_530c4c3e7981dc2aefd24fd3293482bf.png',
+    solar: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_2a1773e10968f2d088b97c22b22bba9e.png',
+    void: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_ceb2f6197dccf3958bb31cc783eb97a0.png',
+    arc: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_092d066688b879c807c3b460afdd61e6.png',
+    kinetic: 'https://www.bungie.net/common/destiny2_content/icons/DestinyDamageTypeDefinition_3385a924fd3ccb92c343ade19f19a370.png',
+};
+const STUN_ICONS = {
+    barrier: 'https://www.bungie.net/common/destiny2_content/icons/DestinyBreakerTypeDefinition_07b9ba0194e85e46b258b04783e93d5d.png',
+    overload: 'https://www.bungie.net/common/destiny2_content/icons/DestinyBreakerTypeDefinition_da558352b624d799cf50de14d7cb9565.png',
+    unstoppable: 'https://www.bungie.net/common/destiny2_content/icons/DestinyBreakerTypeDefinition_825a438c85404efd6472ff9e97fc7251.png',
+};
+// Pre-compiled RegExp patterns for zero-latency key term highlighting
+const NUMBER_PATTERN = /\b(\+?-?\d+(?:\.\d+)?%?x?s?m?|(?:\d+\/\d+(?:\/\d+)?))\b/gi;
+const CHAMP_TERMS = ['barrier', 'anti-barrier', 'overload', 'unstoppable', 'stun', 'stuns', 'stagger'];
+const CHAMP_PATTERN = new RegExp(`\\b(${CHAMP_TERMS.join('|')})\\b`, 'gi');
+const SOLAR_TERMS = ['solar', 'scorch', 'scorching', 'scorched', 'ignite', 'ignites', 'igniting', 'ignition', 'ignitions', 'cure', 'restoration', 'radiant', 'firesprite', 'firesprites'];
+const SOLAR_PATTERN = new RegExp(`\\b(${SOLAR_TERMS.join('|')})\\b`, 'gi');
+const ARC_TERMS = ['arc', 'jolt', 'jolts', 'jolting', 'jolt-debuffed', 'blind', 'blinds', 'blinding', 'amplified', 'ionic trace', 'ionic traces', 'bolt charge', 'bolt charges', 'chain lightning', 'speed booster'];
+const ARC_PATTERN = new RegExp(`\\b(${ARC_TERMS.join('|')})\\b`, 'gi');
+const VOID_TERMS = ['void', 'weaken', 'weakened', 'weakening', 'suppress', 'suppressed', 'suppressing', 'suppression', 'volatile', 'volatile rounds', 'devour', 'void overshield', 'invisibility', 'invisible', 'void breach', 'void breaches', 'truesight', 'blight'];
+const VOID_PATTERN = new RegExp(`\\b(${VOID_TERMS.join('|')})\\b`, 'gi');
+const STASIS_TERMS = ['stasis', 'slow', 'slowed', 'slowing', 'freeze', 'freezes', 'frozen', 'freezing', 'shatter', 'shatters', 'shattering', 'frost armor', 'stasis shard', 'stasis shards', 'stasis crystal', 'stasis crystals', 'stasis-debuffed'];
+const STASIS_PATTERN = new RegExp(`\\b(${STASIS_TERMS.join('|')})\\b`, 'gi');
+const STRAND_TERMS = ['strand', 'suspend', 'suspended', 'suspending', 'unravel', 'unravels', 'unraveling', 'unraveling rounds', 'sever', 'severed', 'severing', 'woven mail', 'tangle', 'tangles', 'threadling', 'threadlings'];
+const STRAND_PATTERN = new RegExp(`\\b(${STRAND_TERMS.join('|')})\\b`, 'gi');
+const PRISM_TERMS = ['prismatic', 'transcendence', 'transcendent', 'transcendance'];
+const PRISM_PATTERN = new RegExp(`\\b(${PRISM_TERMS.join('|')})\\b`, 'gi');
+const KINETIC_TERMS = ['kinetic', 'kinetics', 'kinetic tremors', 'kinetic damage', 'kinetic weapon', 'kinetic weapons', 'kinetic synthesis', 'kinetic blinding blast', 'kinetic blast'];
+const KINETIC_PATTERN = new RegExp(`\\b(${KINETIC_TERMS.join('|')})\\b`, 'gi');
+const FRAME_TERMS = [
+    'high-impact frame', 'precision frame', 'adaptive frame', 'lightweight frame', 'rapid-fire frame',
+    'aggressive frame', 'aggressive burst', 'rocket-assisted sidearm', 'rocket-assisted', 'support frame auto rifle',
+    'support frame', 'micro-missile', 'wave frame', 'caster frame', 'vortex frame', 'heavy burst', 'double-fire',
+    'aggressive glaive', 'lightweight glaive',
+    'radiolaria transposer', 'radiolaria', 'nanotech integration', 'noble rounds', 'soul devourer',
+    'wolfpack rounds', 'markov chain', 'bayonet', 'cursed thrall', 'bolt charge', 'bolt charges',
+    'overcharge', 'overcharged', 'ricochet', 'ricocheting', 'dot', 'dps', 'add clear', 'supers', 'super', 'well', 'wells', 'ttk', 'time to kill',
+    // Comprehensive Perks List from Aegis Perks Tab
+    'adagio', 'adaptive munitions', 'adhesive ordnance', 'adrenaline junkie', 'aggregate charge', 'air assault',
+    'air trigger', 'all-star', 'ambitious assassin', 'ancillary ordinance', "archer's gambit", "archer's tempo",
+    "assassin's blade", 'attrition orbs', 'auto-loading holster', 'backup plan', 'bait and switch',
+    'barrel constrictor', 'beacon rounds', 'bewildering burst', 'binary orbit', 'bipod', 'blast distributor',
+    'blunt execution rounds', 'bolt scavenger', 'bottomless grief', 'box breathing', 'built to blast',
+    'burning ambition', 'butterfly', 'cascade point', 'celerity', 'chain reaction', 'chaos reshaped',
+    'chill clip', 'circle of life', 'close to melee', 'closing time', 'clown cartridge', 'cluster bomb',
+    'cold steel', 'collective action', 'collective demolition', 'collective pugilism', 'compulsive reloader',
+    'controlled burst', 'cooling baubles', 'cornered', 'counterattack', 'crystalline corpsebloom',
+    'danger zone', 'deconstruct', 'delicate tuning', 'demolitionist', 'demoralize', 'desperado',
+    'desperate measures', 'destabilizing rounds', 'detonator beam', 'dimensional shift', 'discord',
+    'disruption break', 'dragonfly', 'dual loader', "duelist's trance", 'dynamic sway reduction',
+    'eager edge', 'eddy current', 'elemental capacitor', 'elemental honing', 'en garde', 'encore',
+    'energy transfer', 'enlightened action', 'ensemble', 'envious arsenal', 'envious assassin',
+    'explosive head', 'explosive light', 'explosive payload', 'eye of the storm', 'feeding frenzy',
+    'field prep', 'firefly', 'firing line', 'firmly planted', 'flash counter', 'focused fury',
+    "fourth time's the charm", 'fragile focus', 'frenzy', 'full auto trigger system', 'full court',
+    'gear shift', 'genesis', 'golden tricorn', 'grave robber', 'gutshot straight', 'harmony',
+    'hatchling', 'headseeker', 'headstone', 'heal clip', 'heating up', 'high ground', 'high-impact reserves',
+    'hip-fire grip', 'immovable object', 'impromptu ammunition', 'impulse amplifier', 'incandescent',
+    'invisible hand', 'iron gaze', 'iron grip', 'iron reach', 'jolting feedback', 'keep away', 'kickstart',
+    'kill clip', 'killing tally', 'killing wind', 'kinetic tremors', 'lasting impression', 'lead from gold',
+    'lead from light', 'light touch', 'lone wolf', 'loose change', 'lucky shot', 'magnificent howl',
+    'master of arms', 'mega kill clip', 'meganeura', 'melee momentum', 'moving target', 'mulligan',
+    'multikill clip', 'no distractions', 'offhand strike', 'one for all', 'one-two punch', 'onslaught',
+    'opening shot', 'osmosis', 'outlaw', 'overflow', 'paracausal affinity', 'perfect float', 'permeability',
+    'perpetual motion', 'physic', 'precision instrument', 'proximity power', 'pugilist', 'pulse monitor',
+    'quickdraw', 'rampage', 'rangefinder', 'rapid hit', "reaper's tithe", 'reciprocity', 'recombination',
+    'reconstruction', 'recycled energy', 'redirection', 'relentless strikes', 'replenishing aegis',
+    'repulsor brace', 'reservoir burst', 'reverberation', 'reversal of fortune', 'rewind rounds',
+    'rimestealer', 'rolling storm', 'sharp harvest', 'shattering blade', 'shield disorient', 'shoot to loot',
+    'shot swap', 'sleight of hand', 'slice', 'slickdraw', 'slideshot', 'slideways', 'snapshot sights',
+    'sneak bow', 'stats for all', 'steady hands', 'stopping power', 'strategist', 'subsistence',
+    'successful warm-up', 'supercharged magazine', 'surplus', 'surrounded', 'swashbuckler', 'sword logic',
+    'sympathetic arsenal', 'tap the trigger', 'target lock', 'tear', 'thermal atomization', 'threat detector',
+    'threat remover', 'thresh', 'tilting at windmills', 'timed payload', 'tireless blade', 'to the pain',
+    'tracking module', 'transcendent moment', 'trench barrel', 'trickle charge', 'triple tap',
+    'tunnel vision', 'turnabout', 'under pressure', 'under-over', 'unrelenting', 'unstoppable force',
+    'valiant charge', 'voltshot', 'vorpal weapon', 'well-rounded', 'wellspring', 'whirlwind blade',
+    'withering gaze', 'zen moment',
+    // Origin Traits
+    'tex balanced stock', 'bray inherited', 'veist stinger', 'hakke breach armaments', 'omolon fluid dynamics',
+    'suros synergy', 'nadir focus', "gunner's right", 'field-tested', 'restoration protocol', "vanguard's vindication",
+    'crucible peacemaker', 'alacrity', 'one quiet moment', 'ambush', 'extrovert', 'classy contender', 'hot-swap',
+    'land tank', 'psychohack', 'soul drinker', 'to the vanguard', 'runneth over', 'right choice', 'bitterspite',
+    'indomitable', 'noble deeds', 'wildcard', 'cast-off', 'crossing over', "dragon's vengeance", 'stratified',
+    'dark ether reap'
+];
+const FRAME_PERK_PATTERN = new RegExp(`\\b(${FRAME_TERMS.join('|')})\\b`, 'gi');
+export function highlightKeyTerms(text) {
+    if (!text)
+        return '';
+    return text
+        .replace(NUMBER_PATTERN, (match) => `<span style="font-weight: 700; color: #4ade80;">${match}</span>`)
+        .replace(CHAMP_PATTERN, (match) => `<span style="font-weight: 700; color: #f59e0b;">${match}</span>`)
+        .replace(SOLAR_PATTERN, (match) => `<span style="font-weight: 700; color: #f97316;">${match}</span>`)
+        .replace(ARC_PATTERN, (match) => `<span style="font-weight: 700; color: #06b6d4;">${match}</span>`)
+        .replace(VOID_PATTERN, (match) => `<span style="font-weight: 700; color: #c084fc;">${match}</span>`)
+        .replace(STASIS_PATTERN, (match) => `<span style="font-weight: 700; color: #38bdf8;">${match}</span>`)
+        .replace(STRAND_PATTERN, (match) => `<span style="font-weight: 700; color: #10b981;">${match}</span>`)
+        .replace(PRISM_PATTERN, (match) => `<span style="font-weight: 700; color: #f43f5e;">${match}</span>`)
+        .replace(KINETIC_PATTERN, (match) => `<span style="font-weight: 700; color: #f8fafc;">${match}</span>`)
+        .replace(FRAME_PERK_PATTERN, (match) => `<span style="font-weight: 700; color: #ffd700;">${match}</span>`);
+}
+function formatViabilityBadge(rawSymbol) {
+    const sym = (rawSymbol || '').trim();
+    if (sym.includes('✔')) {
+        return { label: '✔ Optimal', color: '#10b981' };
+    }
+    if (sym.includes('▲')) {
+        return { label: '▲ Viable', color: '#38bdf8' };
+    }
+    if (sym.includes('!')) {
+        return { label: '! Situational', color: '#fbbf24' };
+    }
+    if (sym.includes('✖') || sym.includes('x') || sym.includes('X')) {
+        return { label: '✖ Wasted', color: '#f87171' };
+    }
+    return { label: sym || '—', color: '#94a3b8' };
+}
+export function renderViabilityMatrix(viability, aegisMode) {
+    const isPvP = aegisMode === 'pvp' || (viability.trials || viability.comp || viability.quickplay || viability.vsDr || viability.duel);
+    const activities = isPvP ? [
+        { name: 'Trials', symbol: viability.trials },
+        { name: 'Comp', symbol: viability.comp },
+        { name: 'QP', symbol: viability.quickplay },
+        { name: 'vs DR', symbol: viability.vsDr },
+        { name: 'Duel', symbol: viability.duel },
+    ] : [
+        { name: 'Roam', symbol: viability.roam },
+        { name: 'DPS', symbol: viability.dps },
+        { name: 'Chall', symbol: viability.chall },
+        { name: 'Speed', symbol: viability.speed },
+    ];
+    const validActivities = activities.filter(a => a.symbol);
+    if (validActivities.length === 0)
+        return '';
+    const itemsHtml = validActivities.map((act) => {
+        const badge = formatViabilityBadge(act.symbol);
+        return `
+      <div style="display: flex; align-items: center; gap: 3px; font-family: sans-serif; font-size: 10px;">
+        <span style="color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.2px;">${act.name}:</span>
+        <span style="font-weight: 800; color: ${badge.color};">${badge.label}</span>
+      </div>
+    `;
+    }).join('<span style="color: rgba(255, 255, 255, 0.15); font-size: 10px;">|</span>');
+    return `
+    <div class="aegis-unified-viability-bar" style="display: flex; align-items: center; justify-content: space-between; background: rgba(0, 0, 0, 0.25); padding: 5px 8px; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.08); margin-top: 5px; flex-wrap: wrap; gap: 4px;">
+      ${itemsHtml}
+    </div>
+  `;
+}
+// Master Exotic Weapon Champion Breaker Stun Registry (Top-Level Scope)
+const EXOTIC_STUN_MAP = {
+    // Anti-Barrier Exotics
+    'turncoat': 'Barrier',
+    'whirling ovation': 'Barrier',
+    'third iteration': 'Barrier',
+    'new land beyond': 'Barrier',
+    'ice breaker': 'Barrier',
+    'still hunt': 'Barrier',
+    'khvostov 7g-0x': 'Barrier',
+    'khvostov': 'Barrier',
+    'microcosm': 'Barrier',
+    'micro-cosmos': 'Barrier',
+    'euphony': 'Barrier',
+    'buried bloodline': 'Barrier',
+    'deterministic chaos': 'Barrier',
+    'revision zero': 'Barrier',
+    'trespasser': 'Barrier',
+    'edge of action': 'Barrier',
+    'parasite': 'Barrier',
+    'collective obligation': 'Barrier',
+    'lorentz driver': 'Barrier',
+    'gjallarhorn': 'Barrier',
+    'vex mythoclast': 'Barrier',
+    "dead man's tale": 'Barrier',
+    'hawkmoon': 'Barrier',
+    'no time to explain': 'Barrier',
+    'cloudstrike': 'Barrier',
+    'the lament': 'Barrier',
+    "eriana's vow": 'Barrier',
+    'tarrabah': 'Barrier',
+    'arbalest': 'Barrier',
+    'thorn': 'Barrier',
+    "izanagi's burden": 'Barrier',
+    'ace of spades': 'Barrier',
+    'wish-ender': 'Barrier',
+    'the chaperone': 'Barrier',
+    'polaris lance': 'Barrier',
+    'sleeper simulant': 'Barrier',
+    'suros regime': 'Barrier',
+    'the huckleberry': 'Barrier',
+    'whisper of the worm': 'Barrier',
+    'borealis': 'Barrier',
+    'coldheart': 'Barrier',
+    'graviton lance': 'Barrier',
+    'mida multi-tool': 'Barrier',
+    'rat king': 'Barrier',
+    "skyburner's oath": 'Barrier',
+    'touch of malice': 'Barrier',
+    // Overload Exotics
+    'service of luzaku': 'Overload',
+    'graviton spike': 'Overload',
+    'barrow-dyad': 'Overload',
+    'lodestar': 'Overload',
+    "slayer's fang": 'Overload',
+    'choir of one': 'Overload',
+    'ergo sum': 'Overload',
+    'necrochasm': 'Overload',
+    'the navigator': 'Overload',
+    'centrifuse': 'Overload',
+    'wicked implement': 'Overload',
+    'vexcalibur': 'Overload',
+    'final warning': 'Overload',
+    'the manticore': 'Overload',
+    'delicate tomb': 'Overload',
+    'heartshadow': 'Overload',
+    'edge of concurrence': 'Overload',
+    'osteo striga': 'Overload',
+    "ager's scepter": 'Overload',
+    "salvation's grip": 'Overload',
+    "traveler's chosen": 'Overload',
+    'witherhoard': 'Overload',
+    "tommy's matchbook": 'Overload',
+    'heir apparent': 'Overload',
+    'symmetry': 'Overload',
+    'deathbringer': 'Overload',
+    'divinity': 'Overload',
+    'lumina': 'Overload',
+    'outbreak perfected': 'Overload',
+    'anarchy': 'Overload',
+    'le monarque': 'Overload',
+    'black talon': 'Overload',
+    'cerberus+1': 'Overload',
+    'thunderlord': 'Overload',
+    'trinity ghoul': 'Overload',
+    'two-tailed fox': 'Overload',
+    'wavesplitter': 'Overload',
+    'prometheus lens': 'Overload',
+    'telesto': 'Overload',
+    'the colony': 'Overload',
+    'd.a.r.c.i.': 'Overload',
+    'darci': 'Overload',
+    'hard light': 'Overload',
+    'riskrunner': 'Overload',
+    'sweet business': 'Overload',
+    'tractor cannon': 'Overload',
+    'legend of acrius': 'Overload',
+    // Unstoppable Exotics
+    'praxic blade': 'Unstoppable',
+    "cull's shadow": 'Unstoppable',
+    'fafnir': 'Unstoppable',
+    'heirloom': 'Unstoppable',
+    'wolfsbane': 'Unstoppable',
+    'new malpais': 'Unstoppable',
+    "finality's auger": 'Unstoppable',
+    'alethonym': 'Unstoppable',
+    'red death reformed': 'Unstoppable',
+    'red death': 'Unstoppable',
+    'wish-keeper': 'Unstoppable',
+    "dragon's breath": 'Unstoppable',
+    'tessellation': 'Unstoppable',
+    'ex diris': 'Unstoppable',
+    'winterbite': 'Unstoppable',
+    'conditional finality': 'Unstoppable',
+    'verglas curve': 'Unstoppable',
+    'hierarchy of needs': 'Unstoppable',
+    'quicksilver storm': 'Unstoppable',
+    'edge of intent': 'Unstoppable',
+    'dead messenger': 'Unstoppable',
+    'grand overture': 'Unstoppable',
+    'forerunner': 'Unstoppable',
+    'cryosthesia 77k': 'Unstoppable',
+    "ticuu's divination": 'Unstoppable',
+    'duality': 'Unstoppable',
+    'eyes of tomorrow': 'Unstoppable',
+    'ruinous effigy': 'Unstoppable',
+    'the fourth horseman': 'Unstoppable',
+    'bastion': 'Unstoppable',
+    "devil's ruin": 'Unstoppable',
+    "leviathan's breath": 'Unstoppable',
+    'monte carlo': 'Unstoppable',
+    'xenophage': 'Unstoppable',
+    'truth': 'Unstoppable',
+    'bad juju': 'Unstoppable',
+    'the last word': 'Unstoppable',
+    'jotunn': 'Unstoppable',
+    'jötunn': 'Unstoppable',
+    'lord of wolves': 'Unstoppable',
+    'the queenbreaker': 'Unstoppable',
+    'malfeasance': 'Unstoppable',
+    'one thousand voices': 'Unstoppable',
+    '1000 voices': 'Unstoppable',
+    'worldline zero': 'Unstoppable',
+    'the jade rabbit': 'Unstoppable',
+    'crimson': 'Unstoppable',
+    'fighting lion': 'Unstoppable',
+    'merciless': 'Unstoppable',
+    'sturm': 'Unstoppable',
+    'sunshot': 'Unstoppable',
+    'the prospector': 'Unstoppable',
+    'the wardcliff coil': 'Unstoppable',
+    'vigilance wing': 'Unstoppable',
+};
+// Master Exotic Weapon Damage Type Registry (Top-Level Scope)
+const EXOTIC_ENERGY_MAP = {
+    // Kinetic Exotics
+    'sweet business': 'Kinetic',
+    'monte carlo': 'Kinetic',
+    'suros regime': 'Kinetic',
+    'cerberus+1': 'Kinetic',
+    'khvostov': 'Kinetic',
+    'sturm': 'Kinetic',
+    'ace of spades': 'Kinetic',
+    'crimson': 'Kinetic',
+    'the last word': 'Kinetic',
+    'thorn': 'Kinetic',
+    'malfeasance': 'Kinetic',
+    'hawkmoon': 'Kinetic',
+    'lumina': 'Kinetic',
+    'turncoat': 'Kinetic',
+    'vigilance wing': 'Kinetic',
+    'bad juju': 'Kinetic',
+    'outbreak perfected': 'Kinetic',
+    'no time to explain': 'Kinetic',
+    'revision zero': 'Kinetic',
+    'red death': 'Kinetic',
+    'mida multi-tool': 'Kinetic',
+    'the jade rabbit': 'Kinetic',
+    "dead man's tale": 'Kinetic',
+    'touch of malice': 'Kinetic',
+    'the huckleberry': 'Kinetic',
+    'osteo striga': 'Kinetic',
+    'rat king': 'Kinetic',
+    "traveler's chosen": 'Kinetic',
+    'forerunner': 'Kinetic',
+    'wish-ender': 'Kinetic',
+    'the chaperone': 'Kinetic',
+    'bastion': 'Kinetic',
+    "izanagi's burden": 'Kinetic',
+    'witherhoard': 'Kinetic',
+    'fighting lion': 'Kinetic',
+    'arbalest': 'Kinetic',
+    'microcosm': 'Kinetic',
+    'micro-cosmos': 'Kinetic',
+    // Solar Exotics
+    "tommy's matchbook": 'Solar',
+    'sunshot': 'Solar',
+    "eriana's vow": 'Solar',
+    'graviton spike': 'Solar',
+    'polaris lance': 'Solar',
+    "devil's ruin": 'Solar',
+    "ticuu's divination": 'Solar',
+    'hierarchy of needs': 'Solar',
+    'lord of wolves': 'Solar',
+    'duality': 'Solar',
+    'jotunn': 'Solar',
+    'jötunn': 'Solar',
+    'merciless': 'Solar',
+    'vex mythoclast': 'Solar',
+    'one thousand voices': 'Solar',
+    '1000 voices': 'Solar',
+    "finality's auger": 'Solar',
+    'whisper of the worm': 'Solar',
+    'still hunt': 'Solar',
+    'ice breaker': 'Solar',
+    'the prospector': 'Solar',
+    'parasite': 'Solar',
+    'gjallarhorn': 'Solar',
+    "dragon's breath": 'Solar',
+    'eyes of tomorrow': 'Solar',
+    'whirling ovation': 'Solar',
+    'sleeper simulant': 'Solar',
+    'xenophage': 'Solar',
+    'heir apparent': 'Solar',
+    'the lament': 'Solar',
+    'praxic blade': 'Solar',
+    // Arc Exotics
+    'centrifuse': 'Arc',
+    'riskrunner': 'Arc',
+    'tarrabah': 'Solar',
+    'lodestar': 'Arc',
+    'trespasser': 'Arc',
+    'trinity ghoul': 'Arc',
+    'the fourth horseman': 'Arc',
+    'legend of acrius': 'Arc',
+    'delicate tomb': 'Arc',
+    'cloudstrike': 'Arc',
+    'd.a.r.c.i.': 'Arc',
+    'darci': 'Arc',
+    'coldheart': 'Arc',
+    'thunderlord': 'Arc',
+    'grand overture': 'Arc',
+    'the wardcliff coil': 'Arc',
+    'worldline zero': 'Arc',
+    // Void Exotics
+    'hard light': 'Void',
+    'collective obligation': 'Void',
+    'graviton lance': 'Void',
+    'the manticore': 'Void',
+    'buried bloodline': 'Void',
+    'telesto': 'Void',
+    'vexcalibur': 'Void',
+    'lorentz driver': 'Void',
+    'wavesplitter': 'Void',
+    'ruinous effigy': 'Void',
+    'choir of one': 'Void',
+    'the colony': 'Void',
+    'dead messenger': 'Void',
+    'alethonym': 'Void',
+    'deathbringer': 'Void',
+    'truth': 'Void',
+    'deterministic chaos': 'Void',
+    'black talon': 'Void',
+    'heartshadow': 'Void',
+    // Stasis Exotics
+    'cryosthesia 77k': 'Stasis',
+    'wicked implement': 'Stasis',
+    'verglas curve': 'Stasis',
+    'conditional finality': 'Stasis',
+    'winterbite': 'Stasis',
+    "salvation's grip": 'Stasis',
+    'new land beyond': 'Stasis',
+    'borealis': 'Stasis',
+    // Strand Exotics
+    'quicksilver storm': 'Strand',
+    "slayer's fang": 'Strand',
+    'final warning': 'Strand',
+    'wish-keeper': 'Strand',
+    'tessellation': 'Strand',
+    'euphony': 'Strand',
+    'the navigator': 'Strand',
+    'barrow-dyad': 'Strand',
+};
+export function getWeaponStun(sheetWeapon) {
+    if (!sheetWeapon)
+        return '';
+    // 1. Direct Aegis Stun Column (if non-empty string exported)
+    if (sheetWeapon.stun && sheetWeapon.stun.trim()) {
+        return sheetWeapon.stun;
+    }
+    if (sheetWeapon.exoticViability?.stun && sheetWeapon.exoticViability.stun.trim()) {
+        return sheetWeapon.exoticViability.stun;
+    }
+    const nameLower = (sheetWeapon.name || '').toLowerCase().trim();
+    // 2. High-Performance O(1) Exotic Stun Map Lookup
+    if (EXOTIC_STUN_MAP[nameLower]) {
+        return EXOTIC_STUN_MAP[nameLower];
+    }
+    // Fallback substring matching for name variants
+    for (const [exoticKey, stunType] of Object.entries(EXOTIC_STUN_MAP)) {
+        if (nameLower.includes(exoticKey)) {
+            return stunType;
+        }
+    }
+    // 3. Explicit stun in origin trait
+    if (sheetWeapon.origin && /barrier|overload|unstoppable/i.test(sheetWeapon.origin)) {
+        return sheetWeapon.origin;
+    }
+    // 4. Archetype Frame & Description Keyword matching for all 140+ Exotic & Legendary weapons
+    const frameLower = `${sheetWeapon.frame || ''} ${sheetWeapon.notes || ''} ${sheetWeapon.description || ''} ${sheetWeapon.energy || ''}`.toLowerCase();
+    // Specialized archetype overrides
+    if (frameLower.includes('support'))
+        return 'Overload';
+    if (frameLower.includes('adaptive burst'))
+        return 'Barrier';
+    if (frameLower.includes('area denial'))
+        return 'Overload';
+    if (frameLower.includes('double fire') || frameLower.includes('double-fire'))
+        return 'Unstoppable';
+    if (frameLower.includes('micro-missile') || frameLower.includes('micro missile'))
+        return 'Unstoppable';
+    if (frameLower.includes('wave'))
+        return 'Unstoppable';
+    if (frameLower.includes('compressed wave'))
+        return 'Unstoppable';
+    if (frameLower.includes('heavy burst'))
+        return 'Unstoppable';
+    if (frameLower.includes('spread shot'))
+        return 'Overload';
+    if (frameLower.includes('aggressive burst'))
+        return 'Unstoppable';
+    if (frameLower.includes('legacy pr-55') || frameLower.includes('pr-55'))
+        return 'Barrier';
+    if (frameLower.includes('rocket-assisted'))
+        return 'Unstoppable';
+    if (frameLower.includes('disruption'))
+        return 'Barrier';
+    if (frameLower.includes('caster'))
+        return 'Barrier';
+    if (frameLower.includes('vortex'))
+        return 'Overload';
+    if (frameLower.includes('heat'))
+        return 'Overload';
+    // General primary & special frames
+    if (frameLower.includes('aggressive'))
+        return 'Unstoppable';
+    if (frameLower.includes('high-impact') || frameLower.includes('high impact'))
+        return 'Unstoppable';
+    if (frameLower.includes('precision'))
+        return 'Barrier';
+    if (frameLower.includes('adaptive'))
+        return 'Barrier';
+    if (frameLower.includes('lightweight'))
+        return 'Overload';
+    if (frameLower.includes('rapid-fire') || frameLower.includes('rapid fire'))
+        return 'Overload';
+    return '';
+}
+export function getWeaponEnergy(sheetWeapon) {
+    if (!sheetWeapon)
+        return '';
+    const rawEnergy = (sheetWeapon.energy || '').trim();
+    if (rawEnergy && /solar|arc|void|stasis|strand|kinetic/i.test(rawEnergy)) {
+        return rawEnergy;
+    }
+    const nameLower = (sheetWeapon.name || '').toLowerCase().trim();
+    // High-Performance O(1) Exotic Energy Map Lookup
+    if (EXOTIC_ENERGY_MAP[nameLower]) {
+        return EXOTIC_ENERGY_MAP[nameLower];
+    }
+    for (const [key, element] of Object.entries(EXOTIC_ENERGY_MAP)) {
+        if (nameLower.includes(key)) {
+            return element;
+        }
+    }
+    return 'Kinetic';
 }
