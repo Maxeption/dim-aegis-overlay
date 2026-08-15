@@ -30,7 +30,7 @@
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
           </svg>
         </a>
-        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.7.0 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
+        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.7.1 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -144,7 +144,7 @@
             <div class="tooltip-divider"></div>
 
             <div class="tooltip-section">
-              <span class="tooltip-section-header" style="color: #bf616a;">⚠️ Spreadsheet Disclaimer</span>
+              <span class="tooltip-section-header" style="color: #bf616a;">Spreadsheet Disclaimer</span>
               <p class="tooltip-desc" style="line-height: 1.45; color: #d8dee9; font-size: 10px;">
                 <strong>Endgame Focus:</strong> These rankings are specifically tailored for high-end PvE activities and should not be treated as a definitive rulebook for every playstyle.
               </p>
@@ -156,7 +156,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span id="update-check-status" style="font-size: 9px; font-weight: 600; text-transform: uppercase;"></span>
-          <span class="version" id="version-text" title="Click to check for updates">v1.7.0</span>
+          <span class="version" id="version-text" title="Click to check for updates">v1.7.1</span>
         </div>
       </div>
     </header>
@@ -164,7 +164,7 @@
     <main class="popup-main">
       <div id="extension-update-banner" class="update-banner hidden">
         <div class="update-banner-content">
-          <span>Update available: Version <strong id="new-version-text">v1.7.0</strong> is ready on GitHub.</span>
+          <span>Update available: Version <strong id="new-version-text">v1.7.1</strong> is ready on GitHub.</span>
           <button id="update-banner-dismiss" type="button" class="dismiss-btn">&times;</button>
         </div>
       </div>
@@ -214,6 +214,14 @@
           <div class="segmented-control" id="aegis-two-tier-segmented">
             <button type="button" data-value="false" class="active">Standard (S, A, B...)</button>
             <button type="button" data-value="true">2-Tier (BS+, SF...)</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Perk Evaluation Basis</label>
+          <div class="segmented-control" id="aegis-grade-display-segmented">
+            <button type="button" data-value="equipped" class="active">Equipped Perks</button>
+            <button type="button" data-value="dual">Dual (F ➔ S+)</button>
+            <button type="button" data-value="potential">Max Potential</button>
           </div>
         </div>
         <div class="input-group">
@@ -314,10 +322,10 @@
     <div class="changelog-modal-card">
       <div class="changelog-modal-header">
         <div class="changelog-badge-row">
-          <span class="changelog-version-tag">v1.7.0</span>
+          <span class="changelog-version-tag">v1.7.1</span>
           <span class="changelog-date-tag">Changelog</span>
         </div>
-        <h2 class="changelog-title">v1.7.0 Release Notes</h2>
+        <h2 class="changelog-title">v1.7.1 Release Notes</h2>
         <button type="button" id="changelog-close-btn" class="changelog-close-x">&times;</button>
       </div>
 
@@ -325,46 +333,19 @@
         
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Finnald's PvP Master List & Settings Toggle</span>
+            <span class="changelog-feature-name">Perk Evaluation Basis & Dual Grade Display (F ➔ S+)</span>
           </div>
           <p class="changelog-feature-desc">
-            Integrated Finnald's Crucible meta rankings, tier placements, and perk recommendations alongside Aegis's PvE data. You can now toggle between <strong>PvE Mode (Aegis)</strong> and <strong>PvP Mode (Finnald)</strong> directly in the extension popup settings menu! <em>(This spreadsheet was recommended to me by a user and since it uses pretty much the same layout as Aegis it was straightforward to add.)</em>
+            Added a popup setting to evaluate weapon perk grades based on currently equipped perks, max potential rank, or both at once (<code>F ➔ S+</code>). <em>(This was requested by KuraTheDog to make vault cleaning and finding upgradeable rolls in your vault much easier without replacing your active equipped rank).</em>
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Exotic Weapon Rankings & Viability Badges</span>
+            <span class="changelog-feature-name">Armor Set Bonus Side Panels & Readability Cleanups</span>
           </div>
           <p class="changelog-feature-desc">
-            Added full exotic weapon tier rankings and viability status badges (<code>✔ Optimal</code>, <code>▲ Viable</code>, <code>! Situational</code>) extracted from Aegis & Finnald spreadsheets. Hover tooltips now display dedicated exotic notes, boss DPS performance, add-clear utility, and archetype synergies for Aegis' side, and trials, comp, quickplay, vs Damage Reduction, and duels for Finnald's side.
-          </p>
-        </div>
-
-        <div class="changelog-feature-card">
-          <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Element & Anti-Champion Logos on All Tooltips</span>
-          </div>
-          <p class="changelog-feature-desc">
-            Added icons next to weapon titles across all Exotic and Legendary weapons.
-          </p>
-        </div>
-
-        <div class="changelog-feature-card">
-          <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Cleaned up descriptions + keyword, number, multiplier and percentage highlighting</span>
-          </div>
-          <p class="changelog-feature-desc">
-            Stat numbers, percentages, multipliers, durations, ranges, ratios, All weapon perks, and elemental verbs feature dedicated color coding. <em>(i tried my best to make the descriptions more informative and readable)</em>. Dense, multi-line paragraphs and semicolon-separated notes are now automatically converted into readable bulleted lists so no more word vomit lol.
-          </p>
-        </div>
-
-        <div class="changelog-feature-card">
-          <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Performance Optimizations</span>
-          </div>
-          <p class="changelog-feature-desc">
-            more performance to make the extension as fast as i can make it.
+            Applied the same description formatting, number highlighting, and readability cleanups to armor set bonus tooltips, and made armor details cards open as side panels next to DIM's item details modal for 100% UI consistency.
           </p>
         </div>
 

@@ -51,6 +51,11 @@
   letter-spacing: -0.2px !important;
 }
 
+.aegis-badge.aegis-badge-dual {
+  border: 1px solid rgba(255, 215, 0, 0.8) !important;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+}
+
 .aegis-badge-upgrade-arrow {
   position: absolute !important;
   top: -4px !important;

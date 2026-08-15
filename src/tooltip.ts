@@ -207,22 +207,22 @@ export function showTooltip(
           <span class="aegis-tooltip-sheet-badge aegis-tier-source" style="background: linear-gradient(135deg, #1abc9c, #16a085) !important;">${sheetArmor.sourceType}</span>
           <span class="aegis-tooltip-sheet-rank">Source: ${sheetArmor.source}</span>
         </div>
-        <div class="aegis-tooltip-section">
-          <div class="aegis-tooltip-section-title">2-Piece Bonus: <strong style="color: #fff;">${sheetArmor.piece2Name}</strong></div>
-          <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 4px;">
+        <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #1abc9c; border-radius: 0 6px 6px 0; padding: 7px 10px; margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">2-Piece Bonus: <strong style="color: #1abc9c;">${sheetArmor.piece2Name}</strong></span>
             <span class="aegis-popup-grade-badge ${piece2Class}" style="flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 10px; color: #fff; line-height: 1.2;">${sheetArmor.piece2Rating}</span>
-            <div class="aegis-tooltip-notes-text" style="margin: 0; line-height: 1.3;">${sheetArmor.piece2Desc}</div>
           </div>
-          ${sheetArmor.piece2Numbers ? `<div class="aegis-armor-bonus-numbers" style="margin-top: 4px; font-size: 10px; color: #88c0d0; background: rgba(136, 192, 208, 0.1); padding: 4px 6px; border-radius: 4px; line-height: 1.2;">${sheetArmor.piece2Numbers}</div>` : ''}
+          <div class="aegis-tooltip-notes-text" style="margin: 0; line-height: 1.45; font-size: 11px; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece2Desc)}</div>
+          ${sheetArmor.piece2Numbers ? `<div class="aegis-armor-bonus-numbers" style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);"><strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong> ${formatFormattedNotes(sheetArmor.piece2Numbers)}</div>` : ''}
         </div>
 
-        <div class="aegis-tooltip-section" style="margin-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 10px;">
-          <div class="aegis-tooltip-section-title">4-Piece Bonus: <strong style="color: #fff;">${sheetArmor.piece4Name}</strong></div>
-          <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 4px;">
+        <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #b48ead; border-radius: 0 6px 6px 0; padding: 7px 10px; margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">4-Piece Bonus: <strong style="color: #b48ead;">${sheetArmor.piece4Name}</strong></span>
             <span class="aegis-popup-grade-badge ${piece4Class}" style="flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 10px; color: #fff; line-height: 1.2;">${sheetArmor.piece4Rating}</span>
-            <div class="aegis-tooltip-notes-text" style="margin: 0; line-height: 1.3;">${sheetArmor.piece4Desc}</div>
           </div>
-          ${sheetArmor.piece4Numbers ? `<div class="aegis-armor-bonus-numbers" style="margin-top: 4px; font-size: 10px; color: #88c0d0; background: rgba(136, 192, 208, 0.1); padding: 4px 6px; border-radius: 4px; line-height: 1.2;">${sheetArmor.piece4Numbers}</div>` : ''}
+          <div class="aegis-tooltip-notes-text" style="margin: 0; line-height: 1.45; font-size: 11px; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece4Desc)}</div>
+          ${sheetArmor.piece4Numbers ? `<div class="aegis-armor-bonus-numbers" style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);"><strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong> ${formatFormattedNotes(sheetArmor.piece4Numbers)}</div>` : ''}
         </div>
       </div>
     `;

@@ -171,6 +171,7 @@ let scoringSource = 'aegis';
 let aegisLayoutSide = 'side';
 let aegisDbMode = 'both';
 let aegisTwoTier = false;
+let aegisGradeDisplayMode: 'equipped' | 'dual' | 'potential' = 'equipped';
 let aegisHoverEnabled = true;
 let aegisArmorSource = 'lowco';
 let aegisMode: 'pve' | 'pvp' = 'pve';
@@ -941,7 +942,7 @@ function scoreSheetWeapon(
 
   if (potIdx > curIdx && selectablePerkNames.length > 0) {
     const perksStr = selectablePerkNames.join(' or ');
-    upgradeAdvice = `💡 Upgrade available: Select ${perksStr} to rank up to ${potentialGrade}!`;
+    upgradeAdvice = `Upgrade available: Select ${perksStr} to rank up to ${potentialGrade}!`;
   }
 
   const finalGrade = currentGrade;
@@ -1243,12 +1244,12 @@ function renderResults() {
           let statusHtml = '';
           let highlightBtnHtml = '';
           if (owned.length === 0) {
-            statusHtml = `<span class="aegis-chase-status aegis-status-none">🔴 Not in Inventory</span>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-none">Not in Inventory</span>`;
           } else if (matches.length > 0) {
-            statusHtml = `<span class="aegis-chase-status aegis-status-match">🟢 Obtained (${matches.length} matching)</span>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-match">Obtained (${matches.length} matching)</span>`;
             highlightBtnHtml = `<button class="aegis-action-btn" data-action="highlight-matching" data-ids="${matches.join(',')}" style="flex: none !important; height: 28px !important; padding: 0 10px !important; font-size: 11px !important; background: rgba(30, 215, 96, 0.08) !important; border: 1px solid rgba(30, 215, 96, 0.25) !important; color: #1ed760 !important; cursor: pointer !important; font-weight: 600 !important; border-radius: 6px !important;">Highlight in Vault</button>`;
           } else {
-            statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">🟡 Have weapon, wrong perks</span>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">Have weapon, wrong perks</span>`;
           }
 
           const baseNameForReport = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
@@ -1499,7 +1500,7 @@ function renderResults() {
       
       const tierLetter = w.tier ? w.tier.charAt(0).toLowerCase() : '';
       const tierClass = `aegis-tier-${tierLetter}`;
-      const rankLabel = w.rank ? (w.rank === '1' ? '👑 Best in Archetype' : `#${w.rank}`) : '-';
+      const rankLabel = w.rank ? (w.rank === '1' ? 'Best in Archetype' : `#${w.rank}`) : '-';
 
       const baseName = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
       const weaponHash = nameToHash[normName] || nameToHash[baseName];
@@ -1818,23 +1819,27 @@ function showWelcomeModal() {
       </div>
       
       <div class="aegis-welcome-slides">
-        <!-- Slide 1: Welcome & Disclaimer -->
+        <!-- Slide 1: Welcome & What's New in v1.7.0 -->
         <div class="aegis-welcome-slide active" data-slide="0">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">Getting Started</span>
-            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 12px;">
+            <span class="tooltip-section-header">Getting Started & What's New in v1.7.1</span>
+            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
               This extension enhances Destiny Item Manager (DIM) by displaying meta spreadsheet weapon rankings, perk accuracy ratings, and custom armor set configurations directly on your items.
             </p>
-            
-            <div class="tooltip-divider" style="margin: 12px 0;"></div>
-            
-            <div class="tooltip-note" style="border: 1px solid rgba(231, 76, 60, 0.4); background: rgba(231, 76, 60, 0.08); padding: 12px; border-radius: 8px; font-size: 11.5px; color: #ff9f9f; line-height: 1.5; margin-bottom: 12px;">
-              <strong>⚠️ DISCLAIMER:</strong> The Aegis database source is primarily a <strong>PvE Endgame spreadsheet</strong>. Some weapons or perk combinations that excel in PvP or casual play may score lower.
+
+            <div style="border: 1px solid rgba(255, 215, 0, 0.3); background: rgba(255, 215, 0, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
+              <div style="font-size: 10px; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>What's New in Release v1.7.1</span>
+              </div>
+              <ul style="font-size: 11px; line-height: 1.45; color: #e5e9f0; margin: 0; padding-left: 16px;">
+                <li><strong>Perk Evaluation Basis & Dual Grade Badges (<span style="color: #ffd700;">F ➔ S+</span>):</strong> Evaluate weapon perk grades based on currently equipped perks, max potential rank, or both at once!</li>
+                <li><strong>Armor Set Bonus Side Panels & Readability Cleanups:</strong> Armor set bonus cards now open as floating side panels next to DIM's item details modal for 100% UI consistency.</li>
+              </ul>
             </div>
             
-            <p class="tooltip-desc" style="font-size: 11.5px; line-height: 1.5; color: #b1b1ba; margin-top: 8px;">
-              Click <strong>Next</strong> to start the quick tour of features, or use the navigation dots below.
-            </p>
+            <div class="tooltip-note" style="border: 1px solid rgba(231, 76, 60, 0.4); background: rgba(231, 76, 60, 0.08); padding: 10px 12px; border-radius: 8px; font-size: 11px; color: #ff9f9f; line-height: 1.45;">
+              <strong>DISCLAIMER:</strong> Sourced from Aegis' Endgame PvE spreadsheet. <u><strong>As of 1.7.0</strong></u> , a PVP spreadsheet was added made by Finnald that can be toggeled in the extension settings.
+            </div>
           </div>
         </div>
 
@@ -1866,11 +1871,11 @@ function showWelcomeModal() {
           </div>
         </div>
 
-        <!-- Slide 3: 2-Tier System -->
+        <!-- Slide 3: 2-Tier System & Dual Grades -->
         <div class="aegis-welcome-slide" data-slide="2">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">2. 2-Tier System (e.g. BS+, SF)</span>
-            <p class="tooltip-desc">Combines weapon meta tier with roll accuracy:</p>
+            <span class="tooltip-section-header">2. Advanced Overlay Modes & Dual Grades</span>
+            <p class="tooltip-desc">Combines weapon archetype tier with roll quality & upgrade potential:</p>
             
             <div class="two-tier-demo-wrapper" style="margin-top: 8px; margin-bottom: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 12px; display: flex; align-items: center; gap: 16px;">
               <img src="${chrome.runtime.getURL('two-tier-demo.png')}" class="two-tier-demo-img" style="width: 72px; height: auto; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1);" alt="2-tier grade badge demo" />
@@ -1880,19 +1885,15 @@ function showWelcomeModal() {
               </div>
             </div>
             
-            <p class="tooltip-desc" style="font-size: 11.5px; line-height: 1.45;">
-              - <strong>First Letter (Weapon Meta Ranking):</strong> Always sourced from Aegis' endgame PvE spreadsheet archetype rankings.<br/>
-              - <strong>Second Letter (Perk Synergy Grade):</strong> Sourced from Aegis' recommended perks by default, or your own synced custom DIM wishlist.
+            <p class="tooltip-desc" style="font-size: 11px; line-height: 1.45;">
+              - <strong>Dual Grades (<span style="color: #ffd700;">F ➔ S+</span>):</strong> Shows equipped rank alongside its upgrade potential if you select available perks!<br/>
+              - <strong>Spreadsheet Modes:</strong> Sourced from <strong>Aegis (PvE)</strong> or <strong>Finnald (PvP)</strong>.
             </p>
-            
-            <div style="display: flex; justify-content: center; margin-top: 6px; margin-bottom: 6px;">
-              <img src="${chrome.runtime.getURL('wishlist_configuration.png')}" style="width: 320px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: #12121a;" alt="Wishlist settings preview" />
-            </div>
             
             <div class="tooltip-divider" style="margin: 6px 0;"></div>
             
             <div class="tooltip-note" style="border: 1px solid rgba(255, 215, 0, 0.25); background: rgba(255, 215, 0, 0.04); padding: 8px; border-radius: 6px; font-size: 10.5px; line-height: 1.4; color: #ffd700;">
-              <strong>💡 How to Enable:</strong> Open the extension settings popup by clicking the <strong>puzzle piece / Aegis icon</strong> in your browser's toolbar (top right), then toggle the <strong>2-Tier System</strong> setting switch.
+              <strong>How to Toggle:</strong> Click the <strong>Aegis extension icon</strong> in your browser's toolbar (top right) to open settings and customize modes!
             </div>
           </div>
         </div>
@@ -2085,6 +2086,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisDbMode = res.aegisDbMode || 'both';
   aegisMode = res.aegisMode || 'pve';
   aegisTwoTier = res.aegisTwoTier || false;
+  aegisGradeDisplayMode = res.aegisGradeDisplayMode || 'equipped';
   aegisHoverEnabled = res.aegisHoverEnabled !== false;
   aegisArmorSource = res.aegisArmorSource || 'lowco';
   lightggDb = res.lightggData || {};
@@ -2134,6 +2136,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisTwoTier) {
       aegisTwoTier = changes.aegisTwoTier.newValue || false;
+      changed = true;
+    }
+    if (changes.aegisGradeDisplayMode) {
+      aegisGradeDisplayMode = changes.aegisGradeDisplayMode.newValue || 'equipped';
       changed = true;
     }
     if (changes.aegisHoverEnabled) {
@@ -2341,51 +2347,109 @@ function injectPopupSummary(
     `
     );
 
-    // Inject armor detail card below sockets
-    const sockets = popupContainer.querySelector('[class*="sockets" i], [class*="Sockets" i]');
-    if (sockets) {
-      const detailsCard = document.createElement('div');
-      detailsCard.className = 'aegis-popup-details-card';
-      detailsCard.setAttribute('data-aegis-details', 'true');
+    // Inject armor detail card as a side panel next to DIM details modal
+    const insertArmorCard = () => {
+      if (!popupContainer.isConnected) return;
+      if (popupContainer.querySelector('[data-aegis-details="true"]')) return;
 
-      safeSetInnerHTML(
-        detailsCard,
+      const insertTarget = popupContainer.querySelector(
+        '[class*="sockets" i], [class*="Sockets" i], [class*="item-details" i], [class*="ItemDetails" i], [class*="main-content" i], [class*="body" i], [class*="content" i]'
+      ) || summaryEl;
+
+      if (insertTarget) {
+        const detailsCard = document.createElement('div');
+        detailsCard.className = 'aegis-popup-details-card';
+        detailsCard.setAttribute('data-aegis-details', 'true');
+
+        safeSetInnerHTML(
+          detailsCard,
+          `
+          <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span>LowCo Armor Set Bonuses</span>
+            ${sheetArmor.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">Source: ${sheetArmor.source}</span>` : ''}
+          </div>
+          
+          <div class="aegis-details-body" style="margin-bottom: 0;">
+            <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #1abc9c; border-radius: 0 6px 6px 0; padding: 7px 10px; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #fff;">2-Piece Bonus: <strong style="color: #1abc9c;">${sheetArmor.piece2Name}</strong></span>
+                <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece2Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px;">${sheetArmor.piece2Rating}</span>
+              </div>
+              <div style="font-size: 11px; line-height: 1.5; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece2Desc)}</div>
+              ${sheetArmor.piece2Numbers ? `
+                <div style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);">
+                  <strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong>
+                  ${formatFormattedNotes(sheetArmor.piece2Numbers)}
+                </div>
+              ` : ''}
+            </div>
+
+            <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #b48ead; border-radius: 0 6px 6px 0; padding: 7px 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #fff;">4-Piece Bonus: <strong style="color: #b48ead;">${sheetArmor.piece4Name}</strong></span>
+                <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece4Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px;">${sheetArmor.piece4Rating}</span>
+              </div>
+              <div style="font-size: 11px; line-height: 1.5; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece4Desc)}</div>
+              ${sheetArmor.piece4Numbers ? `
+                <div style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);">
+                  <strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong>
+                  ${formatFormattedNotes(sheetArmor.piece4Numbers)}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="aegis-popup-meta-divider" style="margin-top: 10px;"></div>
+
+          <div class="aegis-popup-meta-content">
+            <div class="aegis-popup-row" style="gap: 8px;">
+              <span class="aegis-popup-meta-badge aegis-tier-source" style="background: linear-gradient(135deg, #1abc9c, #16a085) !important;">${sheetArmor.sourceType}</span>
+              <span class="aegis-popup-meta-rank" style="color: #ccc;">Source: ${sheetArmor.source}</span>
+            </div>
+          </div>
         `
-        <div class="aegis-popup-details-title">Armor Set Bonuses</div>
-        
-        <div class="aegis-armor-bonus-section">
-          <div class="aegis-armor-bonus-header">
-            <span class="aegis-armor-bonus-title">2-Piece Bonus: <strong>${sheetArmor.piece2Name}</strong></span>
-            <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece2Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}">${sheetArmor.piece2Rating}</span>
-          </div>
-          <div class="aegis-armor-bonus-desc">${sheetArmor.piece2Desc}</div>
-          ${sheetArmor.piece2Numbers ? `<div class="aegis-armor-bonus-numbers"><strong>In-Depth:</strong> ${sheetArmor.piece2Numbers}</div>` : ''}
-        </div>
+        );
 
-        <div class="aegis-popup-meta-divider"></div>
+        const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
+        const rect = popupContainer.getBoundingClientRect();
+        const spaceLeft = rect.left;
+        const spaceRight = window.innerWidth - rect.right;
 
-        <div class="aegis-armor-bonus-section">
-          <div class="aegis-armor-bonus-header">
-            <span class="aegis-armor-bonus-title">4-Piece Bonus: <strong>${sheetArmor.piece4Name}</strong></span>
-            <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece4Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}">${sheetArmor.piece4Rating}</span>
-          </div>
-          <div class="aegis-armor-bonus-desc">${sheetArmor.piece4Desc}</div>
-          ${sheetArmor.piece4Numbers ? `<div class="aegis-armor-bonus-numbers"><strong>In-Depth:</strong> ${sheetArmor.piece4Numbers}</div>` : ''}
-        </div>
+        if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (isSheet || spaceLeft >= 330 || spaceRight >= 330)) {
+          detailsCard.classList.add('aegis-side-panel');
+          popupContainer.appendChild(detailsCard);
 
-        <div class="aegis-popup-meta-divider"></div>
+          detailsCard.style.setProperty('position', 'absolute', 'important');
+          detailsCard.style.setProperty('top', '55px', 'important');
 
-        <div class="aegis-popup-meta-content">
-          <div class="aegis-popup-row" style="gap: 8px;">
-            <span class="aegis-popup-meta-badge aegis-tier-source" style="background: linear-gradient(135deg, #1abc9c, #16a085) !important;">${sheetArmor.sourceType}</span>
-            <span class="aegis-popup-meta-rank" style="color: #ccc;">Source: ${sheetArmor.source}</span>
-          </div>
-        </div>
-      `
-      );
+          if (isSheet || (spaceLeft >= spaceRight && spaceLeft >= 330)) {
+            detailsCard.style.setProperty('left', '-320px', 'important');
+            detailsCard.style.setProperty('right', 'auto', 'important');
+          } else if (spaceRight >= 330) {
+            detailsCard.style.setProperty('left', 'auto', 'important');
+            detailsCard.style.setProperty('right', '-320px', 'important');
+          } else {
+            detailsCard.classList.remove('aegis-side-panel');
+            detailsCard.style.removeProperty('position');
+            detailsCard.style.removeProperty('top');
+            detailsCard.style.removeProperty('left');
+            detailsCard.style.removeProperty('right');
+            insertTarget.after(detailsCard);
+          }
+        } else {
+          detailsCard.classList.remove('aegis-side-panel');
+          detailsCard.style.removeProperty('position');
+          detailsCard.style.removeProperty('top');
+          detailsCard.style.removeProperty('left');
+          detailsCard.style.removeProperty('right');
+          insertTarget.after(detailsCard);
+        }
+      }
+    };
 
-      sockets.insertAdjacentElement('afterend', detailsCard);
-    }
+    insertArmorCard();
+    setTimeout(insertArmorCard, 100);
+    setTimeout(insertArmorCard, 250);
     return;
   }
 
@@ -2879,9 +2943,10 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
   
   // Set grade class and text (normalizing S+ / A- etc. to the first letter class)
   const gradeStr = result.grade || '';
-  const isTwoTier = gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-'));
+  const isDual = gradeStr.includes('➔');
   const isArmor = gradeStr.includes('/');
-  
+  const isTwoTier = !isArmor && (gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-')));
+
   let baseLetter = '';
   if (isArmor) {
     const parts = gradeStr.split('/');
@@ -2892,16 +2957,23 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
     if (baseLetter.endsWith('+') || baseLetter.endsWith('-')) {
       baseLetter = baseLetter.slice(0, -1);
     }
+  } else if (isDual) {
+    const parts = gradeStr.split('➔');
+    const potPart = parts[1] || parts[0];
+    baseLetter = potPart.toLowerCase().trim().charAt(0);
   } else {
     // If it's a 2-tier grade (e.g. BS+ or SF), base color class on the actual roll matching grade (the last letter/symbol part)
     baseLetter = isTwoTier 
       ? gradeStr.substring(1).charAt(0).toLowerCase() 
       : (gradeStr ? gradeStr.charAt(0).toLowerCase() : '');
   }
-    
+
   badge.classList.add(`aegis-badge-${baseLetter}`);
-  if (isTwoTier || isArmor) {
+  if (isTwoTier || isArmor || isDual) {
     badge.classList.add('aegis-badge-wide');
+  }
+  if (isDual) {
+    badge.classList.add('aegis-badge-dual');
   }
   badge.textContent = gradeStr;
 
@@ -3218,9 +3290,28 @@ function processElement(el: HTMLElement) {
       const isExotic = sheetWeapon && (sheetWeapon.exoticViability || sheetWeapon.source === 'Exotic');
       if (isExotic && sheetWeapon && sheetWeapon.tier) {
         result.grade = sheetWeapon.tier.trim();
-      } else if (aegisTwoTier && hasSheetData && sheetWeapon && sheetWeapon.tier) {
-        const archetypeTier = sheetWeapon.tier.trim();
-        result.grade = `${archetypeTier}${result.grade}`;
+      } else {
+        const activeGrade = result.grade;
+        const potentialGrade = result.potentialGrade;
+        const hasHigherPotential = potentialGrade && potentialGrade !== activeGrade && getGradeValue(potentialGrade) > getGradeValue(activeGrade);
+
+        if (hasHigherPotential) {
+          result.upgradeAvailable = true;
+        }
+
+        let displayRollGrade = activeGrade;
+        if (hasHigherPotential && aegisGradeDisplayMode === 'dual') {
+          displayRollGrade = `${activeGrade}➔${potentialGrade}`;
+        } else if (hasHigherPotential && aegisGradeDisplayMode === 'potential') {
+          displayRollGrade = potentialGrade;
+        }
+
+        if (aegisTwoTier && hasSheetData && sheetWeapon && sheetWeapon.tier) {
+          const archetypeTier = sheetWeapon.tier.trim();
+          result.grade = `${archetypeTier}${displayRollGrade}`;
+        } else {
+          result.grade = displayRollGrade;
+        }
       }
 
       const isPopup = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
@@ -3282,7 +3373,16 @@ const GRADE_VALUES: Record<string, number> = {
 };
 
 function compareGrades(itemGrade: string, queryStr: string): boolean {
-  const normalizedGrade = itemGrade.toLowerCase().trim();
+  let normalizedGrade = itemGrade.toLowerCase().trim();
+  
+  // If it's a dual grade string like "f➔s+" or "bf➔s+", check if either equipped or potential grade matches
+  if (normalizedGrade.includes('➔')) {
+    const parts = normalizedGrade.split('➔');
+    const equippedPart = parts[0];
+    const potentialPart = parts[1];
+    return compareGrades(equippedPart, queryStr) || compareGrades(potentialPart, queryStr);
+  }
+
   const match = queryStr.match(/^([><]=?|==?)(.+)$/);
   
   if (match) {
