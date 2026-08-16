@@ -273,9 +273,9 @@
 
 /* Perks List Layout */
 .aegis-tooltip-perks-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
 }
 
 .aegis-tooltip-perk-item {
