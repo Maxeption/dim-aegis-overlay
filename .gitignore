@@ -3,3 +3,5 @@ dist/
 *.local
 *.zip
 MOZILLA_REPRODUCTION.md
+src/*.js
+scratch/
