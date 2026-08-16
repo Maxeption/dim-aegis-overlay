@@ -273,9 +273,9 @@
 
 /* Perks List Layout */
 .aegis-tooltip-perks-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
 }
 
 .aegis-tooltip-perk-item {
@@ -3378,3 +3378,44 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 
 
 
+
+/* ------------------------------------------
+   Winnower host support (winnower.garden)
+   Everything below is scoped to Winnower's page structures
+   ([data-aegis-badge-slot], the pinned-tooltip class) and never
+   applies on DIM. All DIM styling lives above this line.
+   ------------------------------------------ */
+
+/* Slot-hosted badge: the page owns the box and its styling; the badge
+   reduces to plain inherited text so the page's styles apply. */
+[data-aegis-badge-slot] .aegis-badge {
+  position: static !important;
+  display: inline !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-shadow: inherit !important;
+  font: inherit !important;
+  letter-spacing: inherit !important;
+  color: inherit !important;
+  z-index: auto !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* The upgrade arrow acts as a signal on Winnower: the page detects it and
+   renders its own indicator, so the extension's arrow stays hidden there. */
+[data-aegis-badge-slot] .aegis-badge-upgrade-arrow {
+  display: none !important;
+}
+
+/* A pinned tooltip accepts the pointer (the base rule disables it for the
+   hover ghost) so it can be read and hit-tested by click-away dismissal. */
+.aegis-tooltip.aegis-tooltip-pinned {
+  pointer-events: auto;
+}

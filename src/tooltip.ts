@@ -176,7 +176,7 @@ export function showTooltip(
   bestAlternative?: string,
   isBestInClass?: boolean,
   sheetPerks?: { matched: TooltipPerk[]; missing: TooltipPerk[] },
-  globalPerkNameToIcon?: Record<string, string>,
+  _globalPerkNameToIcon?: Record<string, string>,
   sheetArmor?: AegisArmorSet | null,
   equippedMasterwork?: string,
   aegisMode?: 'pve' | 'pvp'
@@ -306,29 +306,75 @@ export function showTooltip(
       ${sheetWeapon.source ? `<div class="aegis-tooltip-weapon-source" style="font-size: 11px; margin-top: 4px; color: #ffd700;"><span style="color: #aaa; font-weight: 500;">Source:</span> ${sheetWeapon.source}</div>` : ''}
     `;
 
-    // Shortened recommended perks
-    const cleanPerk1 = sheetWeapon.perk1 ? sheetWeapon.perk1.split('\n')[0].trim() : '';
-    const cleanPerk2 = sheetWeapon.perk2 ? sheetWeapon.perk2.split('\n')[0].trim() : '';
-    let recsHtml = '';
-    if (cleanPerk1 || cleanPerk2) {
-      const perksText = [cleanPerk1, cleanPerk2].filter(Boolean).join(' / ');
-      recsHtml = `
-        <div class="aegis-tooltip-compact-recs">
-          <span class="aegis-tooltip-recs-label">Rec Perks:</span>
-          <span class="aegis-tooltip-recs-value" title="${perksText}">${perksText}</span>
+    // Build detailed perk breakdown rows with status chips (active / selectable / missing)
+    let perkRowsHtml = '';
+    const perkCategories = [
+      { label: 'Barrel', type: 'barrel', rawVal: sheetWeapon.barrel },
+      { label: 'Mag', type: 'mag', rawVal: sheetWeapon.mag },
+      { label: 'Perk 1', type: 'perk1', rawVal: sheetWeapon.perk1 },
+      { label: 'Perk 2', type: 'perk2', rawVal: sheetWeapon.perk2 },
+      { label: 'Origin', type: 'origin', rawVal: sheetWeapon.origin },
+    ];
+
+    for (const item of perkCategories) {
+      if (!item.rawVal) continue;
+      
+      let chipsHtml = '';
+      if (sheetPerks) {
+        const matched = sheetPerks.matched.filter(p => p.type === item.type);
+        const missing = sheetPerks.missing.filter(p => p.type === item.type);
+
+        for (const perk of matched) {
+          const statusClass = perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable';
+          const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+          const statusLabel = perk.status === 'active' ? '' : ' (Selectable)';
+          chipsHtml += `
+            <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
+              ${iconHtml}
+              <span class="aegis-chip-name">${perk.name}</span>
+            </span>
+          `;
+        }
+
+        for (const perk of missing) {
+          const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+          chipsHtml += `
+            <span class="aegis-perk-chip aegis-chip-missing" title="${perk.name} (Missing)">
+              ${iconHtml}
+              <span class="aegis-chip-name">${perk.name}</span>
+            </span>
+          `;
+        }
+      }
+
+      if (!chipsHtml) {
+        const rawVal = item.rawVal;
+        const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).join(' / ');
+        if (!cleanVal) continue;
+        chipsHtml = `<span class="aegis-details-value-text" style="font-size: 11px; color: #e5e9f0;">${cleanVal}</span>`;
+      }
+
+      perkRowsHtml += `
+        <div class="aegis-details-row aegis-perk-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px; gap: 8px;">
+          <span class="aegis-details-label" style="font-size: 10px; font-weight: 700; color: #88c0d0; min-width: 48px; text-transform: uppercase; letter-spacing: 0.3px;">${item.label}</span>
+          <div class="aegis-details-value aegis-details-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; align-items: center;">
+            ${chipsHtml}
+          </div>
         </div>
       `;
     }
 
-    if (sheetWeapon.origin) {
-      recsHtml += `
-        <div class="aegis-tooltip-compact-recs" style="margin-top: 4px;">
-          <span class="aegis-tooltip-recs-label">Origin:</span>
-          <span class="aegis-tooltip-recs-value" title="${sheetWeapon.origin}">${sheetWeapon.origin}</span>
+    let perkBreakdownBlock = '';
+    if (perkRowsHtml) {
+      perkBreakdownBlock = `
+        <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #88c0d0; border-radius: 0 6px 6px 0; padding: 6px 9px;">
+          <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Recommended Perks Breakdown</div>
+          ${perkRowsHtml}
         </div>
       `;
     }
 
+    let recMwBlock = '';
     if (recMWs.length > 0) {
       const eqMW = (equippedMasterwork || '').toLowerCase();
       const badges = recMWs.map(mw => {
@@ -348,15 +394,15 @@ export function showTooltip(
         return `<span class="aegis-mw-badge" style="${matchStyle}" title="${title}">${icon} ${mw}</span>`;
       }).join('');
 
-      recsHtml += `
-        <div class="aegis-tooltip-compact-recs" style="margin-top: 6px; align-items: center;">
-          <span class="aegis-tooltip-recs-label" style="color: #ebcb8b !important;">Rec MW:</span>
-          <span class="aegis-tooltip-recs-value" style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">${badges}</span>
+      recMwBlock = `
+        <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #ebcb8b; border-radius: 0 6px 6px 0; padding: 6px 9px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px;">Rec Masterwork</span>
+          <span style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">${badges}</span>
         </div>
       `;
     }
 
-    if (sheetWeapon.notes || sheetWeapon.description || recsHtml || sheetWeapon.exoticViability) {
+    if (sheetWeapon.notes || sheetWeapon.description || perkRowsHtml || sheetWeapon.exoticViability) {
       const sectionTitle = aegisMode === 'pvp' ? 'Finnald PvP Meta Analysis' : 'Aegis Meta Analysis';
       const viabilityHtml = sheetWeapon.exoticViability ? renderViabilityMatrix(sheetWeapon.exoticViability, aegisMode) : '';
       
@@ -383,7 +429,8 @@ export function showTooltip(
       sheetBodyHtml = `
         <div class="aegis-tooltip-section aegis-meta-section">
           <div class="aegis-tooltip-section-title">${sectionTitle}</div>
-          ${recsHtml}
+          ${perkBreakdownBlock}
+          ${recMwBlock}
           ${viabilityHtml}
           ${analysisBlock}
           ${mechanicsBlock}
@@ -495,63 +542,7 @@ export function showTooltip(
 
   const hasWishlist = result.wishlistPerks && result.wishlistPerks.length > 0;
 
-  if (sheetPerks) {
-    html += `
-      <div class="aegis-tooltip-section">
-        <div class="aegis-tooltip-section-title">Matched Perks (Spreadsheet)</div>
-        <div class="aegis-tooltip-perks-grid">
-    `;
-
-    if (sheetPerks.matched.length === 0) {
-      html += `<div class="aegis-tooltip-perk-empty">None</div>`;
-    } else {
-      for (const perk of sheetPerks.matched) {
-        const iconUrl = perk.icon ? `https://www.bungie.net${perk.icon}` : '';
-        const itemClass = perk.matched ? 'aegis-matched' : 'aegis-selectable';
-        const labelSuffix = perk.matched ? '' : ' <span class="aegis-selectable-suffix">(Selectable)</span>';
-        html += `
-          <div class="aegis-tooltip-perk-item ${itemClass}">
-            ${iconUrl ? `<img src="${iconUrl}" class="aegis-perk-icon-img" alt="" />` : '<span class="aegis-perk-bullet">•</span>'}
-            <span class="aegis-perk-name-text">${perk.name}${labelSuffix}</span>
-          </div>
-        `;
-      }
-    }
-
-    html += `
-        </div>
-      </div>
-    `;
-
-    if (sheetPerks.missing.length > 0) {
-      html += `
-        <div class="aegis-tooltip-section">
-          <div class="aegis-tooltip-section-title">Missing Perks (Spreadsheet)</div>
-          <div class="aegis-tooltip-perks-grid">
-      `;
-
-      for (const perk of sheetPerks.missing) {
-        let iconPath = perk.icon || '';
-        if (!iconPath && globalPerkNameToIcon) {
-          const normName = perk.name.toLowerCase().trim();
-          const cleanName = normName.replace(/\s*\([^)]+\)\s*/g, '').replace(/[*+]/g, '').trim();
-          iconPath = globalPerkNameToIcon[cleanName] || globalPerkNameToIcon[normName] || '';
-        }
-        const iconUrl = iconPath ? `https://www.bungie.net${iconPath}` : '';
-        html += `
-          <div class="aegis-tooltip-perk-item aegis-missing">
-            ${iconUrl ? `<img src="${iconUrl}" class="aegis-perk-icon-img" alt="" />` : '<span class="aegis-perk-bullet">•</span>'}
-            <span class="aegis-perk-name-text">${perk.name}</span>
-          </div>
-        `;
-      }
-
-      html += `
-          </div>
-        </div>
-      `;
-    }
-  } else if (hasWishlist) {
+  if (!sheetWeapon && hasWishlist) {
     html += `
       <div class="aegis-tooltip-section">
         <div class="aegis-tooltip-section-title">Matched Perks</div>

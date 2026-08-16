@@ -13,6 +13,7 @@
     "https://raw.githubusercontent.com/*",
     "https://app.destinyitemmanager.com/*",
     "https://beta.destinyitemmanager.com/*",
+    "https://winnower.garden/*",
     "https://www.light.gg/*"
   ],
   "background": {
@@ -50,7 +51,8 @@
     {
       "matches": [
         "https://app.destinyitemmanager.com/*",
-        "https://beta.destinyitemmanager.com/*"
+        "https://beta.destinyitemmanager.com/*",
+        "https://winnower.garden/*"
       ],
       "js": [
         "content.js"
