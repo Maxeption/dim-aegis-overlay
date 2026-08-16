@@ -1943,18 +1943,19 @@ function showWelcomeModal() {
         <!-- Slide 1: Welcome & What's New in v1.7.0 -->
         <div class="aegis-welcome-slide active" data-slide="0">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">Getting Started & What's New in v1.7.1</span>
+            <span class="tooltip-section-header">Getting Started & What's New in v1.7.2</span>
             <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
               This extension enhances Destiny Item Manager (DIM) by displaying meta spreadsheet weapon rankings, perk accuracy ratings, and custom armor set configurations directly on your items.
             </p>
 
             <div style="border: 1px solid rgba(255, 215, 0, 0.3); background: rgba(255, 215, 0, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
               <div style="font-size: 10px; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                <span>What's New in Release v1.7.1</span>
+                <span>What's New in Release v1.7.2</span>
               </div>
               <ul style="font-size: 11px; line-height: 1.45; color: #e5e9f0; margin: 0; padding-left: 16px;">
-                <li><strong>Perk Evaluation Basis & Dual Grade Badges (<span style="color: #ffd700;">F ➔ S+</span>):</strong> Evaluate weapon perk grades based on currently equipped perks, max potential rank, or both at once!</li>
-                <li><strong>Armor Set Bonus Side Panels & Readability Cleanups:</strong> Armor set bonus cards now open as floating side panels next to DIM's item details modal for 100% UI consistency.</li>
+                <li><strong>Winnower Support (winnower.garden):</strong> Full support for the Winnower Destiny vault-cleanup app with inline badges, click-to-pin tooltips, and row cleanup.</li>
+                <li><strong>Recommended Perks Breakdown & 2-Column Active Perks:</strong> Restructured Recommended Perks into full-width rows with interactive perk icons and status chips (Active/Selectable/Missing), and Active Perks into a 2-column grid.</li>
+                <li><strong>Weapon Source Filtering & Aegis Combobox UI:</strong> Search and filter by weapon drop sources (Raid, Dungeon, Nightfall, Trials, Onslaught, World Drop) in Database Explorer and DIM search bar (<code>aegis:s:&lt;source&gt;</code>) with a custom dark gold-accented combobox component.</li>
               </ul>
             </div>
             
