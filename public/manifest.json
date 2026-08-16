@@ -53,7 +53,8 @@
     {
       "matches": [
         "https://app.destinyitemmanager.com/*",
-        "https://beta.destinyitemmanager.com/*"
+        "https://beta.destinyitemmanager.com/*",
+        "https://winnower.garden/*"
       ],
       "js": [
         "content.js"

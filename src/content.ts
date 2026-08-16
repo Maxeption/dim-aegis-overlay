@@ -1,6 +1,20 @@
 import { scoreWeapon } from './scorer';
 import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes } from './tooltip';
+
+// Winnower (winnower.garden) cooperates with this extension. It writes the
+// data-aegis-* attributes itself (no main-world script there) and provides an
+// inline [data-aegis-badge-slot] per weapon name. The <meta name="dim-aegis-host">
+// tag identifies a localhost dev server of Winnower.
+const IS_WINNOWER_HOST =
+  /(^|\.)winnower\.garden$/.test(location.hostname) ||
+  document.querySelector('meta[name="dim-aegis-host"][content="winnower"]') !== null;
+
+/** The name cell hosting a Winnower row's badge slot. */
+function winnowerNameCell(row: HTMLElement): HTMLElement | null {
+  return (row.querySelector('[data-aegis-badge-slot]')?.closest('td') as HTMLElement | null) ?? null;
+}
+
 /** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
 function safeSetInnerHTML(element: HTMLElement, htmlString: string) {
   const parser = new DOMParser();
@@ -310,6 +324,10 @@ function schedulePerkRegistryPersist(registry: Record<string, { name: string; ic
  * resolved perk names and trigger real-time updates to the active tooltip.
  */
 function setupRegistryObserver() {
+  // The registry element is created by the main-world script, which does not
+  // run on Winnower. Without this gate, every call would add another
+  // body-wide observer waiting for an element that never appears.
+  if (IS_WINNOWER_HOST) return;
   if (registryObserver) return;
   const registryEl = document.getElementById('aegis-global-perk-registry');
   if (!registryEl) {
@@ -2075,6 +2093,74 @@ function showWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
+/**
+ * Single-slide Winnower welcome modal describing what the extension does on
+ * Winnower. Image-free, so winnower.garden needs no web_accessible_resources.
+ */
+function showWinnowerWelcomeModal() {
+  if (document.querySelector('.aegis-welcome-backdrop')) return;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'aegis-welcome-backdrop';
+
+  backdrop.innerHTML = `
+    <div class="aegis-welcome-modal">
+      <div class="aegis-welcome-header">
+        <span class="aegis-welcome-title">Aegis Overlay on Winnower</span>
+        <button class="aegis-welcome-close" title="Dismiss">&times;</button>
+      </div>
+
+      <div class="aegis-welcome-slides">
+        <div class="aegis-welcome-slide active" data-slide="0">
+          <div class="tooltip-section">
+            <span class="tooltip-section-header">DIM AEGIS OVERLAY NOW WORKS ON WINNOWER</span>
+            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
+              When using this extension on Winnower, you'll see:
+            </p>
+            <ul style="font-size: 11.5px; line-height: 1.6; color: #e5e9f0; margin: 0 0 10px; padding-left: 16px;">
+              <li><strong>Grade badges</strong> under each weapon name and before each armor name, using your badge-mode setting (e.g. 2-Tier grading).</li>
+              <li><strong>Hover tooltips</strong> on the weapon name: analysis notes, recommended masterwork, and the full matched / selectable / missing perk checklist.</li>
+              <li><strong>Click a badge or weapon name</strong> to pin the tooltip for reading; click away, press Escape, or scroll to dismiss.</li>
+            </ul>
+            <p class="tooltip-desc" style="font-size: 11px; line-height: 1.5; margin-bottom: 10px;">
+              This extension and Winnower won't always agree on the quality of a roll. The badges grade each roll against recommended perks from a spreadsheet; Winnower's own ratings also weigh what else is in your vault.
+            </p>
+            <div class="tooltip-note" style="border: 1px solid rgba(255, 215, 0, 0.25); background: rgba(255, 215, 0, 0.04); padding: 8px; border-radius: 6px; font-size: 10.5px; line-height: 1.4; color: #ffd700;">
+              <strong>Settings:</strong> click the Aegis extension icon in your browser's toolbar to switch spreadsheet mode, badge style, and databases. The same settings apply on both sites.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="aegis-welcome-footer">
+        <label class="aegis-welcome-dismiss-checkbox">
+          <input type="checkbox" id="aegis-welcome-dont-show" />
+          Do not show this again
+        </label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="aegis-welcome-next-btn">Get Started</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  const nextBtn = backdrop.querySelector('.aegis-welcome-next-btn') as HTMLButtonElement;
+  const closeBtn = backdrop.querySelector('.aegis-welcome-close');
+  const dontShowCheckbox = backdrop.querySelector('#aegis-welcome-dont-show') as HTMLInputElement;
+
+  function dismissModal() {
+    if (dontShowCheckbox.checked) {
+      chrome.storage.local.set({ aegisWelcomeDismissed: true });
+    }
+    backdrop.remove();
+  }
+
+  nextBtn.addEventListener('click', dismissModal);
+  closeBtn?.addEventListener('click', dismissModal);
+}
+
 // Load wishlist & config on startup
 chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed'], (res) => {
   wishlistDb = res.wishlistData || {};
@@ -2098,10 +2184,16 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   updatePerkNameToIcon(res.perkRegistry || {});
   updatePerkNameToHash(res.perkRegistry || {});
   reprocessAllElements();
-  initAegisExplorer();
+  if (!IS_WINNOWER_HOST) {
+    initAegisExplorer(); // DIM-only: Winnower has its own weapon browser
+  }
 
   if (!res.aegisWelcomeDismissed) {
-    showWelcomeModal();
+    if (IS_WINNOWER_HOST) {
+      showWinnowerWelcomeModal();
+    } else {
+      showWelcomeModal();
+    }
   }
 });
 
@@ -2201,6 +2293,16 @@ document.addEventListener(
   'scroll',
   () => {
     lastScrollTime = Date.now();
+    // Winnower's virtualized rows can unmount mid-scroll without firing
+    // mouseleave, which would leave the tooltip dangling.
+    if (IS_WINNOWER_HOST) {
+      if (tooltipShowTimer) {
+        clearTimeout(tooltipShowTimer);
+        tooltipShowTimer = null;
+      }
+      unpinTooltip();
+      hideTooltip();
+    }
     // Flag the document as "scrolling" so CSS can suppress hover transforms
     // on tiles passing under the cursor (each scale triggers a tile repaint)
     if (document.body && !document.body.classList.contains('aegis-scrolling')) {
@@ -2219,10 +2321,120 @@ let tooltipShowTimer: ReturnType<typeof setTimeout> | null = null;
 const TOOLTIP_HOVER_DELAY_MS = 100;
 const TOOLTIP_SCROLL_SUPPRESS_MS = 150;
 
+/**
+ * Build and show the tooltip for an annotated element, positioned at `anchor`.
+ * Returns false when the element has no displayable grade.
+ */
+function showTooltipForElement(dataEl: HTMLElement, anchor: HTMLElement): boolean {
+  const result = (dataEl as any)._aegisResult as ScoringResult;
+  if (!result || !result.grade) return false;
+
+  showTooltip(
+    anchor,
+    result,
+    (dataEl as any)._aegisName as string,
+    (dataEl as any)._aegisPerksMap as Record<number, { name: string; icon: string }>,
+    (dataEl as any)._aegisActiveHashes as number[],
+    scoringSource === 'lightgg',
+    (dataEl as any)._aegisSheetWeapon,
+    (dataEl as any)._aegisBestAlternative,
+    (dataEl as any)._aegisIsBestInClass,
+    (dataEl as any)._aegisSheetPerks,
+    perkNameToIcon,
+    (dataEl as any)._aegisSheetArmor,
+    (dataEl as any)._aegisEquippedMasterwork,
+    aegisMode as any
+  );
+  return true;
+}
+
+// Pinned tooltip (Winnower): clicking the grade badge or the weapon name
+// keeps the tooltip open so it can be moused into and read; click-away,
+// Escape, or scroll dismisses. Pinning tracks the ROW so both triggers
+// cooperate: the badge toggles, the name cell (re)pins.
+let pinnedRow: HTMLElement | null = null;
+
+function pinTooltipFor(trigger: HTMLElement) {
+  const dataEl = trigger.closest('[data-aegis-item-hash]') as HTMLElement | null;
+  if (!dataEl) return;
+  const anchor = (trigger.closest('td') as HTMLElement | null) ?? dataEl;
+  if (!showTooltipForElement(dataEl, anchor)) {
+    unpinTooltip();
+    return;
+  }
+  // The base tooltip has pointer-events:none (it is a hover ghost on DIM);
+  // a pinned tooltip must accept the pointer so it can be read, scrolled,
+  // and recognized by the click-away check.
+  document.getElementById('aegis-tooltip')?.classList.add('aegis-tooltip-pinned');
+  if (!pinnedRow) {
+    document.addEventListener('pointerdown', handlePinDismissClick, true);
+    document.addEventListener('keydown', handlePinDismissKey, true);
+  }
+  pinnedRow = dataEl;
+}
+
+function unpinTooltip() {
+  if (!pinnedRow) return;
+  pinnedRow = null;
+  document.getElementById('aegis-tooltip')?.classList.remove('aegis-tooltip-pinned');
+  document.removeEventListener('pointerdown', handlePinDismissClick, true);
+  document.removeEventListener('keydown', handlePinDismissKey, true);
+  hideTooltip();
+}
+
+function handlePinDismissClick(e: Event) {
+  const target = e.target as HTMLElement;
+  // Clicks on the tooltip, a badge, or a graded name cell are pin
+  // interactions owned by their own listeners, never dismissal.
+  if (target.closest('#aegis-tooltip, .aegis-badge, [data-aegis-listeners]')) return;
+  unpinTooltip();
+}
+
+// Capture-phase so it fires despite Winnower's name-cell click handler
+// (which stops propagation to do its copy-item-id action; both actions run).
+function handleCellPinClick(e: Event) {
+  if ((e.target as HTMLElement).closest('.aegis-badge')) return;
+  pinTooltipFor(e.currentTarget as HTMLElement);
+}
+
+// Winnower rows can unmount without mouseleave for reasons other than
+// scrolling (filter input, mode toggles), stranding a visible tooltip.
+// Checked once per frame when nodes are removed while a tooltip is live.
+let anchorCheckScheduled = false;
+
+function scheduleTooltipAnchorCheck() {
+  if (anchorCheckScheduled) return;
+  anchorCheckScheduled = true;
+  requestAnimationFrame(() => {
+    anchorCheckScheduled = false;
+    if (pinnedRow && !pinnedRow.isConnected) {
+      unpinTooltip();
+    }
+    if (hoveredElement && !hoveredElement.isConnected) {
+      if (tooltipShowTimer) {
+        clearTimeout(tooltipShowTimer);
+        tooltipShowTimer = null;
+      }
+      hoveredElement = null;
+      if (!pinnedRow) hideTooltip();
+    }
+  });
+}
+
+function handlePinDismissKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') unpinTooltip();
+}
+
 function handleMouseEnter(e: MouseEvent) {
   if (!aegisHoverEnabled) return;
+  if (pinnedRow) return;
 
   const el = e.currentTarget as HTMLElement;
+  // On Winnower listeners live on the name cell; the _aegis* data lives on the
+  // annotated row. `el` stays the positioning anchor.
+  const dataEl = el.hasAttribute('data-aegis-item-hash')
+    ? el
+    : ((el.closest('[data-aegis-item-hash]') as HTMLElement | null) ?? el);
   hoveredElement = el;
 
   // Ignore hover hits that happen mid-scroll (tile just passed under cursor)
@@ -2238,38 +2450,7 @@ function handleMouseEnter(e: MouseEvent) {
   tooltipShowTimer = setTimeout(() => {
     tooltipShowTimer = null;
     if (hoveredElement !== el) return;
-
-    const result = (el as any)._aegisResult as ScoringResult;
-    const name = (el as any)._aegisName as string;
-    const perksMap = (el as any)._aegisPerksMap as Record<number, { name: string; icon: string }>;
-    const activeHashes = (el as any)._aegisActiveHashes as number[];
-
-    if (result && result.grade) {
-      const sheetWeapon = (el as any)._aegisSheetWeapon;
-      const bestAlternative = (el as any)._aegisBestAlternative;
-      const isBestInClass = (el as any)._aegisIsBestInClass;
-      const sheetPerks = (el as any)._aegisSheetPerks;
-      const sheetArmor = (el as any)._aegisSheetArmor;
-
-      const equippedMW = (el as any)._aegisEquippedMasterwork;
-
-      showTooltip(
-        el,
-        result,
-        name,
-        perksMap,
-        activeHashes,
-        scoringSource === 'lightgg',
-        sheetWeapon,
-        bestAlternative,
-        isBestInClass,
-        sheetPerks,
-        perkNameToIcon,
-        sheetArmor,
-        equippedMW,
-        aegisMode as any
-      );
-    }
+    showTooltipForElement(dataEl, el);
   }, TOOLTIP_HOVER_DELAY_MS);
 }
 
@@ -2282,6 +2463,7 @@ function handleMouseLeave() {
     tooltipShowTimer = null;
   }
   hoveredElement = null;
+  if (pinnedRow) return;
   hideTooltip();
 }
 
@@ -2900,8 +3082,10 @@ function injectPopupSummary(
  * Injects or updates the Aegis rank badge overlay inside a weapon tile.
  */
 function injectBadge(el: HTMLElement, result: ScoringResult) {
-  // Never inject badges inside popup toolbars, tag controls, or stat rows
-  if (el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
+  // Never inject badges inside popup toolbars, tag controls, or stat rows.
+  // DIM-only: on Winnower an ancestor class containing "sheet" would false-positive.
+  if (!IS_WINNOWER_HOST &&
+      el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
       !el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item')) {
     removeBadge(el);
     return;
@@ -2909,18 +3093,28 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
 
   // Deduplicate: Find root item container to ensure EXACTLY 1 badge per item tile in DIM Stable and Beta
   const itemContainer = (el.closest('[data-aegis-item-hash]') as HTMLElement) || el;
-  let badgeTarget = itemContainer.querySelector('.item-tile, [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]') as HTMLElement | null;
-  if (!badgeTarget) {
-    badgeTarget = itemContainer;
-  }
-  // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
-  badgeTarget.style.setProperty('position', 'relative', 'important');
+  let badgeTarget: HTMLElement | null;
 
-  // Handle S-tier gold glow class on the badge target
-  if (result.grade && result.grade.startsWith('S')) {
-    badgeTarget.classList.add('aegis-gold-glow');
+  if (IS_WINNOWER_HOST) {
+    // Without a slot there is no badge, and never the absolute-overlay
+    // fallback (a <div> child of a React-managed <tr> is invalid table DOM).
+    badgeTarget = itemContainer.querySelector<HTMLElement>('[data-aegis-badge-slot]');
+    if (!badgeTarget) {
+      removeBadge(el);
+      return;
+    }
   } else {
-    badgeTarget.classList.remove('aegis-gold-glow');
+    badgeTarget = itemContainer.querySelector('.item-tile, [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]') as HTMLElement | null;
+    if (!badgeTarget) {
+      badgeTarget = itemContainer;
+    }
+    // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
+    badgeTarget.style.setProperty('position', 'relative', 'important');
+  }
+
+  // S-tier gold glow is DIM-only; Winnower styles its chip in its own CSS.
+  if (!IS_WINNOWER_HOST) {
+    badgeTarget.classList.toggle('aegis-gold-glow', result.grade?.startsWith('S') ?? false);
   }
 
   // Purge any duplicate badges within itemContainer and reuse the primary badge
@@ -2940,7 +3134,7 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
 
   // Remove existing grade classes
   badge.className = 'aegis-badge';
-  
+
   // Set grade class and text (normalizing S+ / A- etc. to the first letter class)
   const gradeStr = result.grade || '';
   const isDual = gradeStr.includes('➔');
@@ -2982,6 +3176,20 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
     upgradeArrow.className = 'aegis-badge-upgrade-arrow';
     upgradeArrow.textContent = '▲';
     badge.appendChild(upgradeArrow);
+  }
+
+  // Winnower: click the badge to pin its tooltip (hover-only tooltips can't
+  // be moused into for reading long notes or the perk checklist).
+  if (IS_WINNOWER_HOST && !(badge as any)._aegisPinBound) {
+    (badge as any)._aegisPinBound = true;
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (pinnedRow && pinnedRow === badge.closest('[data-aegis-item-hash]')) {
+        unpinTooltip();
+      } else {
+        pinTooltipFor(badge);
+      }
+    });
   }
 }
 
@@ -3068,28 +3276,37 @@ function processElement(el: HTMLElement) {
       (el as any)._aegisSheetArmor = sheetArmor;
 
       if (result.grade) {
-        const isPopup = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+        const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
 
         if (!isPopup) {
           injectBadge(el, result);
         }
 
-        const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-        if (popupContainer) {
-          injectPopupSummary(popupContainer as HTMLElement, result, scoringSource, undefined, undefined, sheetArmor);
+        // DIM-only, as in the weapon path: Winnower has no item popups.
+        if (!IS_WINNOWER_HOST) {
+          const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+          if (popupContainer) {
+            injectPopupSummary(popupContainer as HTMLElement, result, scoringSource, undefined, undefined, sheetArmor);
+          }
         }
 
-        if (!isPopup && !el.hasAttribute('data-aegis-listeners')) {
-          el.addEventListener('mouseenter', handleMouseEnter);
-          el.addEventListener('mouseleave', handleMouseLeave);
-          el.setAttribute('data-aegis-listeners', 'true');
+        const hoverTarget = IS_WINNOWER_HOST ? (winnowerNameCell(el) ?? el) : el;
+        if (!isPopup && !hoverTarget.hasAttribute('data-aegis-listeners')) {
+          hoverTarget.addEventListener('mouseenter', handleMouseEnter);
+          hoverTarget.addEventListener('mouseleave', handleMouseLeave);
+          if (IS_WINNOWER_HOST) {
+            hoverTarget.addEventListener('click', handleCellPinClick, true);
+          }
+          hoverTarget.setAttribute('data-aegis-listeners', 'true');
         }
       } else {
         removeBadge(el);
-        const popupContainer = el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-        if (popupContainer) {
-          const summary = popupContainer.querySelector('.aegis-popup-summary');
-          if (summary) summary.remove();
+        if (!IS_WINNOWER_HOST) {
+          const popupContainer = el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+          if (popupContainer) {
+            const summary = popupContainer.querySelector('.aegis-popup-summary');
+            if (summary) summary.remove();
+          }
         }
         if (el.hasAttribute('data-aegis-listeners')) {
           el.removeEventListener('mouseenter', handleMouseEnter);
@@ -3167,7 +3384,9 @@ function processElement(el: HTMLElement) {
 
     let result: ScoringResult;
     let sheetPerks = undefined;
-    const elText = el.textContent || '';
+    // A Winnower row's textContent is the whole row (verdict prose, perk
+    // lists), so the variant-disambiguation text is scoped to the name cell.
+    const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
     const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText);
     let bestAlternative = undefined;
     let isBestInClass = false;
@@ -3314,8 +3533,10 @@ function processElement(el: HTMLElement) {
         }
       }
 
-      const isPopup = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-      const isItemTile = el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item');
+      const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+      const isItemTile = IS_WINNOWER_HOST
+        ? el.hasAttribute('data-aegis-item-hash')
+        : el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item');
 
       // Inject rank badge (only if it's a valid item tile and NOT the popup container itself)
       if (!isPopup && isItemTile) {
@@ -3324,21 +3545,30 @@ function processElement(el: HTMLElement) {
         removeBadge(el);
       }
 
-      // Inject popup summary card if inside a details popup (or if we are the popup container)
-      const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-      if (popupContainer) {
-        injectPopupSummary(popupContainer as HTMLElement, result, scoringSource, sheetWeapon || undefined, sheetPerks, undefined, equippedMasterwork);
+      // Inject popup summary card if inside a details popup. DIM-only: Winnower
+      // has no item popups (and [class*="Sheet"] could false-positive there).
+      if (!IS_WINNOWER_HOST) {
+        const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+        if (popupContainer) {
+          injectPopupSummary(popupContainer as HTMLElement, result, scoringSource, sheetWeapon || undefined, sheetPerks, undefined, equippedMasterwork);
+        }
       }
 
-      // Attach event listeners for hover tooltips (only for valid item tiles)
-      if (!isPopup && isItemTile && !el.hasAttribute('data-aegis-listeners')) {
-        el.addEventListener('mouseenter', handleMouseEnter);
-        el.addEventListener('mouseleave', handleMouseLeave);
-        el.setAttribute('data-aegis-listeners', 'true');
-      } else if (!isItemTile && el.hasAttribute('data-aegis-listeners')) {
-        el.removeEventListener('mouseenter', handleMouseEnter);
-        el.removeEventListener('mouseleave', handleMouseLeave);
-        el.removeAttribute('data-aegis-listeners');
+      // Hover binds to the name cell on Winnower because a full-width row
+      // anchor defeats side placement and fires on every row during vertical travel.
+      const hoverTarget = IS_WINNOWER_HOST ? (winnowerNameCell(el) ?? el) : el;
+      if (!isPopup && isItemTile && !hoverTarget.hasAttribute('data-aegis-listeners')) {
+        hoverTarget.addEventListener('mouseenter', handleMouseEnter);
+        hoverTarget.addEventListener('mouseleave', handleMouseLeave);
+        if (IS_WINNOWER_HOST) {
+          hoverTarget.addEventListener('click', handleCellPinClick, true);
+        }
+        hoverTarget.setAttribute('data-aegis-listeners', 'true');
+      } else if (!isItemTile && hoverTarget.hasAttribute('data-aegis-listeners')) {
+        hoverTarget.removeEventListener('mouseenter', handleMouseEnter);
+        hoverTarget.removeEventListener('mouseleave', handleMouseLeave);
+        hoverTarget.removeEventListener('click', handleCellPinClick, true);
+        hoverTarget.removeAttribute('data-aegis-listeners');
       }
     } else {
       // If graded previously but now has no grade, remove UI
@@ -3402,6 +3632,9 @@ function compareGrades(itemGrade: string, queryStr: string): boolean {
 }
 
 function setupSearchWidget() {
+  // Winnower's own filter input matches this selector; injecting the widget
+  // there would rewrite Winnower's controlled input.
+  if (IS_WINNOWER_HOST) return;
   const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]') as HTMLInputElement;
   if (!searchInput) return;
 
@@ -3572,6 +3805,7 @@ let activeAegisFilter: string | null = null;
 let activeAegisFilterLabel: string | null = null;
 
 function renderAegisFilterPill() {
+  if (IS_WINNOWER_HOST) return; // DIM-only aegis: filter UI
   const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]') as HTMLInputElement;
   if (!searchInput) return;
 
@@ -3625,6 +3859,7 @@ function renderAegisFilterPill() {
 }
 
 function evaluateAegisFiltering() {
+  if (IS_WINNOWER_HOST) return; // DIM-only aegis: filter UI
   const items = document.querySelectorAll<HTMLElement>('[data-aegis-item-hash]');
   
   if (!activeAegisFilter) {
@@ -3757,6 +3992,7 @@ function processCompletedAegisToken(searchInput: HTMLInputElement, val: string, 
 }
 
 function setupSearchFilterObserver() {
+  if (IS_WINNOWER_HOST) return; // DIM-only - see setupSearchWidget
   const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]') as HTMLInputElement;
   if (!searchInput) return;
 
@@ -3879,6 +4115,9 @@ const observer = new MutationObserver((mutations) => {
           children.forEach((child) => pendingProcessTargets.add(child));
         }
       });
+      if (IS_WINNOWER_HOST && mutation.removedNodes.length > 0 && (pinnedRow || hoveredElement)) {
+        scheduleTooltipAnchorCheck();
+      }
     }
   }
   if (pendingProcessTargets.size > 0 && !processFlushScheduled) {
@@ -4010,7 +4249,9 @@ function updateBadgesOpacity() {
 
 // Run initial scan once script loads
 reprocessAllElements();
-updateBadgesOpacity();
+if (!IS_WINNOWER_HOST) {
+  updateBadgesOpacity();
+}
 setupRegistryObserver();
 
 // Keep badge opacity in sync with React state updates — event-driven, not polled.
@@ -4019,6 +4260,7 @@ setupRegistryObserver();
 let opacityUpdateScheduled = false;
 
 function scheduleOpacityUpdate() {
+  if (IS_WINNOWER_HOST) return; // DIM-only: mirrors DIM's search-fade
   if (opacityUpdateScheduled) return;
   opacityUpdateScheduled = true;
   const tryRun = () => {
@@ -4052,6 +4294,9 @@ const dimmingObserver = new MutationObserver((mutations) => {
 });
 
 function startDimmingObserver() {
+  // Observes class/style mutations body-wide - a perf tax on Winnower, where
+  // Tailwind class strings churn constantly - for DIM-only search-fade dimming.
+  if (IS_WINNOWER_HOST) return;
   if (!document.body) {
     document.addEventListener('DOMContentLoaded', startDimmingObserver, { once: true });
     return;
