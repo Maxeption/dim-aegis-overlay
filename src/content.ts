@@ -986,86 +986,139 @@ function scoreSheetWeapon(
    Aegis Database Explorer Slide-out Panel Injection & Controller Logic
    ========================================================================== */
 
-function populateFramesFilter(selectedCat: string) {
-  if (!aegisSheetDb) return;
-  const frameSelect = document.querySelector('.aegis-explorer-frame-select') as HTMLSelectElement;
-  if (!frameSelect) return;
+const comboboxOptions: Record<string, string[]> = {
+  category: [],
+  frame: [],
+  element: ['Kinetic', 'Arc', 'Solar', 'Void', 'Stasis', 'Strand'],
+  ammo: ['Primary', 'Special', 'Heavy'],
+  source: [],
+  'widget-source': []
+};
 
-  const prevValue = frameSelect.value;
-  
-  // Clear existing options except the first one ("All Frames")
-  while (frameSelect.children.length > 1) {
-    frameSelect.removeChild(frameSelect.lastChild!);
+function populateComboboxMenu(id: string) {
+  const wrapper = document.querySelector(`.aegis-combobox-wrapper[data-combobox-id="${id}"]`);
+  if (!wrapper) return;
+
+  const optionsContainer = wrapper.querySelector('.aegis-combobox-options');
+  const input = wrapper.querySelector('.aegis-combobox-input') as HTMLInputElement;
+  if (!optionsContainer || !input) return;
+
+  const filterText = input.value.toLowerCase().trim();
+  const list = comboboxOptions[id] || [];
+
+  const displayTitle = id === 'widget-source' ? 'Source' : (id.charAt(0).toUpperCase() + id.slice(1));
+  let html = `<div class="aegis-combobox-option all-option" data-value="">All ${displayTitle}s</div>`;
+
+  const filtered = list.filter(item => !filterText || item.toLowerCase().includes(filterText));
+
+  if (filtered.length === 0) {
+    html += `<div style="padding: 8px; font-size: 11px; color: #88c0d0; text-align: center;">No matching ${displayTitle.toLowerCase()}s</div>`;
+  } else {
+    for (const item of filtered) {
+      const isSelected = input.value.trim().toLowerCase() === item.trim().toLowerCase();
+      const selectedClass = isSelected ? 'selected' : '';
+      const checkMark = isSelected ? '<span style="color: #ffd700; font-weight: bold; font-size: 11px;">✓</span>' : '';
+      html += `
+        <div class="aegis-combobox-option ${selectedClass}" data-value="${item.replace(/"/g, '&quot;')}">
+          <span>${item}</span>
+          ${checkMark}
+        </div>
+      `;
+    }
   }
 
+  optionsContainer.innerHTML = html;
+
+  optionsContainer.querySelectorAll('.aegis-combobox-option').forEach(optEl => {
+    optEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = optEl.getAttribute('data-value') || '';
+      input.value = val;
+      wrapper.classList.remove('active');
+      wrapper.querySelector('.aegis-combobox-menu')?.classList.add('hidden');
+
+      if (id === 'category') populateFramesFilter(val);
+      if (id === 'ammo') populateFilters();
+      if (id === 'widget-source') {
+        const mainSearchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]') as HTMLInputElement;
+        if (mainSearchInput && val) {
+          mainSearchInput.value = `aegis:s:${val}`;
+          mainSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+          mainSearchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const widgetMenu = document.querySelector('.aegis-search-widget-menu');
+        if (widgetMenu) widgetMenu.classList.add('hidden');
+      }
+
+      renderResults();
+    });
+  });
+}
+
+function populateFramesFilter(selectedCat: string) {
+  if (!aegisSheetDb) return;
+
   const frames = new Set<string>();
-  
-  if (selectedCat) {
-    const list = aegisSheetDb.categories[selectedCat] || [];
-    for (const w of list) {
-      if (w.frame) {
-        frames.add(w.frame.trim());
+  const normCat = selectedCat.toLowerCase().trim();
+
+  if (normCat) {
+    for (const [cat, list] of Object.entries(aegisSheetDb.categories)) {
+      if (cat.toLowerCase().includes(normCat)) {
+        for (const w of list) {
+          if (w.frame) frames.add(w.frame.trim());
+        }
       }
     }
   } else {
     for (const w of Object.values(aegisSheetDb.weapons)) {
-      if (w.frame) {
-        frames.add(w.frame.trim());
-      }
+      if (w.frame) frames.add(w.frame.trim());
     }
   }
 
-  const sortedFrames = Array.from(frames).sort();
-  for (const frame of sortedFrames) {
-    const opt = document.createElement('option');
-    opt.value = frame;
-    opt.textContent = frame;
-    frameSelect.appendChild(opt);
-  }
-
-  // Restore selection if still valid
-  if (frames.has(prevValue)) {
-    frameSelect.value = prevValue;
-  } else {
-    frameSelect.value = '';
-  }
+  comboboxOptions.frame = Array.from(frames).sort();
+  populateComboboxMenu('frame');
 }
 
 function populateFilters() {
   if (!aegisSheetDb || !aegisSheetDb.categories) return;
 
-  const catSelect = document.querySelector('.aegis-explorer-category-select') as HTMLSelectElement;
-  const ammoSelect = document.querySelector('.aegis-explorer-ammo-select') as HTMLSelectElement;
-  if (!catSelect) return;
-
-  const prevCat = catSelect.value;
-  const selectedAmmo = ammoSelect ? ammoSelect.value : '';
-
-  // Clear existing category options except the first one ("All Categories")
-  catSelect.innerHTML = '<option value="">All Categories</option>';
+  const ammoInput = document.querySelector('.aegis-explorer-ammo-input') as HTMLInputElement;
+  const selectedAmmo = ammoInput ? ammoInput.value.toLowerCase().trim() : '';
 
   const categories = Object.keys(aegisSheetDb.categories).sort();
+  const validCats: string[] = [];
+
   for (const cat of categories) {
     if (selectedAmmo) {
-      const weaponAmmo = AMMO_TYPE_MAP[cat] || 'Other';
-      if (weaponAmmo !== selectedAmmo) continue;
+      const weaponAmmo = (AMMO_TYPE_MAP[cat] || 'Other').toLowerCase();
+      if (!weaponAmmo.includes(selectedAmmo)) continue;
     }
-
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    catSelect.appendChild(opt);
+    validCats.push(cat);
   }
 
-  // Restore selection if still valid/available
-  const hasPrevCat = Array.from(catSelect.options).some(opt => opt.value === prevCat);
-  if (hasPrevCat) {
-    catSelect.value = prevCat;
-  } else {
-    catSelect.value = '';
+  comboboxOptions.category = validCats;
+  populateComboboxMenu('category');
+
+  const catInput = document.querySelector('.aegis-explorer-category-input') as HTMLInputElement;
+  populateFramesFilter(catInput ? catInput.value : '');
+}
+
+function populateSourceFilter() {
+  if (!aegisSheetDb || !aegisSheetDb.weapons) return;
+
+  const sources = new Set<string>();
+  for (const w of Object.values(aegisSheetDb.weapons)) {
+    if (w.source) {
+      const trimmed = w.source.trim();
+      if (trimmed) sources.add(trimmed);
+    }
   }
 
-  populateFramesFilter(catSelect.value);
+  const sorted = Array.from(sources).sort();
+  comboboxOptions.source = sorted;
+  comboboxOptions['widget-source'] = sorted;
+  populateComboboxMenu('source');
+  populateComboboxMenu('widget-source');
 }
 
 function updateProgressIndicator() {
@@ -1459,37 +1512,41 @@ function renderResults() {
     updateProgressIndicator();
 
     const searchInput = document.querySelector('.aegis-explorer-search-input') as HTMLInputElement;
-    const catSelect = document.querySelector('.aegis-explorer-category-select') as HTMLSelectElement;
-    const frameSelect = document.querySelector('.aegis-explorer-frame-select') as HTMLSelectElement;
-    const elementSelect = document.querySelector('.aegis-explorer-element-select') as HTMLSelectElement;
-    const ammoSelect = document.querySelector('.aegis-explorer-ammo-select') as HTMLSelectElement;
+    const catInput = document.querySelector('.aegis-explorer-category-input') as HTMLInputElement;
+    const frameInput = document.querySelector('.aegis-explorer-frame-input') as HTMLInputElement;
+    const elementInput = document.querySelector('.aegis-explorer-element-input') as HTMLInputElement;
+    const ammoInput = document.querySelector('.aegis-explorer-ammo-input') as HTMLInputElement;
+    const sourceInput = document.querySelector('.aegis-explorer-source-input') as HTMLInputElement;
     const hideCompletedCheckbox = document.querySelector('.aegis-explorer-hide-completed') as HTMLInputElement | null;
 
     const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const selectedCat = catSelect ? catSelect.value : '';
-    const selectedFrame = frameSelect ? frameSelect.value : '';
-    const selectedElement = elementSelect ? elementSelect.value : '';
-    const selectedAmmo = ammoSelect ? ammoSelect.value : '';
+    const selectedCat = catInput ? catInput.value.toLowerCase().trim() : '';
+    const selectedFrame = frameInput ? frameInput.value.toLowerCase().trim() : '';
+    const selectedElement = elementInput ? elementInput.value.toLowerCase().trim() : '';
+    const selectedAmmo = ammoInput ? ammoInput.value.toLowerCase().trim() : '';
+    const selectedSource = sourceInput ? sourceInput.value.toLowerCase().trim() : '';
     const hideCompleted = hideCompletedCheckbox ? hideCompletedCheckbox.checked : false;
 
     const matches: { weapon: AegisSheetWeapon; category: string }[] = [];
 
     for (const [cat, list] of Object.entries(db.categories)) {
-      if (selectedCat && cat !== selectedCat) continue;
+      if (selectedCat && !cat.toLowerCase().includes(selectedCat)) continue;
       const weaponAmmo = AMMO_TYPE_MAP[cat] || 'Other';
-      if (selectedAmmo && weaponAmmo !== selectedAmmo) continue;
+      if (selectedAmmo && !weaponAmmo.toLowerCase().includes(selectedAmmo)) continue;
 
       for (const w of list) {
         const normName = w.name.toLowerCase().trim();
         if (hideCompleted && completedWeapons[normName]) continue;
-        if (selectedFrame && w.frame !== selectedFrame) continue;
-        if (selectedElement && w.energy.toLowerCase().trim() !== selectedElement.toLowerCase().trim()) continue;
+        if (selectedFrame && !w.frame.toLowerCase().includes(selectedFrame)) continue;
+        if (selectedElement && !w.energy.toLowerCase().includes(selectedElement)) continue;
+        if (selectedSource && (!w.source || !w.source.toLowerCase().includes(selectedSource))) continue;
         if (query) {
           const nameMatch = w.name.toLowerCase().includes(query);
           const notesMatch = w.notes.toLowerCase().includes(query);
           const frameMatch = w.frame.toLowerCase().includes(query);
+          const sourceMatch = w.source ? w.source.toLowerCase().includes(query) : false;
           const perksMatch = (w.perk1 + ' ' + w.perk2).toLowerCase().includes(query);
-          if (!nameMatch && !notesMatch && !frameMatch && !perksMatch) continue;
+          if (!nameMatch && !notesMatch && !frameMatch && !sourceMatch && !perksMatch) continue;
         }
         matches.push({ weapon: w, category: cat });
       }
@@ -1713,29 +1770,47 @@ function initAegisExplorer() {
     <div class="aegis-explorer-search-group">
       <input type="text" class="aegis-explorer-search-input" placeholder="Search weapon, notes, perks..." />
       <div class="aegis-explorer-selects">
-        <select class="aegis-explorer-category-select">
-          <option value="">All Categories</option>
-        </select>
-        <select class="aegis-explorer-frame-select">
-          <option value="">All Frames</option>
-        </select>
+        <div class="aegis-combobox-wrapper" data-combobox-id="category">
+          <input type="text" class="aegis-combobox-input aegis-explorer-category-input" placeholder="Category (e.g. Hand Cannons)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+
+        <div class="aegis-combobox-wrapper" data-combobox-id="frame">
+          <input type="text" class="aegis-combobox-input aegis-explorer-frame-input" placeholder="Frame (e.g. Adaptive)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
       </div>
       <div class="aegis-explorer-selects">
-        <select class="aegis-explorer-element-select">
-          <option value="">All Elements</option>
-          <option value="Kinetic">Kinetic</option>
-          <option value="Arc">Arc</option>
-          <option value="Solar">Solar</option>
-          <option value="Void">Void</option>
-          <option value="Stasis">Stasis</option>
-          <option value="Strand">Strand</option>
-        </select>
-        <select class="aegis-explorer-ammo-select">
-          <option value="">All Ammo</option>
-          <option value="Primary">Primary</option>
-          <option value="Special">Special</option>
-          <option value="Heavy">Heavy</option>
-        </select>
+        <div class="aegis-combobox-wrapper" data-combobox-id="element">
+          <input type="text" class="aegis-combobox-input aegis-explorer-element-input" placeholder="Element (e.g. Solar)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+
+        <div class="aegis-combobox-wrapper" data-combobox-id="ammo">
+          <input type="text" class="aegis-combobox-input aegis-explorer-ammo-input" placeholder="Ammo (e.g. Primary)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+      </div>
+      <div class="aegis-explorer-selects">
+        <div class="aegis-combobox-wrapper" data-combobox-id="source">
+          <input type="text" class="aegis-combobox-input aegis-explorer-source-input" placeholder="Source / Activity (e.g. Salvation's Edge)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
       </div>
       <div class="aegis-explorer-sub-controls">
         <label class="aegis-explorer-checkbox-label">
@@ -1769,22 +1844,63 @@ function initAegisExplorer() {
 
   const closeBtn = panel.querySelector('.aegis-explorer-close');
   const searchInput = panel.querySelector('.aegis-explorer-search-input');
-  const catSelect = panel.querySelector('.aegis-explorer-category-select');
-  const frameSelect = panel.querySelector('.aegis-explorer-frame-select');
-  const elementSelect = panel.querySelector('.aegis-explorer-element-select');
-  const ammoSelect = panel.querySelector('.aegis-explorer-ammo-select');
   const hideCompletedCheckbox = panel.querySelector('.aegis-explorer-hide-completed');
 
   fab.addEventListener('click', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
       populateFilters();
+      populateSourceFilter();
+      populateComboboxMenu('element');
+      populateComboboxMenu('ammo');
       renderResults();
     }
   });
 
-  closeBtn?.addEventListener('click', () => {
-    panel.classList.remove('open');
+  closeBtn?.addEventListener('click', () => panel.classList.remove('open'));
+  searchInput?.addEventListener('input', renderResults);
+
+  // Setup Combobox event listeners for dropdown popups
+  ['category', 'frame', 'element', 'ammo', 'source'].forEach(id => {
+    const wrapper = panel.querySelector(`.aegis-combobox-wrapper[data-combobox-id="${id}"]`) as HTMLElement;
+    if (!wrapper) return;
+    const input = wrapper.querySelector('.aegis-combobox-input') as HTMLInputElement;
+    const menu = wrapper.querySelector('.aegis-combobox-menu') as HTMLElement;
+
+    const openMenu = () => {
+      panel.querySelectorAll('.aegis-combobox-menu').forEach(m => {
+        if (m !== menu) m.classList.add('hidden');
+      });
+      panel.querySelectorAll('.aegis-combobox-wrapper').forEach(w => {
+        if (w !== wrapper) w.classList.remove('active');
+      });
+
+      populateComboboxMenu(id);
+      wrapper.classList.add('active');
+      menu.classList.remove('hidden');
+    };
+
+    input?.addEventListener('focus', openMenu);
+    input?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openMenu();
+    });
+
+    input?.addEventListener('input', () => {
+      populateComboboxMenu(id);
+      if (id === 'category') populateFramesFilter(input.value);
+      if (id === 'ammo') populateFilters();
+      renderResults();
+    });
+  });
+
+  // Global click listener to dismiss open combobox menus
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.aegis-combobox-wrapper')) {
+      document.querySelectorAll('.aegis-combobox-menu').forEach(m => m.classList.add('hidden'));
+      document.querySelectorAll('.aegis-combobox-wrapper').forEach(w => w.classList.remove('active'));
+    }
   });
 
   // Tab switching setup
@@ -1805,22 +1921,9 @@ function initAegisExplorer() {
     });
   });
 
-  const onUpdate = () => {
+  hideCompletedCheckbox?.addEventListener('change', () => {
     renderResults();
-  };
-
-  searchInput?.addEventListener('input', onUpdate);
-  catSelect?.addEventListener('change', () => {
-    populateFramesFilter((catSelect as HTMLSelectElement).value);
-    onUpdate();
   });
-  frameSelect?.addEventListener('change', onUpdate);
-  elementSelect?.addEventListener('change', onUpdate);
-  ammoSelect?.addEventListener('change', () => {
-    populateFilters();
-    onUpdate();
-  });
-  hideCompletedCheckbox?.addEventListener('change', onUpdate);
 }
 
 function showWelcomeModal() {
@@ -3670,6 +3773,7 @@ function setupSearchWidget() {
       <div class="aegis-btn-group" data-group="target">
         <button type="button" class="aegis-group-btn active" data-value="perk">Perk</button>
         <button type="button" class="aegis-group-btn" data-value="weapon">Weapon</button>
+        <button type="button" class="aegis-group-btn" data-value="source">Source</button>
         <button type="button" class="aegis-group-btn" data-value="armor2p">Armor 2pc</button>
         <button type="button" class="aegis-group-btn" data-value="armor4p">Armor 4pc</button>
       </div>
@@ -3697,6 +3801,19 @@ function setupSearchWidget() {
     <div class="aegis-menu-divider"></div>
 
     <div class="aegis-widget-row">
+      <div class="aegis-row-label">Activity Source</div>
+      <div class="aegis-combobox-wrapper" data-combobox-id="widget-source" style="width: 100% !important;">
+        <input type="text" class="aegis-combobox-input aegis-widget-source-input" placeholder="Select or type Source..." />
+        <span class="aegis-combobox-arrow">▾</span>
+        <div class="aegis-combobox-menu hidden">
+          <div class="aegis-combobox-options"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="aegis-menu-divider"></div>
+
+    <div class="aegis-widget-row">
       <div class="aegis-row-label">Shortcuts</div>
       <div class="aegis-shortcuts-grid">
         <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:god">God Rolls</button>
@@ -3718,9 +3835,38 @@ function setupSearchWidget() {
   // Position relative is required for absolute dropdown anchoring
   searchWrapper.style.setProperty('position', 'relative', 'important');
 
+  // Setup Activity Source Combobox in Widget
+  const widgetSourceWrapper = menu.querySelector('.aegis-combobox-wrapper[data-combobox-id="widget-source"]') as HTMLElement;
+  if (widgetSourceWrapper) {
+    const wsInput = widgetSourceWrapper.querySelector('.aegis-combobox-input') as HTMLInputElement;
+    const wsMenu = widgetSourceWrapper.querySelector('.aegis-combobox-menu') as HTMLElement;
+
+    const openWidgetSourceMenu = () => {
+      populateSourceFilter();
+      widgetSourceWrapper.classList.add('active');
+      wsMenu.classList.remove('hidden');
+    };
+
+    wsInput?.addEventListener('focus', openWidgetSourceMenu);
+    wsInput?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openWidgetSourceMenu();
+    });
+
+    wsInput?.addEventListener('input', () => {
+      populateComboboxMenu('widget-source');
+      if (wsInput.value.trim()) {
+        searchInput.value = `aegis:s:${wsInput.value.trim()}`;
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
   // Toggle dropdown on button click
   button.addEventListener('click', (e) => {
     e.stopPropagation();
+    populateSourceFilter();
     menu.classList.toggle('hidden');
   });
 
@@ -3754,6 +3900,7 @@ function setupSearchWidget() {
     const prefixes: Record<string, string> = {
       perk: 'aegis:p:',
       weapon: 'aegis:w:',
+      source: 'aegis:s:',
       armor2p: 'aegis:a:2p:',
       armor4p: 'aegis:a:4p:'
     };
@@ -3918,6 +4065,12 @@ function evaluateAegisFiltering() {
           isMatch = !!result?.upgradeAvailable;
         } else if (targetQuery === 'god') {
           isMatch = compareGrades(perkRank, '>=s');
+        } else if (targetQuery.startsWith('s:') || targetQuery.startsWith('source:')) {
+          const targetSource = targetQuery.startsWith('s:') ? targetQuery.substring(2) : targetQuery.substring(7);
+          const sheetW = (item as any)._aegisSheetWeapon as AegisSheetWeapon | undefined;
+          const weaponName = ((item as any)._aegisName || '').toLowerCase().trim();
+          const itemSource = sheetW?.source || (aegisSheetDb?.weapons[weaponName]?.source) || '';
+          isMatch = itemSource.toLowerCase().includes(targetSource.toLowerCase());
         } else if (targetQuery.startsWith('w:') || targetQuery.startsWith('weapon:')) {
           const targetRank = targetQuery.startsWith('w:') ? targetQuery.substring(2) : targetQuery.substring(7);
           isMatch = compareGrades(weaponRank, targetRank);
@@ -3951,6 +4104,11 @@ function getAegisFilterLabel(targetQuery: string): string {
   if (q === 'chase') return 'Chase List';
   if (q === 'bis' || q === 'bestinclass') return 'Best in Class';
   if (q === 'meta') return 'Meta Tier';
+
+  if (q.startsWith('s:') || q.startsWith('source:')) {
+    const src = q.startsWith('s:') ? q.substring(2) : q.substring(7);
+    return `Source: ${src}`;
+  }
 
   const parts = q.split(':');
   if (parts.length >= 2) {

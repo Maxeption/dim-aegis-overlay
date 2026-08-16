@@ -1,5 +1,15 @@
 import { scoreWeapon } from './scorer';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes } from './tooltip';
+// Winnower (winnower.garden) cooperates with this extension. It writes the
+// data-aegis-* attributes itself (no main-world script there) and provides an
+// inline [data-aegis-badge-slot] per weapon name. The <meta name="dim-aegis-host">
+// tag identifies a localhost dev server of Winnower.
+const IS_WINNOWER_HOST = /(^|\.)winnower\.garden$/.test(location.hostname) ||
+    document.querySelector('meta[name="dim-aegis-host"][content="winnower"]') !== null;
+/** The name cell hosting a Winnower row's badge slot. */
+function winnowerNameCell(row) {
+    return row.querySelector('[data-aegis-badge-slot]')?.closest('td') ?? null;
+}
 /** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
 function safeSetInnerHTML(element, htmlString) {
     const parser = new DOMParser();
@@ -151,6 +161,7 @@ let scoringSource = 'aegis';
 let aegisLayoutSide = 'side';
 let aegisDbMode = 'both';
 let aegisTwoTier = false;
+let aegisGradeDisplayMode = 'equipped';
 let aegisHoverEnabled = true;
 let aegisArmorSource = 'lowco';
 let aegisMode = 'pve';
@@ -263,6 +274,11 @@ function schedulePerkRegistryPersist(registry) {
  * resolved perk names and trigger real-time updates to the active tooltip.
  */
 function setupRegistryObserver() {
+    // The registry element is created by the main-world script, which does not
+    // run on Winnower. Without this gate, every call would add another
+    // body-wide observer waiting for an element that never appears.
+    if (IS_WINNOWER_HOST)
+        return;
     if (registryObserver)
         return;
     const registryEl = document.getElementById('aegis-global-perk-registry');
@@ -791,7 +807,7 @@ function scoreSheetWeapon(sheetWeapon, perksMap, activeHashes) {
     const potIdx = gradeOrder.indexOf(potentialGrade);
     if (potIdx > curIdx && selectablePerkNames.length > 0) {
         const perksStr = selectablePerkNames.join(' or ');
-        upgradeAdvice = `💡 Upgrade available: Select ${perksStr} to rank up to ${potentialGrade}!`;
+        upgradeAdvice = `Upgrade available: Select ${perksStr} to rank up to ${potentialGrade}!`;
     }
     const finalGrade = currentGrade;
     const upgradeAvailable = potIdx > curIdx;
@@ -813,80 +829,130 @@ function scoreSheetWeapon(sheetWeapon, perksMap, activeHashes) {
 /* ==========================================================================
    Aegis Database Explorer Slide-out Panel Injection & Controller Logic
    ========================================================================== */
+const comboboxOptions = {
+    category: [],
+    frame: [],
+    element: ['Kinetic', 'Arc', 'Solar', 'Void', 'Stasis', 'Strand'],
+    ammo: ['Primary', 'Special', 'Heavy'],
+    source: [],
+    'widget-source': []
+};
+function populateComboboxMenu(id) {
+    const wrapper = document.querySelector(`.aegis-combobox-wrapper[data-combobox-id="${id}"]`);
+    if (!wrapper)
+        return;
+    const optionsContainer = wrapper.querySelector('.aegis-combobox-options');
+    const input = wrapper.querySelector('.aegis-combobox-input');
+    if (!optionsContainer || !input)
+        return;
+    const filterText = input.value.toLowerCase().trim();
+    const list = comboboxOptions[id] || [];
+    const displayTitle = id === 'widget-source' ? 'Source' : (id.charAt(0).toUpperCase() + id.slice(1));
+    let html = `<div class="aegis-combobox-option all-option" data-value="">All ${displayTitle}s</div>`;
+    const filtered = list.filter(item => !filterText || item.toLowerCase().includes(filterText));
+    if (filtered.length === 0) {
+        html += `<div style="padding: 8px; font-size: 11px; color: #88c0d0; text-align: center;">No matching ${displayTitle.toLowerCase()}s</div>`;
+    }
+    else {
+        for (const item of filtered) {
+            const isSelected = input.value.trim().toLowerCase() === item.trim().toLowerCase();
+            const selectedClass = isSelected ? 'selected' : '';
+            const checkMark = isSelected ? '<span style="color: #ffd700; font-weight: bold; font-size: 11px;">✓</span>' : '';
+            html += `
+        <div class="aegis-combobox-option ${selectedClass}" data-value="${item.replace(/"/g, '&quot;')}">
+          <span>${item}</span>
+          ${checkMark}
+        </div>
+      `;
+        }
+    }
+    optionsContainer.innerHTML = html;
+    optionsContainer.querySelectorAll('.aegis-combobox-option').forEach(optEl => {
+        optEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const val = optEl.getAttribute('data-value') || '';
+            input.value = val;
+            wrapper.classList.remove('active');
+            wrapper.querySelector('.aegis-combobox-menu')?.classList.add('hidden');
+            if (id === 'category')
+                populateFramesFilter(val);
+            if (id === 'ammo')
+                populateFilters();
+            if (id === 'widget-source') {
+                const mainSearchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]');
+                if (mainSearchInput && val) {
+                    mainSearchInput.value = `aegis:s:${val}`;
+                    mainSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    mainSearchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const widgetMenu = document.querySelector('.aegis-search-widget-menu');
+                if (widgetMenu)
+                    widgetMenu.classList.add('hidden');
+            }
+            renderResults();
+        });
+    });
+}
 function populateFramesFilter(selectedCat) {
     if (!aegisSheetDb)
         return;
-    const frameSelect = document.querySelector('.aegis-explorer-frame-select');
-    if (!frameSelect)
-        return;
-    const prevValue = frameSelect.value;
-    // Clear existing options except the first one ("All Frames")
-    while (frameSelect.children.length > 1) {
-        frameSelect.removeChild(frameSelect.lastChild);
-    }
     const frames = new Set();
-    if (selectedCat) {
-        const list = aegisSheetDb.categories[selectedCat] || [];
-        for (const w of list) {
-            if (w.frame) {
-                frames.add(w.frame.trim());
+    const normCat = selectedCat.toLowerCase().trim();
+    if (normCat) {
+        for (const [cat, list] of Object.entries(aegisSheetDb.categories)) {
+            if (cat.toLowerCase().includes(normCat)) {
+                for (const w of list) {
+                    if (w.frame)
+                        frames.add(w.frame.trim());
+                }
             }
         }
     }
     else {
         for (const w of Object.values(aegisSheetDb.weapons)) {
-            if (w.frame) {
+            if (w.frame)
                 frames.add(w.frame.trim());
-            }
         }
     }
-    const sortedFrames = Array.from(frames).sort();
-    for (const frame of sortedFrames) {
-        const opt = document.createElement('option');
-        opt.value = frame;
-        opt.textContent = frame;
-        frameSelect.appendChild(opt);
-    }
-    // Restore selection if still valid
-    if (frames.has(prevValue)) {
-        frameSelect.value = prevValue;
-    }
-    else {
-        frameSelect.value = '';
-    }
+    comboboxOptions.frame = Array.from(frames).sort();
+    populateComboboxMenu('frame');
 }
 function populateFilters() {
     if (!aegisSheetDb || !aegisSheetDb.categories)
         return;
-    const catSelect = document.querySelector('.aegis-explorer-category-select');
-    const ammoSelect = document.querySelector('.aegis-explorer-ammo-select');
-    if (!catSelect)
-        return;
-    const prevCat = catSelect.value;
-    const selectedAmmo = ammoSelect ? ammoSelect.value : '';
-    // Clear existing category options except the first one ("All Categories")
-    catSelect.innerHTML = '<option value="">All Categories</option>';
+    const ammoInput = document.querySelector('.aegis-explorer-ammo-input');
+    const selectedAmmo = ammoInput ? ammoInput.value.toLowerCase().trim() : '';
     const categories = Object.keys(aegisSheetDb.categories).sort();
+    const validCats = [];
     for (const cat of categories) {
         if (selectedAmmo) {
-            const weaponAmmo = AMMO_TYPE_MAP[cat] || 'Other';
-            if (weaponAmmo !== selectedAmmo)
+            const weaponAmmo = (AMMO_TYPE_MAP[cat] || 'Other').toLowerCase();
+            if (!weaponAmmo.includes(selectedAmmo))
                 continue;
         }
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
-        catSelect.appendChild(opt);
+        validCats.push(cat);
     }
-    // Restore selection if still valid/available
-    const hasPrevCat = Array.from(catSelect.options).some(opt => opt.value === prevCat);
-    if (hasPrevCat) {
-        catSelect.value = prevCat;
+    comboboxOptions.category = validCats;
+    populateComboboxMenu('category');
+    const catInput = document.querySelector('.aegis-explorer-category-input');
+    populateFramesFilter(catInput ? catInput.value : '');
+}
+function populateSourceFilter() {
+    if (!aegisSheetDb || !aegisSheetDb.weapons)
+        return;
+    const sources = new Set();
+    for (const w of Object.values(aegisSheetDb.weapons)) {
+        if (w.source) {
+            const trimmed = w.source.trim();
+            if (trimmed)
+                sources.add(trimmed);
+        }
     }
-    else {
-        catSelect.value = '';
-    }
-    populateFramesFilter(catSelect.value);
+    const sorted = Array.from(sources).sort();
+    comboboxOptions.source = sorted;
+    comboboxOptions['widget-source'] = sorted;
+    populateComboboxMenu('source');
+    populateComboboxMenu('widget-source');
 }
 function updateProgressIndicator() {
     let totalWeaponsCount = 0;
@@ -1068,14 +1134,14 @@ function renderResults() {
                     let statusHtml = '';
                     let highlightBtnHtml = '';
                     if (owned.length === 0) {
-                        statusHtml = `<span class="aegis-chase-status aegis-status-none">🔴 Not in Inventory</span>`;
+                        statusHtml = `<span class="aegis-chase-status aegis-status-none">Not in Inventory</span>`;
                     }
                     else if (matches.length > 0) {
-                        statusHtml = `<span class="aegis-chase-status aegis-status-match">🟢 Obtained (${matches.length} matching)</span>`;
+                        statusHtml = `<span class="aegis-chase-status aegis-status-match">Obtained (${matches.length} matching)</span>`;
                         highlightBtnHtml = `<button class="aegis-action-btn" data-action="highlight-matching" data-ids="${matches.join(',')}" style="flex: none !important; height: 28px !important; padding: 0 10px !important; font-size: 11px !important; background: rgba(30, 215, 96, 0.08) !important; border: 1px solid rgba(30, 215, 96, 0.25) !important; color: #1ed760 !important; cursor: pointer !important; font-weight: 600 !important; border-radius: 6px !important;">Highlight in Vault</button>`;
                     }
                     else {
-                        statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">🟡 Have weapon, wrong perks</span>`;
+                        statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">Have weapon, wrong perks</span>`;
                     }
                     const baseNameForReport = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
                     const weaponHashForReport = nameToHash[normName] || nameToHash[baseNameForReport];
@@ -1261,38 +1327,43 @@ function renderResults() {
         // 2. EXPLORER DATABASE TAB RENDERER
         updateProgressIndicator();
         const searchInput = document.querySelector('.aegis-explorer-search-input');
-        const catSelect = document.querySelector('.aegis-explorer-category-select');
-        const frameSelect = document.querySelector('.aegis-explorer-frame-select');
-        const elementSelect = document.querySelector('.aegis-explorer-element-select');
-        const ammoSelect = document.querySelector('.aegis-explorer-ammo-select');
+        const catInput = document.querySelector('.aegis-explorer-category-input');
+        const frameInput = document.querySelector('.aegis-explorer-frame-input');
+        const elementInput = document.querySelector('.aegis-explorer-element-input');
+        const ammoInput = document.querySelector('.aegis-explorer-ammo-input');
+        const sourceInput = document.querySelector('.aegis-explorer-source-input');
         const hideCompletedCheckbox = document.querySelector('.aegis-explorer-hide-completed');
         const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-        const selectedCat = catSelect ? catSelect.value : '';
-        const selectedFrame = frameSelect ? frameSelect.value : '';
-        const selectedElement = elementSelect ? elementSelect.value : '';
-        const selectedAmmo = ammoSelect ? ammoSelect.value : '';
+        const selectedCat = catInput ? catInput.value.toLowerCase().trim() : '';
+        const selectedFrame = frameInput ? frameInput.value.toLowerCase().trim() : '';
+        const selectedElement = elementInput ? elementInput.value.toLowerCase().trim() : '';
+        const selectedAmmo = ammoInput ? ammoInput.value.toLowerCase().trim() : '';
+        const selectedSource = sourceInput ? sourceInput.value.toLowerCase().trim() : '';
         const hideCompleted = hideCompletedCheckbox ? hideCompletedCheckbox.checked : false;
         const matches = [];
         for (const [cat, list] of Object.entries(db.categories)) {
-            if (selectedCat && cat !== selectedCat)
+            if (selectedCat && !cat.toLowerCase().includes(selectedCat))
                 continue;
             const weaponAmmo = AMMO_TYPE_MAP[cat] || 'Other';
-            if (selectedAmmo && weaponAmmo !== selectedAmmo)
+            if (selectedAmmo && !weaponAmmo.toLowerCase().includes(selectedAmmo))
                 continue;
             for (const w of list) {
                 const normName = w.name.toLowerCase().trim();
                 if (hideCompleted && completedWeapons[normName])
                     continue;
-                if (selectedFrame && w.frame !== selectedFrame)
+                if (selectedFrame && !w.frame.toLowerCase().includes(selectedFrame))
                     continue;
-                if (selectedElement && w.energy.toLowerCase().trim() !== selectedElement.toLowerCase().trim())
+                if (selectedElement && !w.energy.toLowerCase().includes(selectedElement))
+                    continue;
+                if (selectedSource && (!w.source || !w.source.toLowerCase().includes(selectedSource)))
                     continue;
                 if (query) {
                     const nameMatch = w.name.toLowerCase().includes(query);
                     const notesMatch = w.notes.toLowerCase().includes(query);
                     const frameMatch = w.frame.toLowerCase().includes(query);
+                    const sourceMatch = w.source ? w.source.toLowerCase().includes(query) : false;
                     const perksMatch = (w.perk1 + ' ' + w.perk2).toLowerCase().includes(query);
-                    if (!nameMatch && !notesMatch && !frameMatch && !perksMatch)
+                    if (!nameMatch && !notesMatch && !frameMatch && !sourceMatch && !perksMatch)
                         continue;
                 }
                 matches.push({ weapon: w, category: cat });
@@ -1318,7 +1389,7 @@ function renderResults() {
             const completedClass = isCompleted ? 'completed' : '';
             const tierLetter = w.tier ? w.tier.charAt(0).toLowerCase() : '';
             const tierClass = `aegis-tier-${tierLetter}`;
-            const rankLabel = w.rank ? (w.rank === '1' ? '👑 Best in Archetype' : `#${w.rank}`) : '-';
+            const rankLabel = w.rank ? (w.rank === '1' ? 'Best in Archetype' : `#${w.rank}`) : '-';
             const baseName = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
             const weaponHash = nameToHash[normName] || nameToHash[baseName];
             let destinyReportBtnHtml = '';
@@ -1500,29 +1571,47 @@ function initAegisExplorer() {
     <div class="aegis-explorer-search-group">
       <input type="text" class="aegis-explorer-search-input" placeholder="Search weapon, notes, perks..." />
       <div class="aegis-explorer-selects">
-        <select class="aegis-explorer-category-select">
-          <option value="">All Categories</option>
-        </select>
-        <select class="aegis-explorer-frame-select">
-          <option value="">All Frames</option>
-        </select>
+        <div class="aegis-combobox-wrapper" data-combobox-id="category">
+          <input type="text" class="aegis-combobox-input aegis-explorer-category-input" placeholder="Category (e.g. Hand Cannons)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+
+        <div class="aegis-combobox-wrapper" data-combobox-id="frame">
+          <input type="text" class="aegis-combobox-input aegis-explorer-frame-input" placeholder="Frame (e.g. Adaptive)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
       </div>
       <div class="aegis-explorer-selects">
-        <select class="aegis-explorer-element-select">
-          <option value="">All Elements</option>
-          <option value="Kinetic">Kinetic</option>
-          <option value="Arc">Arc</option>
-          <option value="Solar">Solar</option>
-          <option value="Void">Void</option>
-          <option value="Stasis">Stasis</option>
-          <option value="Strand">Strand</option>
-        </select>
-        <select class="aegis-explorer-ammo-select">
-          <option value="">All Ammo</option>
-          <option value="Primary">Primary</option>
-          <option value="Special">Special</option>
-          <option value="Heavy">Heavy</option>
-        </select>
+        <div class="aegis-combobox-wrapper" data-combobox-id="element">
+          <input type="text" class="aegis-combobox-input aegis-explorer-element-input" placeholder="Element (e.g. Solar)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+
+        <div class="aegis-combobox-wrapper" data-combobox-id="ammo">
+          <input type="text" class="aegis-combobox-input aegis-explorer-ammo-input" placeholder="Ammo (e.g. Primary)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
+      </div>
+      <div class="aegis-explorer-selects">
+        <div class="aegis-combobox-wrapper" data-combobox-id="source">
+          <input type="text" class="aegis-combobox-input aegis-explorer-source-input" placeholder="Source / Activity (e.g. Salvation's Edge)..." />
+          <span class="aegis-combobox-arrow">▾</span>
+          <div class="aegis-combobox-menu hidden">
+            <div class="aegis-combobox-options"></div>
+          </div>
+        </div>
       </div>
       <div class="aegis-explorer-sub-controls">
         <label class="aegis-explorer-checkbox-label">
@@ -1553,20 +1642,60 @@ function initAegisExplorer() {
     }
     const closeBtn = panel.querySelector('.aegis-explorer-close');
     const searchInput = panel.querySelector('.aegis-explorer-search-input');
-    const catSelect = panel.querySelector('.aegis-explorer-category-select');
-    const frameSelect = panel.querySelector('.aegis-explorer-frame-select');
-    const elementSelect = panel.querySelector('.aegis-explorer-element-select');
-    const ammoSelect = panel.querySelector('.aegis-explorer-ammo-select');
     const hideCompletedCheckbox = panel.querySelector('.aegis-explorer-hide-completed');
     fab.addEventListener('click', () => {
         panel.classList.toggle('open');
         if (panel.classList.contains('open')) {
             populateFilters();
+            populateSourceFilter();
+            populateComboboxMenu('element');
+            populateComboboxMenu('ammo');
             renderResults();
         }
     });
-    closeBtn?.addEventListener('click', () => {
-        panel.classList.remove('open');
+    closeBtn?.addEventListener('click', () => panel.classList.remove('open'));
+    searchInput?.addEventListener('input', renderResults);
+    // Setup Combobox event listeners for dropdown popups
+    ['category', 'frame', 'element', 'ammo', 'source'].forEach(id => {
+        const wrapper = panel.querySelector(`.aegis-combobox-wrapper[data-combobox-id="${id}"]`);
+        if (!wrapper)
+            return;
+        const input = wrapper.querySelector('.aegis-combobox-input');
+        const menu = wrapper.querySelector('.aegis-combobox-menu');
+        const openMenu = () => {
+            panel.querySelectorAll('.aegis-combobox-menu').forEach(m => {
+                if (m !== menu)
+                    m.classList.add('hidden');
+            });
+            panel.querySelectorAll('.aegis-combobox-wrapper').forEach(w => {
+                if (w !== wrapper)
+                    w.classList.remove('active');
+            });
+            populateComboboxMenu(id);
+            wrapper.classList.add('active');
+            menu.classList.remove('hidden');
+        };
+        input?.addEventListener('focus', openMenu);
+        input?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openMenu();
+        });
+        input?.addEventListener('input', () => {
+            populateComboboxMenu(id);
+            if (id === 'category')
+                populateFramesFilter(input.value);
+            if (id === 'ammo')
+                populateFilters();
+            renderResults();
+        });
+    });
+    // Global click listener to dismiss open combobox menus
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!target.closest('.aegis-combobox-wrapper')) {
+            document.querySelectorAll('.aegis-combobox-menu').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.aegis-combobox-wrapper').forEach(w => w.classList.remove('active'));
+        }
     });
     // Tab switching setup
     const tabs = panel.querySelectorAll('.aegis-explorer-tab');
@@ -1587,21 +1716,9 @@ function initAegisExplorer() {
             renderResults();
         });
     });
-    const onUpdate = () => {
+    hideCompletedCheckbox?.addEventListener('change', () => {
         renderResults();
-    };
-    searchInput?.addEventListener('input', onUpdate);
-    catSelect?.addEventListener('change', () => {
-        populateFramesFilter(catSelect.value);
-        onUpdate();
     });
-    frameSelect?.addEventListener('change', onUpdate);
-    elementSelect?.addEventListener('change', onUpdate);
-    ammoSelect?.addEventListener('change', () => {
-        populateFilters();
-        onUpdate();
-    });
-    hideCompletedCheckbox?.addEventListener('change', onUpdate);
 }
 function showWelcomeModal() {
     if (document.querySelector('.aegis-welcome-backdrop'))
@@ -1616,23 +1733,27 @@ function showWelcomeModal() {
       </div>
       
       <div class="aegis-welcome-slides">
-        <!-- Slide 1: Welcome & Disclaimer -->
+        <!-- Slide 1: Welcome & What's New in v1.7.0 -->
         <div class="aegis-welcome-slide active" data-slide="0">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">Getting Started</span>
-            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 12px;">
+            <span class="tooltip-section-header">Getting Started & What's New in v1.7.1</span>
+            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
               This extension enhances Destiny Item Manager (DIM) by displaying meta spreadsheet weapon rankings, perk accuracy ratings, and custom armor set configurations directly on your items.
             </p>
-            
-            <div class="tooltip-divider" style="margin: 12px 0;"></div>
-            
-            <div class="tooltip-note" style="border: 1px solid rgba(231, 76, 60, 0.4); background: rgba(231, 76, 60, 0.08); padding: 12px; border-radius: 8px; font-size: 11.5px; color: #ff9f9f; line-height: 1.5; margin-bottom: 12px;">
-              <strong>⚠️ DISCLAIMER:</strong> The Aegis database source is primarily a <strong>PvE Endgame spreadsheet</strong>. Some weapons or perk combinations that excel in PvP or casual play may score lower.
+
+            <div style="border: 1px solid rgba(255, 215, 0, 0.3); background: rgba(255, 215, 0, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
+              <div style="font-size: 10px; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>What's New in Release v1.7.1</span>
+              </div>
+              <ul style="font-size: 11px; line-height: 1.45; color: #e5e9f0; margin: 0; padding-left: 16px;">
+                <li><strong>Perk Evaluation Basis & Dual Grade Badges (<span style="color: #ffd700;">F ➔ S+</span>):</strong> Evaluate weapon perk grades based on currently equipped perks, max potential rank, or both at once!</li>
+                <li><strong>Armor Set Bonus Side Panels & Readability Cleanups:</strong> Armor set bonus cards now open as floating side panels next to DIM's item details modal for 100% UI consistency.</li>
+              </ul>
             </div>
             
-            <p class="tooltip-desc" style="font-size: 11.5px; line-height: 1.5; color: #b1b1ba; margin-top: 8px;">
-              Click <strong>Next</strong> to start the quick tour of features, or use the navigation dots below.
-            </p>
+            <div class="tooltip-note" style="border: 1px solid rgba(231, 76, 60, 0.4); background: rgba(231, 76, 60, 0.08); padding: 10px 12px; border-radius: 8px; font-size: 11px; color: #ff9f9f; line-height: 1.45;">
+              <strong>DISCLAIMER:</strong> Sourced from Aegis' Endgame PvE spreadsheet. <u><strong>As of 1.7.0</strong></u> , a PVP spreadsheet was added made by Finnald that can be toggeled in the extension settings.
+            </div>
           </div>
         </div>
 
@@ -1664,11 +1785,11 @@ function showWelcomeModal() {
           </div>
         </div>
 
-        <!-- Slide 3: 2-Tier System -->
+        <!-- Slide 3: 2-Tier System & Dual Grades -->
         <div class="aegis-welcome-slide" data-slide="2">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">2. 2-Tier System (e.g. BS+, SF)</span>
-            <p class="tooltip-desc">Combines weapon meta tier with roll accuracy:</p>
+            <span class="tooltip-section-header">2. Advanced Overlay Modes & Dual Grades</span>
+            <p class="tooltip-desc">Combines weapon archetype tier with roll quality & upgrade potential:</p>
             
             <div class="two-tier-demo-wrapper" style="margin-top: 8px; margin-bottom: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 12px; display: flex; align-items: center; gap: 16px;">
               <img src="${chrome.runtime.getURL('two-tier-demo.png')}" class="two-tier-demo-img" style="width: 72px; height: auto; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1);" alt="2-tier grade badge demo" />
@@ -1678,19 +1799,15 @@ function showWelcomeModal() {
               </div>
             </div>
             
-            <p class="tooltip-desc" style="font-size: 11.5px; line-height: 1.45;">
-              - <strong>First Letter (Weapon Meta Ranking):</strong> Always sourced from Aegis' endgame PvE spreadsheet archetype rankings.<br/>
-              - <strong>Second Letter (Perk Synergy Grade):</strong> Sourced from Aegis' recommended perks by default, or your own synced custom DIM wishlist.
+            <p class="tooltip-desc" style="font-size: 11px; line-height: 1.45;">
+              - <strong>Dual Grades (<span style="color: #ffd700;">F ➔ S+</span>):</strong> Shows equipped rank alongside its upgrade potential if you select available perks!<br/>
+              - <strong>Spreadsheet Modes:</strong> Sourced from <strong>Aegis (PvE)</strong> or <strong>Finnald (PvP)</strong>.
             </p>
-            
-            <div style="display: flex; justify-content: center; margin-top: 6px; margin-bottom: 6px;">
-              <img src="${chrome.runtime.getURL('wishlist_configuration.png')}" style="width: 320px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: #12121a;" alt="Wishlist settings preview" />
-            </div>
             
             <div class="tooltip-divider" style="margin: 6px 0;"></div>
             
             <div class="tooltip-note" style="border: 1px solid rgba(255, 215, 0, 0.25); background: rgba(255, 215, 0, 0.04); padding: 8px; border-radius: 6px; font-size: 10.5px; line-height: 1.4; color: #ffd700;">
-              <strong>💡 How to Enable:</strong> Open the extension settings popup by clicking the <strong>puzzle piece / Aegis icon</strong> in your browser's toolbar (top right), then toggle the <strong>2-Tier System</strong> setting switch.
+              <strong>How to Toggle:</strong> Click the <strong>Aegis extension icon</strong> in your browser's toolbar (top right) to open settings and customize modes!
             </div>
           </div>
         </div>
@@ -1862,8 +1979,70 @@ function showWelcomeModal() {
     }
     closeBtn?.addEventListener('click', dismissModal);
 }
+/**
+ * Single-slide Winnower welcome modal describing what the extension does on
+ * Winnower. Image-free, so winnower.garden needs no web_accessible_resources.
+ */
+function showWinnowerWelcomeModal() {
+    if (document.querySelector('.aegis-welcome-backdrop'))
+        return;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'aegis-welcome-backdrop';
+    backdrop.innerHTML = `
+    <div class="aegis-welcome-modal">
+      <div class="aegis-welcome-header">
+        <span class="aegis-welcome-title">Aegis Overlay on Winnower</span>
+        <button class="aegis-welcome-close" title="Dismiss">&times;</button>
+      </div>
+
+      <div class="aegis-welcome-slides">
+        <div class="aegis-welcome-slide active" data-slide="0">
+          <div class="tooltip-section">
+            <span class="tooltip-section-header">DIM AEGIS OVERLAY NOW WORKS ON WINNOWER</span>
+            <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
+              When using this extension on Winnower, you'll see:
+            </p>
+            <ul style="font-size: 11.5px; line-height: 1.6; color: #e5e9f0; margin: 0 0 10px; padding-left: 16px;">
+              <li><strong>Grade badges</strong> under each weapon name and before each armor name, using your badge-mode setting (e.g. 2-Tier grading).</li>
+              <li><strong>Hover tooltips</strong> on the weapon name: analysis notes, recommended masterwork, and the full matched / selectable / missing perk checklist.</li>
+              <li><strong>Click a badge or weapon name</strong> to pin the tooltip for reading; click away, press Escape, or scroll to dismiss.</li>
+            </ul>
+            <p class="tooltip-desc" style="font-size: 11px; line-height: 1.5; margin-bottom: 10px;">
+              This extension and Winnower won't always agree on the quality of a roll. The badges grade each roll against recommended perks from a spreadsheet; Winnower's own ratings also weigh what else is in your vault.
+            </p>
+            <div class="tooltip-note" style="border: 1px solid rgba(255, 215, 0, 0.25); background: rgba(255, 215, 0, 0.04); padding: 8px; border-radius: 6px; font-size: 10.5px; line-height: 1.4; color: #ffd700;">
+              <strong>Settings:</strong> click the Aegis extension icon in your browser's toolbar to switch spreadsheet mode, badge style, and databases. The same settings apply on both sites.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="aegis-welcome-footer">
+        <label class="aegis-welcome-dismiss-checkbox">
+          <input type="checkbox" id="aegis-welcome-dont-show" />
+          Do not show this again
+        </label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="aegis-welcome-next-btn">Get Started</button>
+        </div>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(backdrop);
+    const nextBtn = backdrop.querySelector('.aegis-welcome-next-btn');
+    const closeBtn = backdrop.querySelector('.aegis-welcome-close');
+    const dontShowCheckbox = backdrop.querySelector('#aegis-welcome-dont-show');
+    function dismissModal() {
+        if (dontShowCheckbox.checked) {
+            chrome.storage.local.set({ aegisWelcomeDismissed: true });
+        }
+        backdrop.remove();
+    }
+    nextBtn.addEventListener('click', dismissModal);
+    closeBtn?.addEventListener('click', dismissModal);
+}
 // Load wishlist & config on startup
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed'], (res) => {
     wishlistDb = res.wishlistData || {};
     enhancedToNormalMap = res.enhancedToNormal || {};
     completedWeapons = res.aegisCompletedWeapons || {};
@@ -1873,6 +2052,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
     aegisDbMode = res.aegisDbMode || 'both';
     aegisMode = res.aegisMode || 'pve';
     aegisTwoTier = res.aegisTwoTier || false;
+    aegisGradeDisplayMode = res.aegisGradeDisplayMode || 'equipped';
     aegisHoverEnabled = res.aegisHoverEnabled !== false;
     aegisArmorSource = res.aegisArmorSource || 'lowco';
     lightggDb = res.lightggData || {};
@@ -1884,9 +2064,16 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
     updatePerkNameToIcon(res.perkRegistry || {});
     updatePerkNameToHash(res.perkRegistry || {});
     reprocessAllElements();
-    initAegisExplorer();
+    if (!IS_WINNOWER_HOST) {
+        initAegisExplorer(); // DIM-only: Winnower has its own weapon browser
+    }
     if (!res.aegisWelcomeDismissed) {
-        showWelcomeModal();
+        if (IS_WINNOWER_HOST) {
+            showWinnowerWelcomeModal();
+        }
+        else {
+            showWelcomeModal();
+        }
     }
 });
 // Watch for changes in storage (e.g. manual sync from settings popup)
@@ -1920,6 +2107,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         }
         if (changes.aegisTwoTier) {
             aegisTwoTier = changes.aegisTwoTier.newValue || false;
+            changed = true;
+        }
+        if (changes.aegisGradeDisplayMode) {
+            aegisGradeDisplayMode = changes.aegisGradeDisplayMode.newValue || 'equipped';
             changed = true;
         }
         if (changes.aegisHoverEnabled) {
@@ -1977,6 +2168,16 @@ let lastScrollTime = 0;
 let scrollClassTimer = null;
 document.addEventListener('scroll', () => {
     lastScrollTime = Date.now();
+    // Winnower's virtualized rows can unmount mid-scroll without firing
+    // mouseleave, which would leave the tooltip dangling.
+    if (IS_WINNOWER_HOST) {
+        if (tooltipShowTimer) {
+            clearTimeout(tooltipShowTimer);
+            tooltipShowTimer = null;
+        }
+        unpinTooltip();
+        hideTooltip();
+    }
     // Flag the document as "scrolling" so CSS can suppress hover transforms
     // on tiles passing under the cursor (each scale triggers a tile repaint)
     if (document.body && !document.body.classList.contains('aegis-scrolling')) {
@@ -1992,10 +2193,104 @@ document.addEventListener('scroll', () => {
 let tooltipShowTimer = null;
 const TOOLTIP_HOVER_DELAY_MS = 100;
 const TOOLTIP_SCROLL_SUPPRESS_MS = 150;
+/**
+ * Build and show the tooltip for an annotated element, positioned at `anchor`.
+ * Returns false when the element has no displayable grade.
+ */
+function showTooltipForElement(dataEl, anchor) {
+    const result = dataEl._aegisResult;
+    if (!result || !result.grade)
+        return false;
+    showTooltip(anchor, result, dataEl._aegisName, dataEl._aegisPerksMap, dataEl._aegisActiveHashes, scoringSource === 'lightgg', dataEl._aegisSheetWeapon, dataEl._aegisBestAlternative, dataEl._aegisIsBestInClass, dataEl._aegisSheetPerks, perkNameToIcon, dataEl._aegisSheetArmor, dataEl._aegisEquippedMasterwork, aegisMode);
+    return true;
+}
+// Pinned tooltip (Winnower): clicking the grade badge or the weapon name
+// keeps the tooltip open so it can be moused into and read; click-away,
+// Escape, or scroll dismisses. Pinning tracks the ROW so both triggers
+// cooperate: the badge toggles, the name cell (re)pins.
+let pinnedRow = null;
+function pinTooltipFor(trigger) {
+    const dataEl = trigger.closest('[data-aegis-item-hash]');
+    if (!dataEl)
+        return;
+    const anchor = trigger.closest('td') ?? dataEl;
+    if (!showTooltipForElement(dataEl, anchor)) {
+        unpinTooltip();
+        return;
+    }
+    // The base tooltip has pointer-events:none (it is a hover ghost on DIM);
+    // a pinned tooltip must accept the pointer so it can be read, scrolled,
+    // and recognized by the click-away check.
+    document.getElementById('aegis-tooltip')?.classList.add('aegis-tooltip-pinned');
+    if (!pinnedRow) {
+        document.addEventListener('pointerdown', handlePinDismissClick, true);
+        document.addEventListener('keydown', handlePinDismissKey, true);
+    }
+    pinnedRow = dataEl;
+}
+function unpinTooltip() {
+    if (!pinnedRow)
+        return;
+    pinnedRow = null;
+    document.getElementById('aegis-tooltip')?.classList.remove('aegis-tooltip-pinned');
+    document.removeEventListener('pointerdown', handlePinDismissClick, true);
+    document.removeEventListener('keydown', handlePinDismissKey, true);
+    hideTooltip();
+}
+function handlePinDismissClick(e) {
+    const target = e.target;
+    // Clicks on the tooltip, a badge, or a graded name cell are pin
+    // interactions owned by their own listeners, never dismissal.
+    if (target.closest('#aegis-tooltip, .aegis-badge, [data-aegis-listeners]'))
+        return;
+    unpinTooltip();
+}
+// Capture-phase so it fires despite Winnower's name-cell click handler
+// (which stops propagation to do its copy-item-id action; both actions run).
+function handleCellPinClick(e) {
+    if (e.target.closest('.aegis-badge'))
+        return;
+    pinTooltipFor(e.currentTarget);
+}
+// Winnower rows can unmount without mouseleave for reasons other than
+// scrolling (filter input, mode toggles), stranding a visible tooltip.
+// Checked once per frame when nodes are removed while a tooltip is live.
+let anchorCheckScheduled = false;
+function scheduleTooltipAnchorCheck() {
+    if (anchorCheckScheduled)
+        return;
+    anchorCheckScheduled = true;
+    requestAnimationFrame(() => {
+        anchorCheckScheduled = false;
+        if (pinnedRow && !pinnedRow.isConnected) {
+            unpinTooltip();
+        }
+        if (hoveredElement && !hoveredElement.isConnected) {
+            if (tooltipShowTimer) {
+                clearTimeout(tooltipShowTimer);
+                tooltipShowTimer = null;
+            }
+            hoveredElement = null;
+            if (!pinnedRow)
+                hideTooltip();
+        }
+    });
+}
+function handlePinDismissKey(e) {
+    if (e.key === 'Escape')
+        unpinTooltip();
+}
 function handleMouseEnter(e) {
     if (!aegisHoverEnabled)
         return;
+    if (pinnedRow)
+        return;
     const el = e.currentTarget;
+    // On Winnower listeners live on the name cell; the _aegis* data lives on the
+    // annotated row. `el` stays the positioning anchor.
+    const dataEl = el.hasAttribute('data-aegis-item-hash')
+        ? el
+        : (el.closest('[data-aegis-item-hash]') ?? el);
     hoveredElement = el;
     // Ignore hover hits that happen mid-scroll (tile just passed under cursor)
     if (Date.now() - lastScrollTime < TOOLTIP_SCROLL_SUPPRESS_MS)
@@ -2010,19 +2305,7 @@ function handleMouseEnter(e) {
         tooltipShowTimer = null;
         if (hoveredElement !== el)
             return;
-        const result = el._aegisResult;
-        const name = el._aegisName;
-        const perksMap = el._aegisPerksMap;
-        const activeHashes = el._aegisActiveHashes;
-        if (result && result.grade) {
-            const sheetWeapon = el._aegisSheetWeapon;
-            const bestAlternative = el._aegisBestAlternative;
-            const isBestInClass = el._aegisIsBestInClass;
-            const sheetPerks = el._aegisSheetPerks;
-            const sheetArmor = el._aegisSheetArmor;
-            const equippedMW = el._aegisEquippedMasterwork;
-            showTooltip(el, result, name, perksMap, activeHashes, scoringSource === 'lightgg', sheetWeapon, bestAlternative, isBestInClass, sheetPerks, perkNameToIcon, sheetArmor, equippedMW, aegisMode);
-        }
+        showTooltipForElement(dataEl, el);
     }, TOOLTIP_HOVER_DELAY_MS);
 }
 /**
@@ -2034,6 +2317,8 @@ function handleMouseLeave() {
         tooltipShowTimer = null;
     }
     hoveredElement = null;
+    if (pinnedRow)
+        return;
     hideTooltip();
 }
 /**
@@ -2082,46 +2367,101 @@ function injectPopupSummary(popupContainer, result, scoringSource, sheetWeapon, 
         </div>
       </div>
     `);
-        // Inject armor detail card below sockets
-        const sockets = popupContainer.querySelector('[class*="sockets" i], [class*="Sockets" i]');
-        if (sockets) {
-            const detailsCard = document.createElement('div');
-            detailsCard.className = 'aegis-popup-details-card';
-            detailsCard.setAttribute('data-aegis-details', 'true');
-            safeSetInnerHTML(detailsCard, `
-        <div class="aegis-popup-details-title">Armor Set Bonuses</div>
-        
-        <div class="aegis-armor-bonus-section">
-          <div class="aegis-armor-bonus-header">
-            <span class="aegis-armor-bonus-title">2-Piece Bonus: <strong>${sheetArmor.piece2Name}</strong></span>
-            <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece2Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}">${sheetArmor.piece2Rating}</span>
+        // Inject armor detail card as a side panel next to DIM details modal
+        const insertArmorCard = () => {
+            if (!popupContainer.isConnected)
+                return;
+            if (popupContainer.querySelector('[data-aegis-details="true"]'))
+                return;
+            const insertTarget = popupContainer.querySelector('[class*="sockets" i], [class*="Sockets" i], [class*="item-details" i], [class*="ItemDetails" i], [class*="main-content" i], [class*="body" i], [class*="content" i]') || summaryEl;
+            if (insertTarget) {
+                const detailsCard = document.createElement('div');
+                detailsCard.className = 'aegis-popup-details-card';
+                detailsCard.setAttribute('data-aegis-details', 'true');
+                safeSetInnerHTML(detailsCard, `
+          <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span>LowCo Armor Set Bonuses</span>
+            ${sheetArmor.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">Source: ${sheetArmor.source}</span>` : ''}
           </div>
-          <div class="aegis-armor-bonus-desc">${sheetArmor.piece2Desc}</div>
-          ${sheetArmor.piece2Numbers ? `<div class="aegis-armor-bonus-numbers"><strong>In-Depth:</strong> ${sheetArmor.piece2Numbers}</div>` : ''}
-        </div>
+          
+          <div class="aegis-details-body" style="margin-bottom: 0;">
+            <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #1abc9c; border-radius: 0 6px 6px 0; padding: 7px 10px; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #fff;">2-Piece Bonus: <strong style="color: #1abc9c;">${sheetArmor.piece2Name}</strong></span>
+                <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece2Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px;">${sheetArmor.piece2Rating}</span>
+              </div>
+              <div style="font-size: 11px; line-height: 1.5; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece2Desc)}</div>
+              ${sheetArmor.piece2Numbers ? `
+                <div style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);">
+                  <strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong>
+                  ${formatFormattedNotes(sheetArmor.piece2Numbers)}
+                </div>
+              ` : ''}
+            </div>
 
-        <div class="aegis-popup-meta-divider"></div>
-
-        <div class="aegis-armor-bonus-section">
-          <div class="aegis-armor-bonus-header">
-            <span class="aegis-armor-bonus-title">4-Piece Bonus: <strong>${sheetArmor.piece4Name}</strong></span>
-            <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece4Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}">${sheetArmor.piece4Rating}</span>
+            <div style="background: rgba(0, 0, 0, 0.25); border-left: 3px solid #b48ead; border-radius: 0 6px 6px 0; padding: 7px 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #fff;">4-Piece Bonus: <strong style="color: #b48ead;">${sheetArmor.piece4Name}</strong></span>
+                <span class="aegis-popup-grade-badge aegis-badge-${sheetArmor.piece4Rating.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px;">${sheetArmor.piece4Rating}</span>
+              </div>
+              <div style="font-size: 11px; line-height: 1.5; color: #d8dee9;">${formatFormattedNotes(sheetArmor.piece4Desc)}</div>
+              ${sheetArmor.piece4Numbers ? `
+                <div style="margin-top: 5px; font-size: 10.5px; color: #88c0d0; background: rgba(136, 192, 208, 0.08); padding: 5px 8px; border-radius: 4px; line-height: 1.45; border: 1px solid rgba(136, 192, 208, 0.15);">
+                  <strong style="color: #88c0d0; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; display: block; margin-bottom: 2px;">In-Depth Stats:</strong>
+                  ${formatFormattedNotes(sheetArmor.piece4Numbers)}
+                </div>
+              ` : ''}
+            </div>
           </div>
-          <div class="aegis-armor-bonus-desc">${sheetArmor.piece4Desc}</div>
-          ${sheetArmor.piece4Numbers ? `<div class="aegis-armor-bonus-numbers"><strong>In-Depth:</strong> ${sheetArmor.piece4Numbers}</div>` : ''}
-        </div>
 
-        <div class="aegis-popup-meta-divider"></div>
+          <div class="aegis-popup-meta-divider" style="margin-top: 10px;"></div>
 
-        <div class="aegis-popup-meta-content">
-          <div class="aegis-popup-row" style="gap: 8px;">
-            <span class="aegis-popup-meta-badge aegis-tier-source" style="background: linear-gradient(135deg, #1abc9c, #16a085) !important;">${sheetArmor.sourceType}</span>
-            <span class="aegis-popup-meta-rank" style="color: #ccc;">Source: ${sheetArmor.source}</span>
+          <div class="aegis-popup-meta-content">
+            <div class="aegis-popup-row" style="gap: 8px;">
+              <span class="aegis-popup-meta-badge aegis-tier-source" style="background: linear-gradient(135deg, #1abc9c, #16a085) !important;">${sheetArmor.sourceType}</span>
+              <span class="aegis-popup-meta-rank" style="color: #ccc;">Source: ${sheetArmor.source}</span>
+            </div>
           </div>
-        </div>
-      `);
-            sockets.insertAdjacentElement('afterend', detailsCard);
-        }
+        `);
+                const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
+                const rect = popupContainer.getBoundingClientRect();
+                const spaceLeft = rect.left;
+                const spaceRight = window.innerWidth - rect.right;
+                if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (isSheet || spaceLeft >= 330 || spaceRight >= 330)) {
+                    detailsCard.classList.add('aegis-side-panel');
+                    popupContainer.appendChild(detailsCard);
+                    detailsCard.style.setProperty('position', 'absolute', 'important');
+                    detailsCard.style.setProperty('top', '55px', 'important');
+                    if (isSheet || (spaceLeft >= spaceRight && spaceLeft >= 330)) {
+                        detailsCard.style.setProperty('left', '-320px', 'important');
+                        detailsCard.style.setProperty('right', 'auto', 'important');
+                    }
+                    else if (spaceRight >= 330) {
+                        detailsCard.style.setProperty('left', 'auto', 'important');
+                        detailsCard.style.setProperty('right', '-320px', 'important');
+                    }
+                    else {
+                        detailsCard.classList.remove('aegis-side-panel');
+                        detailsCard.style.removeProperty('position');
+                        detailsCard.style.removeProperty('top');
+                        detailsCard.style.removeProperty('left');
+                        detailsCard.style.removeProperty('right');
+                        insertTarget.after(detailsCard);
+                    }
+                }
+                else {
+                    detailsCard.classList.remove('aegis-side-panel');
+                    detailsCard.style.removeProperty('position');
+                    detailsCard.style.removeProperty('top');
+                    detailsCard.style.removeProperty('left');
+                    detailsCard.style.removeProperty('right');
+                    insertTarget.after(detailsCard);
+                }
+            }
+        };
+        insertArmorCard();
+        setTimeout(insertArmorCard, 100);
+        setTimeout(insertArmorCard, 250);
         return;
     }
     const baseGradeLetter = result.grade.charAt(0).toLowerCase();
@@ -2518,26 +2858,37 @@ function injectPopupSummary(popupContainer, result, scoringSource, sheetWeapon, 
  * Injects or updates the Aegis rank badge overlay inside a weapon tile.
  */
 function injectBadge(el, result) {
-    // Never inject badges inside popup toolbars, tag controls, or stat rows
-    if (el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
+    // Never inject badges inside popup toolbars, tag controls, or stat rows.
+    // DIM-only: on Winnower an ancestor class containing "sheet" would false-positive.
+    if (!IS_WINNOWER_HOST &&
+        el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
         !el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item')) {
         removeBadge(el);
         return;
     }
     // Deduplicate: Find root item container to ensure EXACTLY 1 badge per item tile in DIM Stable and Beta
     const itemContainer = el.closest('[data-aegis-item-hash]') || el;
-    let badgeTarget = itemContainer.querySelector('.item-tile, [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]');
-    if (!badgeTarget) {
-        badgeTarget = itemContainer;
-    }
-    // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
-    badgeTarget.style.setProperty('position', 'relative', 'important');
-    // Handle S-tier gold glow class on the badge target
-    if (result.grade && result.grade.startsWith('S')) {
-        badgeTarget.classList.add('aegis-gold-glow');
+    let badgeTarget;
+    if (IS_WINNOWER_HOST) {
+        // Without a slot there is no badge, and never the absolute-overlay
+        // fallback (a <div> child of a React-managed <tr> is invalid table DOM).
+        badgeTarget = itemContainer.querySelector('[data-aegis-badge-slot]');
+        if (!badgeTarget) {
+            removeBadge(el);
+            return;
+        }
     }
     else {
-        badgeTarget.classList.remove('aegis-gold-glow');
+        badgeTarget = itemContainer.querySelector('.item-tile, [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]');
+        if (!badgeTarget) {
+            badgeTarget = itemContainer;
+        }
+        // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
+        badgeTarget.style.setProperty('position', 'relative', 'important');
+    }
+    // S-tier gold glow is DIM-only; Winnower styles its chip in its own CSS.
+    if (!IS_WINNOWER_HOST) {
+        badgeTarget.classList.toggle('aegis-gold-glow', result.grade?.startsWith('S') ?? false);
     }
     // Purge any duplicate badges within itemContainer and reuse the primary badge
     const existingBadges = Array.from(itemContainer.querySelectorAll('.aegis-badge'));
@@ -2557,8 +2908,9 @@ function injectBadge(el, result) {
     badge.className = 'aegis-badge';
     // Set grade class and text (normalizing S+ / A- etc. to the first letter class)
     const gradeStr = result.grade || '';
-    const isTwoTier = gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-'));
+    const isDual = gradeStr.includes('➔');
     const isArmor = gradeStr.includes('/');
+    const isTwoTier = !isArmor && (gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-')));
     let baseLetter = '';
     if (isArmor) {
         const parts = gradeStr.split('/');
@@ -2570,6 +2922,11 @@ function injectBadge(el, result) {
             baseLetter = baseLetter.slice(0, -1);
         }
     }
+    else if (isDual) {
+        const parts = gradeStr.split('➔');
+        const potPart = parts[1] || parts[0];
+        baseLetter = potPart.toLowerCase().trim().charAt(0);
+    }
     else {
         // If it's a 2-tier grade (e.g. BS+ or SF), base color class on the actual roll matching grade (the last letter/symbol part)
         baseLetter = isTwoTier
@@ -2577,8 +2934,11 @@ function injectBadge(el, result) {
             : (gradeStr ? gradeStr.charAt(0).toLowerCase() : '');
     }
     badge.classList.add(`aegis-badge-${baseLetter}`);
-    if (isTwoTier || isArmor) {
+    if (isTwoTier || isArmor || isDual) {
         badge.classList.add('aegis-badge-wide');
+    }
+    if (isDual) {
+        badge.classList.add('aegis-badge-dual');
     }
     badge.textContent = gradeStr;
     if (result.upgradeAvailable) {
@@ -2586,6 +2946,20 @@ function injectBadge(el, result) {
         upgradeArrow.className = 'aegis-badge-upgrade-arrow';
         upgradeArrow.textContent = '▲';
         badge.appendChild(upgradeArrow);
+    }
+    // Winnower: click the badge to pin its tooltip (hover-only tooltips can't
+    // be moused into for reading long notes or the perk checklist).
+    if (IS_WINNOWER_HOST && !badge._aegisPinBound) {
+        badge._aegisPinBound = true;
+        badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (pinnedRow && pinnedRow === badge.closest('[data-aegis-item-hash]')) {
+                unpinTooltip();
+            }
+            else {
+                pinTooltipFor(badge);
+            }
+        });
     }
 }
 /**
@@ -2664,27 +3038,36 @@ function processElement(el) {
             el._aegisName = weaponName;
             el._aegisSheetArmor = sheetArmor;
             if (result.grade) {
-                const isPopup = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+                const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
                 if (!isPopup) {
                     injectBadge(el, result);
                 }
-                const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-                if (popupContainer) {
-                    injectPopupSummary(popupContainer, result, scoringSource, undefined, undefined, sheetArmor);
+                // DIM-only, as in the weapon path: Winnower has no item popups.
+                if (!IS_WINNOWER_HOST) {
+                    const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+                    if (popupContainer) {
+                        injectPopupSummary(popupContainer, result, scoringSource, undefined, undefined, sheetArmor);
+                    }
                 }
-                if (!isPopup && !el.hasAttribute('data-aegis-listeners')) {
-                    el.addEventListener('mouseenter', handleMouseEnter);
-                    el.addEventListener('mouseleave', handleMouseLeave);
-                    el.setAttribute('data-aegis-listeners', 'true');
+                const hoverTarget = IS_WINNOWER_HOST ? (winnowerNameCell(el) ?? el) : el;
+                if (!isPopup && !hoverTarget.hasAttribute('data-aegis-listeners')) {
+                    hoverTarget.addEventListener('mouseenter', handleMouseEnter);
+                    hoverTarget.addEventListener('mouseleave', handleMouseLeave);
+                    if (IS_WINNOWER_HOST) {
+                        hoverTarget.addEventListener('click', handleCellPinClick, true);
+                    }
+                    hoverTarget.setAttribute('data-aegis-listeners', 'true');
                 }
             }
             else {
                 removeBadge(el);
-                const popupContainer = el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-                if (popupContainer) {
-                    const summary = popupContainer.querySelector('.aegis-popup-summary');
-                    if (summary)
-                        summary.remove();
+                if (!IS_WINNOWER_HOST) {
+                    const popupContainer = el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+                    if (popupContainer) {
+                        const summary = popupContainer.querySelector('.aegis-popup-summary');
+                        if (summary)
+                            summary.remove();
+                    }
                 }
                 if (el.hasAttribute('data-aegis-listeners')) {
                     el.removeEventListener('mouseenter', handleMouseEnter);
@@ -2758,7 +3141,9 @@ function processElement(el) {
         }
         let result;
         let sheetPerks = undefined;
-        const elText = el.textContent || '';
+        // A Winnower row's textContent is the whole row (verdict prose, perk
+        // lists), so the variant-disambiguation text is scoped to the name cell.
+        const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
         const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText);
         let bestAlternative = undefined;
         let isBestInClass = false;
@@ -2881,12 +3266,32 @@ function processElement(el) {
             if (isExotic && sheetWeapon && sheetWeapon.tier) {
                 result.grade = sheetWeapon.tier.trim();
             }
-            else if (aegisTwoTier && hasSheetData && sheetWeapon && sheetWeapon.tier) {
-                const archetypeTier = sheetWeapon.tier.trim();
-                result.grade = `${archetypeTier}${result.grade}`;
+            else {
+                const activeGrade = result.grade;
+                const potentialGrade = result.potentialGrade;
+                const hasHigherPotential = potentialGrade && potentialGrade !== activeGrade && getGradeValue(potentialGrade) > getGradeValue(activeGrade);
+                if (hasHigherPotential) {
+                    result.upgradeAvailable = true;
+                }
+                let displayRollGrade = activeGrade;
+                if (hasHigherPotential && aegisGradeDisplayMode === 'dual') {
+                    displayRollGrade = `${activeGrade}➔${potentialGrade}`;
+                }
+                else if (hasHigherPotential && aegisGradeDisplayMode === 'potential') {
+                    displayRollGrade = potentialGrade;
+                }
+                if (aegisTwoTier && hasSheetData && sheetWeapon && sheetWeapon.tier) {
+                    const archetypeTier = sheetWeapon.tier.trim();
+                    result.grade = `${archetypeTier}${displayRollGrade}`;
+                }
+                else {
+                    result.grade = displayRollGrade;
+                }
             }
-            const isPopup = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-            const isItemTile = el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item');
+            const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+            const isItemTile = IS_WINNOWER_HOST
+                ? el.hasAttribute('data-aegis-item-hash')
+                : el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item');
             // Inject rank badge (only if it's a valid item tile and NOT the popup container itself)
             if (!isPopup && isItemTile) {
                 injectBadge(el, result);
@@ -2894,21 +3299,30 @@ function processElement(el) {
             else if (!isPopup) {
                 removeBadge(el);
             }
-            // Inject popup summary card if inside a details popup (or if we are the popup container)
-            const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
-            if (popupContainer) {
-                injectPopupSummary(popupContainer, result, scoringSource, sheetWeapon || undefined, sheetPerks, undefined, equippedMasterwork);
+            // Inject popup summary card if inside a details popup. DIM-only: Winnower
+            // has no item popups (and [class*="Sheet"] could false-positive there).
+            if (!IS_WINNOWER_HOST) {
+                const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+                if (popupContainer) {
+                    injectPopupSummary(popupContainer, result, scoringSource, sheetWeapon || undefined, sheetPerks, undefined, equippedMasterwork);
+                }
             }
-            // Attach event listeners for hover tooltips (only for valid item tiles)
-            if (!isPopup && isItemTile && !el.hasAttribute('data-aegis-listeners')) {
-                el.addEventListener('mouseenter', handleMouseEnter);
-                el.addEventListener('mouseleave', handleMouseLeave);
-                el.setAttribute('data-aegis-listeners', 'true');
+            // Hover binds to the name cell on Winnower because a full-width row
+            // anchor defeats side placement and fires on every row during vertical travel.
+            const hoverTarget = IS_WINNOWER_HOST ? (winnowerNameCell(el) ?? el) : el;
+            if (!isPopup && isItemTile && !hoverTarget.hasAttribute('data-aegis-listeners')) {
+                hoverTarget.addEventListener('mouseenter', handleMouseEnter);
+                hoverTarget.addEventListener('mouseleave', handleMouseLeave);
+                if (IS_WINNOWER_HOST) {
+                    hoverTarget.addEventListener('click', handleCellPinClick, true);
+                }
+                hoverTarget.setAttribute('data-aegis-listeners', 'true');
             }
-            else if (!isItemTile && el.hasAttribute('data-aegis-listeners')) {
-                el.removeEventListener('mouseenter', handleMouseEnter);
-                el.removeEventListener('mouseleave', handleMouseLeave);
-                el.removeAttribute('data-aegis-listeners');
+            else if (!isItemTile && hoverTarget.hasAttribute('data-aegis-listeners')) {
+                hoverTarget.removeEventListener('mouseenter', handleMouseEnter);
+                hoverTarget.removeEventListener('mouseleave', handleMouseLeave);
+                hoverTarget.removeEventListener('click', handleCellPinClick, true);
+                hoverTarget.removeAttribute('data-aegis-listeners');
             }
         }
         else {
@@ -2944,7 +3358,14 @@ const GRADE_VALUES = {
     'none': 0
 };
 function compareGrades(itemGrade, queryStr) {
-    const normalizedGrade = itemGrade.toLowerCase().trim();
+    let normalizedGrade = itemGrade.toLowerCase().trim();
+    // If it's a dual grade string like "f➔s+" or "bf➔s+", check if either equipped or potential grade matches
+    if (normalizedGrade.includes('➔')) {
+        const parts = normalizedGrade.split('➔');
+        const equippedPart = parts[0];
+        const potentialPart = parts[1];
+        return compareGrades(equippedPart, queryStr) || compareGrades(potentialPart, queryStr);
+    }
     const match = queryStr.match(/^([><]=?|==?)(.+)$/);
     if (match) {
         const op = match[1];
@@ -2965,6 +3386,10 @@ function compareGrades(itemGrade, queryStr) {
     return normalizedGrade === queryStr || normalizedGrade.startsWith(queryStr);
 }
 function setupSearchWidget() {
+    // Winnower's own filter input matches this selector; injecting the widget
+    // there would rewrite Winnower's controlled input.
+    if (IS_WINNOWER_HOST)
+        return;
     const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]');
     if (!searchInput)
         return;
@@ -2997,6 +3422,7 @@ function setupSearchWidget() {
       <div class="aegis-btn-group" data-group="target">
         <button type="button" class="aegis-group-btn active" data-value="perk">Perk</button>
         <button type="button" class="aegis-group-btn" data-value="weapon">Weapon</button>
+        <button type="button" class="aegis-group-btn" data-value="source">Source</button>
         <button type="button" class="aegis-group-btn" data-value="armor2p">Armor 2pc</button>
         <button type="button" class="aegis-group-btn" data-value="armor4p">Armor 4pc</button>
       </div>
@@ -3024,6 +3450,19 @@ function setupSearchWidget() {
     <div class="aegis-menu-divider"></div>
 
     <div class="aegis-widget-row">
+      <div class="aegis-row-label">Activity Source</div>
+      <div class="aegis-combobox-wrapper" data-combobox-id="widget-source" style="width: 100% !important;">
+        <input type="text" class="aegis-combobox-input aegis-widget-source-input" placeholder="Select or type Source..." />
+        <span class="aegis-combobox-arrow">▾</span>
+        <div class="aegis-combobox-menu hidden">
+          <div class="aegis-combobox-options"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="aegis-menu-divider"></div>
+
+    <div class="aegis-widget-row">
       <div class="aegis-row-label">Shortcuts</div>
       <div class="aegis-shortcuts-grid">
         <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:god">God Rolls</button>
@@ -3041,9 +3480,34 @@ function setupSearchWidget() {
     searchInput.after(widgetContainer);
     // Position relative is required for absolute dropdown anchoring
     searchWrapper.style.setProperty('position', 'relative', 'important');
+    // Setup Activity Source Combobox in Widget
+    const widgetSourceWrapper = menu.querySelector('.aegis-combobox-wrapper[data-combobox-id="widget-source"]');
+    if (widgetSourceWrapper) {
+        const wsInput = widgetSourceWrapper.querySelector('.aegis-combobox-input');
+        const wsMenu = widgetSourceWrapper.querySelector('.aegis-combobox-menu');
+        const openWidgetSourceMenu = () => {
+            populateSourceFilter();
+            widgetSourceWrapper.classList.add('active');
+            wsMenu.classList.remove('hidden');
+        };
+        wsInput?.addEventListener('focus', openWidgetSourceMenu);
+        wsInput?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openWidgetSourceMenu();
+        });
+        wsInput?.addEventListener('input', () => {
+            populateComboboxMenu('widget-source');
+            if (wsInput.value.trim()) {
+                searchInput.value = `aegis:s:${wsInput.value.trim()}`;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
     // Toggle dropdown on button click
     button.addEventListener('click', (e) => {
         e.stopPropagation();
+        populateSourceFilter();
         menu.classList.toggle('hidden');
     });
     // Handle Target selection clicks
@@ -3076,6 +3540,7 @@ function setupSearchWidget() {
         const prefixes = {
             perk: 'aegis:p:',
             weapon: 'aegis:w:',
+            source: 'aegis:s:',
             armor2p: 'aegis:a:2p:',
             armor4p: 'aegis:a:4p:'
         };
@@ -3119,6 +3584,8 @@ function setupSearchWidget() {
 let activeAegisFilter = null;
 let activeAegisFilterLabel = null;
 function renderAegisFilterPill() {
+    if (IS_WINNOWER_HOST)
+        return; // DIM-only aegis: filter UI
     const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]');
     if (!searchInput)
         return;
@@ -3163,6 +3630,8 @@ function renderAegisFilterPill() {
     });
 }
 function evaluateAegisFiltering() {
+    if (IS_WINNOWER_HOST)
+        return; // DIM-only aegis: filter UI
     const items = document.querySelectorAll('[data-aegis-item-hash]');
     if (!activeAegisFilter) {
         items.forEach(item => {
@@ -3222,6 +3691,13 @@ function evaluateAegisFiltering() {
                 else if (targetQuery === 'god') {
                     isMatch = compareGrades(perkRank, '>=s');
                 }
+                else if (targetQuery.startsWith('s:') || targetQuery.startsWith('source:')) {
+                    const targetSource = targetQuery.startsWith('s:') ? targetQuery.substring(2) : targetQuery.substring(7);
+                    const sheetW = item._aegisSheetWeapon;
+                    const weaponName = (item._aegisName || '').toLowerCase().trim();
+                    const itemSource = sheetW?.source || (aegisSheetDb?.weapons[weaponName]?.source) || '';
+                    isMatch = itemSource.toLowerCase().includes(targetSource.toLowerCase());
+                }
                 else if (targetQuery.startsWith('w:') || targetQuery.startsWith('weapon:')) {
                     const targetRank = targetQuery.startsWith('w:') ? targetQuery.substring(2) : targetQuery.substring(7);
                     isMatch = compareGrades(weaponRank, targetRank);
@@ -3261,6 +3737,10 @@ function getAegisFilterLabel(targetQuery) {
         return 'Best in Class';
     if (q === 'meta')
         return 'Meta Tier';
+    if (q.startsWith('s:') || q.startsWith('source:')) {
+        const src = q.startsWith('s:') ? q.substring(2) : q.substring(7);
+        return `Source: ${src}`;
+    }
     const parts = q.split(':');
     if (parts.length >= 2) {
         const type = parts[0];
@@ -3297,6 +3777,8 @@ function processCompletedAegisToken(searchInput, val, aegisMatch) {
     evaluateAegisFiltering();
 }
 function setupSearchFilterObserver() {
+    if (IS_WINNOWER_HOST)
+        return; // DIM-only - see setupSearchWidget
     const searchInput = document.querySelector('input[name="filter"], input[placeholder*="filter" i], input[type="search"]');
     if (!searchInput)
         return;
@@ -3402,6 +3884,9 @@ const observer = new MutationObserver((mutations) => {
                     children.forEach((child) => pendingProcessTargets.add(child));
                 }
             });
+            if (IS_WINNOWER_HOST && mutation.removedNodes.length > 0 && (pinnedRow || hoveredElement)) {
+                scheduleTooltipAnchorCheck();
+            }
         }
     }
     if (pendingProcessTargets.size > 0 && !processFlushScheduled) {
@@ -3520,13 +4005,17 @@ function updateBadgesOpacity() {
 }
 // Run initial scan once script loads
 reprocessAllElements();
-updateBadgesOpacity();
+if (!IS_WINNOWER_HOST) {
+    updateBadgesOpacity();
+}
 setupRegistryObserver();
 // Keep badge opacity in sync with React state updates — event-driven, not polled.
 // DIM dims items by mutating class/style attributes, so watch for those changes
 // near annotated items and recompute once per frame when they occur.
 let opacityUpdateScheduled = false;
 function scheduleOpacityUpdate() {
+    if (IS_WINNOWER_HOST)
+        return; // DIM-only: mirrors DIM's search-fade
     if (opacityUpdateScheduled)
         return;
     opacityUpdateScheduled = true;
@@ -3558,6 +4047,10 @@ const dimmingObserver = new MutationObserver((mutations) => {
     }
 });
 function startDimmingObserver() {
+    // Observes class/style mutations body-wide - a perf tax on Winnower, where
+    // Tailwind class strings churn constantly - for DIM-only search-fade dimming.
+    if (IS_WINNOWER_HOST)
+        return;
     if (!document.body) {
         document.addEventListener('DOMContentLoaded', startDimmingObserver, { once: true });
         return;

@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'aegisDbMode',
             'aegisMode',
             'aegisTwoTier',
+            'aegisGradeDisplayMode',
             'aegisHoverEnabled',
             'aegisArmorSource',
             'updateAvailableVersion',
@@ -183,6 +184,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
+            // Set Aegis Grade Display Mode segmented control (equipped, dual, potential)
+            const gradeDisplayVal = res.aegisGradeDisplayMode || 'equipped';
+            const gradeDisplaySegmented = document.getElementById('aegis-grade-display-segmented');
+            if (gradeDisplaySegmented) {
+                gradeDisplaySegmented.querySelectorAll('button').forEach(btn => {
+                    if (btn.getAttribute('data-value') === gradeDisplayVal) {
+                        btn.classList.add('active');
+                    }
+                    else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
             // Set Aegis Hover Enabled segmented control
             const hoverEnabledVal = res.aegisHoverEnabled !== false ? 'true' : 'false';
             const hoverEnabledSegmented = document.getElementById('aegis-hover-enabled-segmented');
@@ -312,6 +326,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (val) {
                     chrome.storage.local.set({ aegisTwoTier: val === 'true' }, () => {
                         console.log(`[DIM Aegis Overlay] Aegis Two-Tier grade changed to: ${val === 'true'}`);
+                        updateUI();
+                    });
+                }
+            }
+        });
+    }
+    // Handle Grade Display Mode segmented control click (equipped, dual, potential)
+    const gradeDisplaySegmented = document.getElementById('aegis-grade-display-segmented');
+    if (gradeDisplaySegmented) {
+        gradeDisplaySegmented.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.tagName === 'BUTTON') {
+                const val = target.getAttribute('data-value');
+                if (val) {
+                    chrome.storage.local.set({ aegisGradeDisplayMode: val }, () => {
+                        console.log(`[DIM Aegis Overlay] Aegis Grade Display Mode changed to: ${val}`);
                         updateUI();
                     });
                 }
