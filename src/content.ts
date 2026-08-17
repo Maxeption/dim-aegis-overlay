@@ -1,6 +1,8 @@
 import { scoreWeapon } from './scorer';
 import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes } from './tooltip';
+import { initLanguage, t, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
+import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
 
 // Winnower (winnower.garden) cooperates with this extension. It writes the
 // data-aegis-* attributes itself (no main-world script there) and provides an
@@ -185,6 +187,9 @@ let scoringSource = 'aegis';
 let aegisLayoutSide = 'side';
 let aegisDbMode = 'both';
 let aegisTwoTier = false;
+let aegisBadgePosition: 'bottom-left' | 'top-left' | 'top-right' | 'bottom-right' = 'bottom-left';
+let aegisBadgeStyle: 'classic' | 'pill' | 'notch' | 'corner' | 'dot' = 'pill';
+let aegisFadeHover = true;
 let aegisGradeDisplayMode: 'equipped' | 'dual' | 'potential' = 'equipped';
 let aegisHoverEnabled = true;
 let aegisArmorSource = 'lowco';
@@ -353,8 +358,22 @@ function setupRegistryObserver() {
             const parsed = JSON.parse(registryStr);
             schedulePerkRegistryPersist(parsed);
             updatePerkNameToIcon(parsed);
+            updateLocalizedRegistries(parsed);
           } catch (e) {
             // Ignore
+          }
+        }
+
+        const weaponRegEl = document.getElementById('aegis-global-weapon-registry');
+        if (weaponRegEl) {
+          const weaponStr = weaponRegEl.getAttribute('data-registry');
+          if (weaponStr) {
+            try {
+              const parsedWeapons = JSON.parse(weaponStr);
+              updateLocalizedRegistries({}, parsedWeapons);
+            } catch (e) {
+              // Ignore
+            }
           }
         }
 
@@ -475,11 +494,12 @@ function cleanPerkNameForMatch(name: string): string {
 }
 
 function cleanWeaponNameBase(name: string): string {
-  return name
+  return (name || '')
     .toLowerCase()
     .replace(/\s*\([^)]+\)\s*$/gi, '')
     .replace(/\s+(brave|pantheon|rotn|legacy|adept|timelost|harrowed|re-issue|reissued)\s+version$/gi, '')
     .replace(/\s+(brave|pantheon|rotn|legacy|adept|timelost|harrowed|re-issue|reissued)$/gi, '')
+    .replace(/^(adept|timelost|harrowed)\s+/gi, '')
     .trim();
 }
 
@@ -487,15 +507,24 @@ function findAegisWeapon(
   name: string,
   perksMap?: Record<number, { name: string; icon: string }>,
   activeHashes?: number[],
-  elText?: string
+  elText?: string,
+  itemHash?: number
 ): AegisSheetWeapon | null {
   if (!aegisSheetDb || !aegisSheetDb.weapons) return null;
 
-  const normalized = name.split('\n')[0].trim().toLowerCase();
+  let lookupName = name.split('\n')[0].trim().toLowerCase();
+  if (itemHash) {
+    const canonicalEnglish = getEnglishWeaponNameFromHash(itemHash);
+    if (canonicalEnglish) {
+      lookupName = canonicalEnglish.toLowerCase().trim();
+    }
+  }
+
+  const normalized = lookupName;
   const baseNormalized = cleanWeaponNameBase(normalized);
 
   // 1. Get variants array for this base weapon name
-  const variants = aegisSheetDb.variants?.[baseNormalized] || [];
+  const variants = aegisSheetDb.variants?.[baseNormalized] || aegisSheetDb.variants?.[normalized] || [];
 
   // 2. Multi-variant disambiguation (when 2+ variants exist for the base name)
   if (variants.length > 1) {
@@ -616,12 +645,31 @@ function findAegisWeapon(
   }
 
   // 3. Single variant or no variant list fallback
-  return aegisSheetDb.weapons[normalized] || aegisSheetDb.weapons[baseNormalized] || (variants[0] ?? null);
+  if (aegisSheetDb.weapons[normalized]) return aegisSheetDb.weapons[normalized];
+  if (aegisSheetDb.weapons[baseNormalized]) return aegisSheetDb.weapons[baseNormalized];
+  if (variants.length > 0 && variants[0]) return variants[0];
+
+  // 4. Fuzzy fallback across all weapons in the sheet
+  for (const [sheetKey, weapon] of Object.entries(aegisSheetDb.weapons)) {
+    const cleanKey = cleanWeaponNameBase(sheetKey);
+    if (cleanKey === baseNormalized || sheetKey.toLowerCase().trim() === normalized) {
+      return weapon;
+    }
+  }
+
+  return null;
 }
 
-function findWeaponCategory(weaponName: string): string {
+function findWeaponCategory(weaponName: string, itemHash?: number): string {
   if (!aegisSheetDb || !aegisSheetDb.categories) return '';
-  const norm = weaponName.split('\n')[0].trim().toLowerCase();
+  let lookupName = weaponName.split('\n')[0].trim().toLowerCase();
+  if (itemHash) {
+    const canonicalEnglish = getEnglishWeaponNameFromHash(itemHash);
+    if (canonicalEnglish) {
+      lookupName = canonicalEnglish.toLowerCase().trim();
+    }
+  }
+  const norm = lookupName;
   const baseNorm = norm.replace(/\s*\([^)]+\)\s*$/, '').trim();
   for (const [tab, list] of Object.entries(aegisSheetDb.categories)) {
     if (list.some(w => {
@@ -798,11 +846,34 @@ function evaluateCategoryPerks(
     const rec = cleanPerkName(rawRec);
     if (!rec) continue;
 
+    const recHash = getPerkHashFromEnglish(rawRec);
     let foundPerk: { hash: number; name: string; icon: string; active: boolean } | null = null;
+
+    const matchesRec = (p: { hash: number; name: string }) => {
+      // 1. Direct name match (e.g. English DIM)
+      if (isPerkMatch(p.name, rec)) return true;
+
+      // 2. English name from Hash match (e.g. non-English DIM)
+      const englishName = getEnglishPerkNameFromHash(p.hash);
+      if (englishName && isPerkMatch(englishName, rec)) return true;
+
+      // 3. Normal hash from enhancedToNormalMap
+      const normalHash = enhancedToNormalMap[p.hash];
+      if (normalHash) {
+        const normalEnglish = getEnglishPerkNameFromHash(normalHash);
+        if (normalEnglish && isPerkMatch(normalEnglish, rec)) return true;
+        if (recHash && normalHash === recHash) return true;
+      }
+
+      // 4. Hash exact match
+      if (recHash && p.hash === recHash) return true;
+
+      return false;
+    };
     
     // First pass: try to find an active matching perk
     for (const perk of availablePerks) {
-      if (perk.active && isPerkMatch(perk.name, rec)) {
+      if (perk.active && matchesRec(perk)) {
         foundPerk = perk;
         break;
       }
@@ -811,7 +882,7 @@ function evaluateCategoryPerks(
     // Second pass: if no active match, try to find a selectable matching perk
     if (!foundPerk) {
       for (const perk of availablePerks) {
-        if (isPerkMatch(perk.name, rec)) {
+        if (matchesRec(perk)) {
           foundPerk = perk;
           break;
         }
@@ -826,9 +897,9 @@ function evaluateCategoryPerks(
         status: foundPerk.active ? 'active' : 'selectable',
       });
     } else {
-      // Capitalize the first letter of each word for missing perks
-      const displayName = rawRec.replace(/\b\w/g, c => c.toUpperCase());
-      const missingIcon = perkNameToIcon[rec] || perkNameToIcon[displayName.toLowerCase().trim()];
+      // Localized display name and icon for missing perks
+      const displayName = getLocalizedPerkName(rawRec);
+      const missingIcon = getPerkIcon(rawRec) || perkNameToIcon[rec] || perkNameToIcon[displayName.toLowerCase().trim()];
       results.push({
         name: displayName,
         icon: missingIcon || undefined,
@@ -953,14 +1024,25 @@ function scoreSheetWeapon(
     }
   }
 
+  const isSlotMatched = (s: 'active' | 'selectable' | 'missing') => s === 'active' || s === 'selectable';
+  const hasBarrel = isSlotMatched(barrelStatus) || !sheetWeapon.barrel || sheetWeapon.barrel === '-';
+  const hasMag = isSlotMatched(magStatus) || !sheetWeapon.mag || sheetWeapon.mag === '-';
+  const hasP1 = isSlotMatched(p1Status);
+  const hasP2 = isSlotMatched(p2Status);
+  const hasOrigin = isSlotMatched(originStatus) || !sheetWeapon.origin || sheetWeapon.origin === '-';
+
+  const matchedSlots = (hasBarrel ? 1 : 0) + (hasMag ? 1 : 0) + (hasP1 ? 1 : 0) + (hasP2 ? 1 : 0) + (hasOrigin ? 1 : 0);
+  const isPerfect5of5 = hasBarrel && hasMag && hasP1 && hasP2 && hasOrigin;
+  const isOmniRoll = missingList.length === 0 && matchedList.length >= 4;
+
   let upgradeAdvice = '';
   const gradeOrder = ['F', 'D', 'C', 'B', 'B+', 'A', 'A+', 'S', 'S+'];
   const curIdx = gradeOrder.indexOf(currentGrade);
   const potIdx = gradeOrder.indexOf(potentialGrade);
 
   if (potIdx > curIdx && selectablePerkNames.length > 0) {
-    const perksStr = selectablePerkNames.join(' or ');
-    upgradeAdvice = `Upgrade available: Select ${perksStr} to rank up to ${potentialGrade}!`;
+    const perksStr = selectablePerkNames.join(' / ');
+    upgradeAdvice = t('upgradeAdvice', { perks: perksStr, grade: potentialGrade });
   }
 
   const finalGrade = currentGrade;
@@ -975,6 +1057,9 @@ function scoreSheetWeapon(
       notes: sheetWeapon.notes || '',
       wishlistPerks: [],
       upgradeAvailable,
+      isPerfect5of5,
+      isOmniRoll,
+      matchedSlotsCount: matchedSlots,
     },
     potentialGrade,
     upgradeAdvice,
@@ -1006,21 +1091,37 @@ function populateComboboxMenu(id: string) {
   const filterText = input.value.toLowerCase().trim();
   const list = comboboxOptions[id] || [];
 
-  const displayTitle = id === 'widget-source' ? 'Source' : (id.charAt(0).toUpperCase() + id.slice(1));
-  let html = `<div class="aegis-combobox-option all-option" data-value="">All ${displayTitle}s</div>`;
+  const keyMap: Record<string, string> = {
+    category: t('allCategories'),
+    frame: t('allFrames'),
+    element: t('allElements'),
+    ammo: t('allAmmo'),
+    source: t('allSources'),
+    'widget-source': t('allSources')
+  };
+
+  const displayTitle = keyMap[id] || `All ${id.charAt(0).toUpperCase() + id.slice(1)}s`;
+  let html = `<div class="aegis-combobox-option all-option" data-value="">${displayTitle}</div>`;
 
   const filtered = list.filter(item => !filterText || item.toLowerCase().includes(filterText));
 
   if (filtered.length === 0) {
-    html += `<div style="padding: 8px; font-size: 11px; color: #88c0d0; text-align: center;">No matching ${displayTitle.toLowerCase()}s</div>`;
+    html += `<div style="padding: 8px; font-size: 11px; color: #88c0d0; text-align: center;">${t('noMatchingWeapons')}</div>`;
   } else {
     for (const item of filtered) {
+      let displayLabel = item;
+      if (id === 'element') displayLabel = getLocalizedElement(item);
+      else if (id === 'frame') displayLabel = getLocalizedFrame(item);
+      else if (id === 'category') displayLabel = getLocalizedCategory(item);
+      else if (id === 'ammo') displayLabel = t(item.toLowerCase());
+
       const isSelected = input.value.trim().toLowerCase() === item.trim().toLowerCase();
       const selectedClass = isSelected ? 'selected' : '';
       const checkMark = isSelected ? '<span style="color: #ffd700; font-weight: bold; font-size: 11px;">✓</span>' : '';
+      const subLabel = displayLabel !== item ? ` <span style="font-size: 10px; opacity: 0.6;">(${item})</span>` : '';
       html += `
         <div class="aegis-combobox-option ${selectedClass}" data-value="${item.replace(/"/g, '&quot;')}">
-          <span>${item}</span>
+          <span>${displayLabel}${subLabel}</span>
           ${checkMark}
         </div>
       `;
@@ -1140,7 +1241,7 @@ function updateProgressIndicator() {
   const progressBar = document.querySelector('.aegis-explorer-progress-bar') as HTMLElement;
   if (progressText && progressBar) {
     const pct = totalWeaponsCount > 0 ? Math.round((completedWeaponsCount / totalWeaponsCount) * 100) : 0;
-    progressText.textContent = `Completed: ${completedWeaponsCount}/${totalWeaponsCount} (${pct}%)`;
+    progressText.textContent = t('completedProgress', { count: completedWeaponsCount, total: totalWeaponsCount, pct });
     progressBar.style.width = `${pct}%`;
   }
 }
@@ -1315,12 +1416,12 @@ function renderResults() {
           let statusHtml = '';
           let highlightBtnHtml = '';
           if (owned.length === 0) {
-            statusHtml = `<span class="aegis-chase-status aegis-status-none">Not in Inventory</span>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-none">${t('notInInventory')}</span>`;
           } else if (matches.length > 0) {
-            statusHtml = `<span class="aegis-chase-status aegis-status-match">Obtained (${matches.length} matching)</span>`;
-            highlightBtnHtml = `<button class="aegis-action-btn" data-action="highlight-matching" data-ids="${matches.join(',')}" style="flex: none !important; height: 28px !important; padding: 0 10px !important; font-size: 11px !important; background: rgba(30, 215, 96, 0.08) !important; border: 1px solid rgba(30, 215, 96, 0.25) !important; color: #1ed760 !important; cursor: pointer !important; font-weight: 600 !important; border-radius: 6px !important;">Highlight in Vault</button>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-match">${t('obtainedMatching', { count: matches.length })}</span>`;
+            highlightBtnHtml = `<button class="aegis-action-btn" data-action="highlight-matching" data-ids="${matches.join(',')}" style="flex: none !important; height: 28px !important; padding: 0 10px !important; font-size: 11px !important; background: rgba(30, 215, 96, 0.08) !important; border: 1px solid rgba(30, 215, 96, 0.25) !important; color: #1ed760 !important; cursor: pointer !important; font-weight: 600 !important; border-radius: 6px !important;">${t('highlightInVault')}</button>`;
           } else {
-            statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">Have weapon, wrong perks</span>`;
+            statusHtml = `<span class="aegis-chase-status aegis-status-have-weapon">${t('haveWeaponWrongPerks')}</span>`;
           }
 
           const baseNameForReport = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
@@ -1541,7 +1642,8 @@ function renderResults() {
         if (selectedElement && !w.energy.toLowerCase().includes(selectedElement)) continue;
         if (selectedSource && (!w.source || !w.source.toLowerCase().includes(selectedSource))) continue;
         if (query) {
-          const nameMatch = w.name.toLowerCase().includes(query);
+          const localizedName = getLocalizedWeaponName(w.name);
+          const nameMatch = w.name.toLowerCase().includes(query) || localizedName.toLowerCase().includes(query);
           const notesMatch = w.notes.toLowerCase().includes(query);
           const frameMatch = w.frame.toLowerCase().includes(query);
           const sourceMatch = w.source ? w.source.toLowerCase().includes(query) : false;
@@ -1562,7 +1664,7 @@ function renderResults() {
     });
 
     if (matches.length === 0) {
-      resultsContainer.innerHTML = '<div class="aegis-explorer-empty">No matching weapons found.</div>';
+      resultsContainer.innerHTML = `<div class="aegis-explorer-empty">${t('noMatchingWeapons')}</div>`;
       return;
     }
 
@@ -1575,10 +1677,13 @@ function renderResults() {
       
       const tierLetter = w.tier ? w.tier.charAt(0).toLowerCase() : '';
       const tierClass = `aegis-tier-${tierLetter}`;
-      const rankLabel = w.rank ? (w.rank === '1' ? 'Best in Archetype' : `#${w.rank}`) : '-';
+      const rankLabel = w.rank ? (w.rank === '1' ? t('bestInClass') : `#${w.rank}`) : '-';
 
       const baseName = normName.replace(/\s*\([^)]+\)\s*$/, '').trim();
       const weaponHash = nameToHash[normName] || nameToHash[baseName];
+
+      const localizedName = getLocalizedWeaponName(w.name);
+      const displayTitle = localizedName !== w.name ? `${localizedName} <span style="font-size: 11px; opacity: 0.65; font-weight: 400;">(${w.name})</span>` : w.name;
 
       let destinyReportBtnHtml = '';
       if (weaponHash) {
@@ -1588,8 +1693,12 @@ function renderResults() {
       }
 
       const isChasing = !!chaseList[normName];
-      const chaseText = isChasing ? 'Remove Chase' : '+ Chase';
+      const chaseText = isChasing ? t('removeChase') : t('addChase');
       const chaseClass = isChasing ? 'aegis-btn-chase-active' : '';
+
+      const localizedEnergy = getLocalizedElement(w.energy);
+      const localizedFrame = getLocalizedFrame(w.frame);
+      const localizedCat = getLocalizedCategory(m.category);
 
       html += `
         <div class="aegis-explorer-row ${completedClass}" data-weapon-name="${w.name.replace(/"/g, '&quot;')}">
@@ -1597,20 +1706,20 @@ function renderResults() {
             <label class="aegis-checklist-toggle" style="display: flex; align-items: center; margin-right: 8px; cursor: pointer;" title="Mark as obtained/completed">
               <input type="checkbox" class="aegis-checklist-checkbox" ${isCompleted ? 'checked' : ''} style="margin: 0; cursor: pointer;" />
             </label>
-            <span class="aegis-explorer-row-name">${w.name}</span>
+            <span class="aegis-explorer-row-name">${displayTitle}</span>
             <div class="aegis-explorer-row-badges">
               <span class="aegis-explorer-row-badge ${tierClass}">${w.tier || 'F'}</span>
               <span class="aegis-explorer-row-rank">${rankLabel}</span>
             </div>
           </div>
           <div class="aegis-explorer-row-details">
-            <span class="aegis-explorer-row-meta">${w.energy} / ${w.frame}</span>
-            <span class="aegis-explorer-row-cat">${m.category}</span>
-            ${w.source ? `<div class="aegis-explorer-row-source" style="margin-top: 4px; font-size: 11px; color: #ffd700;"><span style="color: #aaa; font-weight: 500;">Source:</span> ${w.source}</div>` : ''}
+            <span class="aegis-explorer-row-meta">${localizedEnergy} / ${localizedFrame}</span>
+            <span class="aegis-explorer-row-cat">${localizedCat}</span>
+            ${w.source ? `<div class="aegis-explorer-row-source" style="margin-top: 4px; font-size: 11px; color: #ffd700;"><span style="color: #aaa; font-weight: 500;">${t('source')}:</span> ${w.source}</div>` : ''}
           </div>
           ${w.notes ? `<div class="aegis-explorer-row-notes">${w.notes}</div>` : ''}
           <div class="aegis-explorer-row-actions">
-            <button class="aegis-action-btn aegis-btn-highlight" data-action="filter-vault">Filter in Vault</button>
+            <button class="aegis-action-btn aegis-btn-highlight" data-action="filter-vault">${t('filterInVault')}</button>
             <button class="aegis-action-btn aegis-btn-chase ${chaseClass}" data-action="chase-weapon">${chaseText}</button>
             ${destinyReportBtnHtml}
           </div>
@@ -1760,18 +1869,18 @@ function initAegisExplorer() {
   panel.className = 'aegis-explorer-panel';
   panel.innerHTML = `
     <div class="aegis-explorer-header">
-      <span class="aegis-explorer-title">Aegis Database Explorer</span>
+      <span class="aegis-explorer-title">${t('explorerTitle')}</span>
       <button class="aegis-explorer-close" title="Close Explorer">&times;</button>
     </div>
     <div class="aegis-explorer-tabs">
-      <button class="aegis-explorer-tab active" data-tab="explorer">Database Explorer</button>
-      <button class="aegis-explorer-tab" data-tab="chase">My Chase List</button>
+      <button class="aegis-explorer-tab active" data-tab="explorer">${t('explorerTitle')}</button>
+      <button class="aegis-explorer-tab" data-tab="chase">${t('chaseTitle')}</button>
     </div>
     <div class="aegis-explorer-search-group">
-      <input type="text" class="aegis-explorer-search-input" placeholder="Search weapon, notes, perks..." />
+      <input type="text" class="aegis-explorer-search-input" placeholder="${t('searchPlaceholder')}" />
       <div class="aegis-explorer-selects">
         <div class="aegis-combobox-wrapper" data-combobox-id="category">
-          <input type="text" class="aegis-combobox-input aegis-explorer-category-input" placeholder="Category (e.g. Hand Cannons)..." />
+          <input type="text" class="aegis-combobox-input aegis-explorer-category-input" placeholder="${t('categoryPlaceholder')}" />
           <span class="aegis-combobox-arrow">▾</span>
           <div class="aegis-combobox-menu hidden">
             <div class="aegis-combobox-options"></div>
@@ -1779,7 +1888,7 @@ function initAegisExplorer() {
         </div>
 
         <div class="aegis-combobox-wrapper" data-combobox-id="frame">
-          <input type="text" class="aegis-combobox-input aegis-explorer-frame-input" placeholder="Frame (e.g. Adaptive)..." />
+          <input type="text" class="aegis-combobox-input aegis-explorer-frame-input" placeholder="${t('framePlaceholder')}" />
           <span class="aegis-combobox-arrow">▾</span>
           <div class="aegis-combobox-menu hidden">
             <div class="aegis-combobox-options"></div>
@@ -1788,7 +1897,7 @@ function initAegisExplorer() {
       </div>
       <div class="aegis-explorer-selects">
         <div class="aegis-combobox-wrapper" data-combobox-id="element">
-          <input type="text" class="aegis-combobox-input aegis-explorer-element-input" placeholder="Element (e.g. Solar)..." />
+          <input type="text" class="aegis-combobox-input aegis-explorer-element-input" placeholder="${t('elementPlaceholder')}" />
           <span class="aegis-combobox-arrow">▾</span>
           <div class="aegis-combobox-menu hidden">
             <div class="aegis-combobox-options"></div>
@@ -1796,7 +1905,7 @@ function initAegisExplorer() {
         </div>
 
         <div class="aegis-combobox-wrapper" data-combobox-id="ammo">
-          <input type="text" class="aegis-combobox-input aegis-explorer-ammo-input" placeholder="Ammo (e.g. Primary)..." />
+          <input type="text" class="aegis-combobox-input aegis-explorer-ammo-input" placeholder="${t('ammoPlaceholder')}" />
           <span class="aegis-combobox-arrow">▾</span>
           <div class="aegis-combobox-menu hidden">
             <div class="aegis-combobox-options"></div>
@@ -1805,7 +1914,7 @@ function initAegisExplorer() {
       </div>
       <div class="aegis-explorer-selects">
         <div class="aegis-combobox-wrapper" data-combobox-id="source">
-          <input type="text" class="aegis-combobox-input aegis-explorer-source-input" placeholder="Source / Activity (e.g. Salvation's Edge)..." />
+          <input type="text" class="aegis-combobox-input aegis-explorer-source-input" placeholder="${t('sourcePlaceholder')}" />
           <span class="aegis-combobox-arrow">▾</span>
           <div class="aegis-combobox-menu hidden">
             <div class="aegis-combobox-options"></div>
@@ -1815,7 +1924,7 @@ function initAegisExplorer() {
       <div class="aegis-explorer-sub-controls">
         <label class="aegis-explorer-checkbox-label">
           <input type="checkbox" class="aegis-explorer-hide-completed" />
-          Hide Checked-off
+          ${t('hideCheckedOff')}
         </label>
         <div class="aegis-explorer-progress-container">
           <span class="aegis-explorer-progress-text">Completed: 0/0 (0%)</span>
@@ -1826,7 +1935,7 @@ function initAegisExplorer() {
       </div>
     </div>
     <div class="aegis-explorer-results">
-      <div class="aegis-explorer-empty">Loading database...</div>
+      <div class="aegis-explorer-empty">${t('loadingDatabase')}</div>
     </div>
     <details class="aegis-diagnostic-logs" style="border-top: 1px solid #333; margin-top: auto; font-size: 10px; font-family: monospace; color: #aaa; background: #161a22; padding: 4px 8px; flex-shrink: 0; display: flex; flex-direction: column;">
       <summary style="cursor: pointer; padding: 4px 0; color: #ffd700; font-weight: bold; user-select: none;">Aegis Diagnostic Logs</summary>
@@ -2265,8 +2374,8 @@ function showWinnowerWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
-// Load wishlist & config on startup
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
+  initLanguage(res.aegisLanguage);
   wishlistDb = res.wishlistData || {};
   enhancedToNormalMap = res.enhancedToNormal || {};
   completedWeapons = res.aegisCompletedWeapons || {};
@@ -2276,6 +2385,9 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisDbMode = res.aegisDbMode || 'both';
   aegisMode = res.aegisMode || 'pve';
   aegisTwoTier = res.aegisTwoTier || false;
+  aegisBadgePosition = res.aegisBadgePosition || 'bottom-left';
+  aegisBadgeStyle = res.aegisBadgeStyle || 'pill';
+  aegisFadeHover = res.aegisFadeHover !== false;
   aegisGradeDisplayMode = res.aegisGradeDisplayMode || 'equipped';
   aegisHoverEnabled = res.aegisHoverEnabled !== false;
   aegisArmorSource = res.aegisArmorSource || 'lowco';
@@ -2305,6 +2417,20 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     let changed = false;
+    if (changes.aegisLanguage) {
+      initLanguage(changes.aegisLanguage.newValue);
+      const existingPanel = document.querySelector('.aegis-explorer-panel');
+      const existingFab = document.querySelector('.aegis-fab');
+      if (existingPanel) existingPanel.remove();
+      if (existingFab) existingFab.remove();
+      if (!IS_WINNOWER_HOST) {
+        initAegisExplorer();
+      }
+      const existingWidget = document.querySelector('.aegis-search-widget');
+      if (existingWidget) existingWidget.remove();
+      setupSearchWidget();
+      changed = true;
+    }
     if (changes.wishlistData) {
       wishlistDb = changes.wishlistData.newValue || {};
       updateNameToHashFromWishlist();
@@ -2332,6 +2458,18 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisTwoTier) {
       aegisTwoTier = changes.aegisTwoTier.newValue || false;
+      changed = true;
+    }
+    if (changes.aegisBadgePosition) {
+      aegisBadgePosition = changes.aegisBadgePosition.newValue || 'bottom-left';
+      changed = true;
+    }
+    if (changes.aegisBadgeStyle) {
+      aegisBadgeStyle = changes.aegisBadgeStyle.newValue || 'pill';
+      changed = true;
+    }
+    if (changes.aegisFadeHover) {
+      aegisFadeHover = changes.aegisFadeHover.newValue !== false;
       changed = true;
     }
     if (changes.aegisGradeDisplayMode) {
@@ -2651,8 +2789,8 @@ function injectPopupSummary(
           detailsCard,
           `
           <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <span>LowCo Armor Set Bonuses</span>
-            ${sheetArmor.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">Source: ${sheetArmor.source}</span>` : ''}
+            <span>${t('lowcoArmorBonus')}</span>
+            ${sheetArmor.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetArmor.source}</span>` : ''}
           </div>
           
           <div class="aegis-details-body" style="margin-bottom: 0;">
@@ -2770,9 +2908,6 @@ function injectPopupSummary(
     ? 'Light.gg Roll Appraisal'
     : `Wishlist Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`;
 
-  // Look up Aegis Master spreadsheet metadata
-  const weaponName = titleEl.querySelector('span')?.textContent?.trim() || titleEl.textContent?.trim() || '';
-
   let sheetMetaHtml = '';
   if (sheetWeapon) {
     const tierLetter = sheetWeapon.tier ? sheetWeapon.tier.charAt(0).toLowerCase() : '';
@@ -2783,10 +2918,10 @@ function injectPopupSummary(
       <div class="aegis-popup-meta-divider"></div>
       <div class="aegis-popup-meta-content">
         <div class="aegis-popup-row">
-          <span class="aegis-popup-meta-badge ${tierClass}">${sheetWeapon.tier} Tier</span>
-          ${rankLabel ? `<span class="aegis-popup-meta-rank">${rankLabel}</span>` : ''}
+          <span class="aegis-popup-meta-badge ${tierClass}">${t('weaponTier', { tier: sheetWeapon.tier })}</span>
+          ${rankLabel ? `<span class="aegis-popup-meta-rank">${t('rankInCategory', { rank: sheetWeapon.rank })}</span>` : ''}
         </div>
-        ${sheetWeapon.notes ? `<div class="aegis-popup-notes-text aegis-meta-notes"><strong>Aegis Meta:</strong> ${sheetWeapon.notes}</div>` : ''}
+        ${sheetWeapon.notes ? `<div class="aegis-popup-notes-text aegis-meta-notes"><strong>${t('aegisMeta')}:</strong> ${sheetWeapon.notes}</div>` : ''}
       </div>
     `;
   }
@@ -2815,14 +2950,14 @@ function injectPopupSummary(
 
   // If we have sheet data, also inject detailed overview cards below perks grid
   if (sheetWeapon) {
-    const categoryTab = findWeaponCategory(weaponName);
+    const categoryTab = findWeaponCategory(sheetWeapon.name);
     const superiors = findSuperiors(categoryTab, sheetWeapon.energy, sheetWeapon.frame);
 
-    // Find insertion target: Display perks button or sockets element
+    // Find insertion target: Display perks button, sockets element, or fallback to summaryEl
     const perksBtn = popupContainer.querySelector('button[title*="perks" i], button[title*="Perks" i]');
     const perksSection = perksBtn?.parentElement;
-    const sockets = popupContainer.querySelector('[class*="sockets" i], [class*="Sockets" i]');
-    const insertTarget = perksSection || sockets;
+    const sockets = popupContainer.querySelector('[class*="sockets" i], [class*="Sockets" i], [class*="item-sockets" i], [class*="ItemSockets" i], [class*="ItemDetails" i], [class*="item-details" i], [class*="body" i], [class*="content" i]');
+    const insertTarget = perksSection || sockets || summaryEl || popupContainer;
 
     if (insertTarget) {
       // Create a single unified details card
@@ -2832,11 +2967,11 @@ function injectPopupSummary(
 
       let perksRowsHtml = '';
       const items = [
-        { label: 'Barrel', type: 'barrel', rawVal: sheetWeapon.barrel },
-        { label: 'Mag', type: 'mag', rawVal: sheetWeapon.mag },
-        { label: 'Perk 1', type: 'perk1', rawVal: sheetWeapon.perk1 },
-        { label: 'Perk 2', type: 'perk2', rawVal: sheetWeapon.perk2 },
-        { label: 'Origin', type: 'origin', rawVal: sheetWeapon.origin },
+        { label: t('barrel'), type: 'barrel' as const, rawVal: sheetWeapon.barrel },
+        { label: t('magazine'), type: 'mag' as const, rawVal: sheetWeapon.mag },
+        { label: t('perk1'), type: 'perk1' as const, rawVal: sheetWeapon.perk1 },
+        { label: t('perk2'), type: 'perk2' as const, rawVal: sheetWeapon.perk2 },
+        { label: t('origin'), type: 'origin' as const, rawVal: sheetWeapon.origin },
       ];
 
       for (const item of items) {
@@ -2850,7 +2985,7 @@ function injectPopupSummary(
           for (const perk of matched) {
             const statusClass = perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable';
             const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
-            const statusLabel = perk.status === 'active' ? '' : ' (Selectable)';
+            const statusLabel = perk.status === 'active' ? '' : ` (${t('selectable')})`;
             chipsHtml += `
               <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
                 ${iconHtml}
@@ -2862,7 +2997,7 @@ function injectPopupSummary(
           for (const perk of missing) {
             const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
             chipsHtml += `
-              <span class="aegis-perk-chip aegis-chip-missing" title="${perk.name} (Missing)">
+              <span class="aegis-perk-chip aegis-chip-missing" title="${perk.name} (${t('missing')})">
                 ${iconHtml}
                 <span class="aegis-chip-name">${perk.name}</span>
               </span>
@@ -2871,8 +3006,7 @@ function injectPopupSummary(
         }
 
         if (!chipsHtml) {
-          // Parse and sanitize item.rawVal: split by slash/newline, trim whitespace, and join with ' / '.
-          // Optimized implementation avoids intermediate array allocations and regex overhead.
+          // Parse and sanitize item.rawVal
           let cleanVal = '';
           let start = 0;
           const rawVal = item.rawVal;
@@ -2881,7 +3015,6 @@ function injectPopupSummary(
             const char = i < len ? rawVal[i] : '\n';
             if (char === '/' || char === '\n') {
               if (start < i) {
-                // Find trimmed boundaries within [start, i) to avoid allocating untrimmed substrings
                 let tStart = start;
                 let tEnd = i - 1;
                 while (tStart <= tEnd && rawVal.charCodeAt(tStart) <= 32) {
@@ -2945,7 +3078,6 @@ function injectPopupSummary(
 
         for (const mw of recMWs) {
           const mwLower = mw.toLowerCase();
-          // Fuzzy match: "Reload" matches "Reload Speed", "Range" matches "Range", etc.
           const isMatch = eqMW && (
             mwLower === eqMW ||
             eqMW.startsWith(mwLower) ||
@@ -2964,10 +3096,9 @@ function injectPopupSummary(
           ];
 
           let icon = '☆';
-          let title = `Aegis recommends: ${mw}`;
+          let title = t('aegisRecommendsMw', { mw });
 
           if (isMatch) {
-            // MATCHED: Luminous gold gradient + checkmark + outer glow + bright white text
             chipStyle.push(
               'background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 140, 0, 0.25)) !important',
               'border: 1.5px solid #ffd700 !important',
@@ -2976,9 +3107,8 @@ function injectPopupSummary(
               'box-shadow: 0 0 10px rgba(255, 191, 0, 0.65), inset 0 0 4px rgba(255, 255, 255, 0.2) !important'
             );
             icon = '✓';
-            title = `✓ You have this Masterwork equipped!`;
+            title = t('mwEquipped');
           } else {
-            // UNMATCHED: Muted dashed amber chip
             chipStyle.push(
               'background: rgba(255, 191, 0, 0.05) !important',
               'border: 1px dashed rgba(255, 191, 0, 0.4) !important',
@@ -3030,16 +3160,18 @@ function injectPopupSummary(
           const isSelf = item.weapon.name.toLowerCase() === sheetWeapon.name.toLowerCase();
           const selfClass = isSelf ? 'aegis-sup-self' : '';
           const labelsStr = item.labels.join(' / ');
+          const localizedLabelsStr = getLocalizedArchetypeLabel(labelsStr);
+          const localizedWeaponName = getLocalizedWeaponName(item.weapon.name);
           
           const tierLetter = item.weapon.tier ? item.weapon.tier.charAt(0).toLowerCase() : '';
           const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${item.weapon.tier}</span>`;
           const rankHtml = item.weapon.rank ? `<span class="aegis-sup-rank-num">#${item.weapon.rank}</span>` : '';
-          const currentLabel = isSelf ? '<span class="aegis-current-badge">(Current)</span>' : '';
+          const currentLabel = isSelf ? `<span class="aegis-current-badge">(${t('currentBadge')})</span>` : '';
 
           supRowsHtml += `
             <div class="aegis-details-row aegis-sup-row ${isSelf ? 'aegis-sup-row-self' : ''}">
-              <span class="aegis-details-label aegis-sup-type-label" title="${labelsStr}">${labelsStr}</span>
-              <span class="aegis-sup-name ${selfClass}">${item.weapon.name}${currentLabel}</span>
+              <span class="aegis-details-label aegis-sup-type-label" title="${localizedLabelsStr}">${localizedLabelsStr}</span>
+              <span class="aegis-sup-name ${selfClass}">${localizedWeaponName}${currentLabel}</span>
               <div class="aegis-sup-rank-group">
                 ${tierBadgeHtml}
                 ${rankHtml}
@@ -3053,11 +3185,12 @@ function injectPopupSummary(
           const tierLetter = sheetWeapon.tier ? sheetWeapon.tier.charAt(0).toLowerCase() : '';
           const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetWeapon.tier}</span>`;
           const rankHtml = sheetWeapon.rank ? `<span class="aegis-sup-rank-num">#${sheetWeapon.rank}</span>` : '';
+          const localizedWeaponName = getLocalizedWeaponName(sheetWeapon.name);
 
           supRowsHtml += `
             <div class="aegis-details-row aegis-sup-row aegis-sup-row-self">
-              <span class="aegis-details-label aegis-sup-type-label" title="Current Weapon">Current Weapon</span>
-              <span class="aegis-sup-name aegis-sup-self">${sheetWeapon.name}<span class="aegis-current-badge">(Current)</span></span>
+              <span class="aegis-details-label aegis-sup-type-label" title="${t('currentWeapon')}">${t('currentWeapon')}</span>
+              <span class="aegis-sup-name aegis-sup-self">${localizedWeaponName}<span class="aegis-current-badge">(${t('currentBadge')})</span></span>
               <div class="aegis-sup-rank-group">
                 ${tierBadgeHtml}
                 ${rankHtml}
@@ -3069,7 +3202,7 @@ function injectPopupSummary(
         if (supRowsHtml) {
           superiorsHtml = `
             <div class="aegis-details-divider"></div>
-            <div class="aegis-details-header" style="margin-top: 10px;">Best in Category (${categoryTab})</div>
+            <div class="aegis-details-header" style="margin-top: 10px;">${t('bestInCategory', { category: getLocalizedCategory(categoryTab) || t('category') })}</div>
             <div class="aegis-details-body">
               ${supRowsHtml}
             </div>
@@ -3092,7 +3225,7 @@ function injectPopupSummary(
         if (sheetWeapon.notes) {
           analysisBlock = `
             <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #ebcb8b; border-radius: 0 6px 6px 0; padding: 6px 9px;">
-              <div style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Strategic Analysis</div>
+              <div style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('strategicAnalysis')}</div>
               <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetWeapon.notes)}</div>
             </div>
           `;
@@ -3102,7 +3235,7 @@ function injectPopupSummary(
         if (sheetWeapon.description) {
           mechanicsBlock = `
             <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #88c0d0; border-radius: 0 6px 6px 0; padding: 6px 9px;">
-              <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Exotic Mechanics</div>
+              <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('exoticMechanics')}</div>
               <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetWeapon.description)}</div>
             </div>
           `;
@@ -3121,15 +3254,15 @@ function injectPopupSummary(
 
       if (perksRowsHtml || superiorsHtml || exoticViabilityHtml) {
         const cardHeaderTitle = sheetWeapon.exoticViability 
-          ? (aegisMode === 'pvp' ? 'Finnald Exotic Analysis (PvP)' : 'Aegis Exotic Analysis') 
-          : (aegisMode === 'pvp' ? 'Finnald Recommended Perks (PvP)' : 'Aegis Recommended Perks');
+          ? (aegisMode === 'pvp' ? t('finnaldExoticAnalysis') : t('aegisExoticAnalysis')) 
+          : (aegisMode === 'pvp' ? t('finnaldRecommendedPerks') : t('aegisRecommendedPerks'));
 
         safeSetInnerHTML(
           detailsCard,
           `
           <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
             <span>${cardHeaderTitle}</span>
-            ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">Source: ${sheetWeapon.source}</span>` : ''}
+            ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeapon.source}</span>` : ''}
           </div>
           <div class="aegis-details-body aegis-perks-body" style="margin-bottom: ${superiorsHtml ? '10px' : '0'};">
             ${exoticViabilityHtml}
@@ -3139,8 +3272,8 @@ function injectPopupSummary(
         `
         );
         
-        activeDetailsTimeout = setTimeout(() => {
-          activeDetailsTimeout = null;
+        const attachDetailsCard = () => {
+          if (!popupContainer.isConnected) return;
           const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
           const rect = popupContainer.getBoundingClientRect();
           const spaceLeft = rect.left;
@@ -3160,13 +3293,16 @@ function injectPopupSummary(
               detailsCard.style.setProperty('left', 'auto', 'important');
               detailsCard.style.setProperty('right', '-320px', 'important');
             } else {
-              // Fallback to inline if neither side has enough space
               detailsCard.classList.remove('aegis-side-panel');
               detailsCard.style.removeProperty('position');
               detailsCard.style.removeProperty('top');
               detailsCard.style.removeProperty('left');
               detailsCard.style.removeProperty('right');
-              insertTarget.after(detailsCard);
+              if (insertTarget.parentElement) {
+                insertTarget.after(detailsCard);
+              } else {
+                popupContainer.appendChild(detailsCard);
+              }
             }
           } else {
             detailsCard.classList.remove('aegis-side-panel');
@@ -3174,9 +3310,16 @@ function injectPopupSummary(
             detailsCard.style.removeProperty('top');
             detailsCard.style.removeProperty('left');
             detailsCard.style.removeProperty('right');
-            insertTarget.after(detailsCard);
+            if (insertTarget.parentElement) {
+              insertTarget.after(detailsCard);
+            } else {
+              popupContainer.appendChild(detailsCard);
+            }
           }
-        }, 50);
+        };
+
+        // Attach immediately without race-condition timeouts
+        attachDetailsCard();
       }
     }
   }
@@ -3267,13 +3410,43 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
   }
 
   badge.classList.add(`aegis-badge-${baseLetter}`);
-  if (isTwoTier || isArmor || isDual) {
+  
+  // Position class
+  const posKey = (aegisBadgePosition || 'bottom-left').replace('bottom-left', 'bl').replace('top-left', 'tl').replace('top-right', 'tr').replace('bottom-right', 'br');
+  badge.classList.add(`aegis-pos-${posKey}`);
+
+  // Style class
+  const styleKey = aegisBadgeStyle || 'pill';
+  badge.classList.add(`aegis-style-${styleKey}`);
+
+  // Fade on hover
+  if (aegisFadeHover) {
+    badge.classList.add('aegis-hover-fade');
+  }
+
+  if (isTwoTier || isArmor || isDual || result.isOmniRoll || result.isPerfect5of5) {
     badge.classList.add('aegis-badge-wide');
   }
   if (isDual) {
     badge.classList.add('aegis-badge-dual');
   }
-  badge.textContent = gradeStr;
+  if (result.isOmniRoll) {
+    badge.classList.add('aegis-badge-omni');
+    if (aegisBadgeStyle === 'classic') {
+      badge.textContent = `✦ ${gradeStr}`;
+    } else {
+      badge.textContent = gradeStr;
+    }
+  } else if (result.isPerfect5of5 && !isDual && !isArmor) {
+    badge.classList.add('aegis-badge-perfect');
+    if (aegisBadgeStyle === 'classic') {
+      badge.textContent = `★ ${gradeStr}`;
+    } else {
+      badge.textContent = gradeStr;
+    }
+  } else {
+    badge.textContent = gradeStr;
+  }
 
   if (result.upgradeAvailable) {
     const upgradeArrow = document.createElement('span');
@@ -3491,7 +3664,7 @@ function processElement(el: HTMLElement) {
     // A Winnower row's textContent is the whole row (verdict prose, perk
     // lists), so the variant-disambiguation text is scoped to the name cell.
     const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
-    const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText);
+    const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
     let bestAlternative = undefined;
     let isBestInClass = false;
 
@@ -3586,7 +3759,7 @@ function processElement(el: HTMLElement) {
 
     const hasSheetData = sheetWeapon && aegisDbMode !== 'wishlist';
     if (hasSheetData) {
-      const categoryTab = findWeaponCategory(weaponName);
+      const categoryTab = findWeaponCategory(weaponName, itemHash);
       const superiors = findSuperiors(categoryTab, sheetWeapon!.energy, sheetWeapon!.frame);
       const bestW = superiors.byBoth || superiors.byFrame || superiors.byEnergy;
       if (bestW) {
@@ -3644,6 +3817,16 @@ function processElement(el: HTMLElement) {
 
       // Inject rank badge (only if it's a valid item tile and NOT the popup container itself)
       if (!isPopup && isItemTile) {
+        if (result.isOmniRoll) {
+          el.setAttribute('data-aegis-omni', 'true');
+        } else {
+          el.removeAttribute('data-aegis-omni');
+        }
+        if (result.isPerfect5of5) {
+          el.setAttribute('data-aegis-perfect', 'true');
+        } else {
+          el.removeAttribute('data-aegis-perfect');
+        }
         injectBadge(el, result);
       } else if (!isPopup) {
         removeBadge(el);
@@ -3745,7 +3928,7 @@ function setupSearchWidget() {
   const searchWrapper = searchInput.parentElement;
   if (!searchWrapper) return;
 
-  if (searchWrapper.querySelector('.aegis-search-widget')) return;
+  if (searchWrapper.querySelector('.aegis-search-widget') || document.querySelector('.aegis-search-widget')) return;
 
   // Closure state variables for modular filter building
   let activeTarget = 'perk'; // 'perk', 'weapon', 'armor2p', 'armor4p'
@@ -3757,7 +3940,7 @@ function setupSearchWidget() {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'aegis-search-widget-btn';
-  button.title = 'Aegis Filters';
+  button.title = t('aegisFilters');
   button.innerHTML = `
     <svg viewBox="0 0 24 24" class="aegis-widget-icon" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -3767,30 +3950,30 @@ function setupSearchWidget() {
   const menu = document.createElement('div');
   menu.className = 'aegis-search-widget-menu hidden';
   menu.innerHTML = `
-    <div class="aegis-menu-header">Aegis Filters</div>
+    <div class="aegis-menu-header">${t('aegisFilters')}</div>
     
     <div class="aegis-widget-row">
-      <div class="aegis-row-label">Target</div>
+      <div class="aegis-row-label">${t('target')}</div>
       <div class="aegis-btn-group" data-group="target">
-        <button type="button" class="aegis-group-btn active" data-value="perk">Perk</button>
-        <button type="button" class="aegis-group-btn" data-value="weapon">Weapon</button>
-        <button type="button" class="aegis-group-btn" data-value="source">Source</button>
-        <button type="button" class="aegis-group-btn" data-value="armor2p">Armor 2pc</button>
-        <button type="button" class="aegis-group-btn" data-value="armor4p">Armor 4pc</button>
+        <button type="button" class="aegis-group-btn active" data-value="perk">${t('targetPerk')}</button>
+        <button type="button" class="aegis-group-btn" data-value="weapon">${t('targetWeapon')}</button>
+        <button type="button" class="aegis-group-btn" data-value="source">${t('targetSource')}</button>
+        <button type="button" class="aegis-group-btn" data-value="armor2p">${t('targetArmor2p')}</button>
+        <button type="button" class="aegis-group-btn" data-value="armor4p">${t('targetArmor4p')}</button>
       </div>
     </div>
 
     <div class="aegis-widget-row">
-      <div class="aegis-row-label">Condition</div>
+      <div class="aegis-row-label">${t('condition')}</div>
       <div class="aegis-btn-group" data-group="condition">
-        <button type="button" class="aegis-group-btn active" data-value=">=">Or Better (&ge;)</button>
-        <button type="button" class="aegis-group-btn" data-value="=">Only (=)</button>
-        <button type="button" class="aegis-group-btn" data-value="<=">Or Worse (&le;)</button>
+        <button type="button" class="aegis-group-btn active" data-value=">=">${t('orBetter')}</button>
+        <button type="button" class="aegis-group-btn" data-value="=">${t('only')}</button>
+        <button type="button" class="aegis-group-btn" data-value="<=">${t('orWorse')}</button>
       </div>
     </div>
 
     <div class="aegis-widget-row">
-      <div class="aegis-row-label">Grade</div>
+      <div class="aegis-row-label">${t('grade')}</div>
       <div class="aegis-grade-grid">
         <button type="button" class="aegis-grade-btn" data-grade="s">S</button>
         <button type="button" class="aegis-grade-btn" data-grade="a">A</button>
@@ -3802,9 +3985,9 @@ function setupSearchWidget() {
     <div class="aegis-menu-divider"></div>
 
     <div class="aegis-widget-row">
-      <div class="aegis-row-label">Activity Source</div>
+      <div class="aegis-row-label">${t('activitySource')}</div>
       <div class="aegis-combobox-wrapper" data-combobox-id="widget-source" style="width: 100% !important;">
-        <input type="text" class="aegis-combobox-input aegis-widget-source-input" placeholder="Select or type Source..." />
+        <input type="text" class="aegis-combobox-input aegis-widget-source-input" placeholder="${t('sourcePlaceholder')}" />
         <span class="aegis-combobox-arrow">▾</span>
         <div class="aegis-combobox-menu hidden">
           <div class="aegis-combobox-options"></div>
@@ -3815,16 +3998,18 @@ function setupSearchWidget() {
     <div class="aegis-menu-divider"></div>
 
     <div class="aegis-widget-row">
-      <div class="aegis-row-label">Shortcuts</div>
+      <div class="aegis-row-label">${t('shortcuts')}</div>
       <div class="aegis-shortcuts-grid">
-        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:god">God Rolls</button>
-        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:upgrade">Upgradeable</button>
-        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:chase">Chase List</button>
+        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:5/5">${t('perfectRollFilter')}</button>
+        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:omni">${t('omniRollFilter')}</button>
+        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:god">${t('godRolls')}</button>
+        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:upgrade">${t('upgradeable')}</button>
+        <button type="button" class="aegis-shortcut-btn" data-shortcut="aegis:chase">${t('chaseList')}</button>
       </div>
     </div>
 
     <div class="aegis-menu-divider"></div>
-    <button type="button" class="aegis-menu-clear-btn">Clear Active Filter</button>
+    <button type="button" class="aegis-menu-clear-btn">${t('clearActiveFilter')}</button>
   `;
 
   widgetContainer.appendChild(button);
@@ -4062,7 +4247,11 @@ function evaluateAegisFiltering() {
           perkRank = grade;
         }
 
-        if (targetQuery === 'upgradeable' || targetQuery === 'upgradable' || targetQuery === 'upgrade') {
+        if (targetQuery === '5/5' || targetQuery === 'perfect' || targetQuery === '5of5' || targetQuery === 'godroll') {
+          isMatch = !!result?.isPerfect5of5;
+        } else if (targetQuery === 'omni' || targetQuery === 'master' || targetQuery === 'allperks') {
+          isMatch = !!result?.isOmniRoll;
+        } else if (targetQuery === 'upgradeable' || targetQuery === 'upgradable' || targetQuery === 'upgrade') {
           isMatch = !!result?.upgradeAvailable;
         } else if (targetQuery === 'god') {
           isMatch = compareGrades(perkRank, '>=s');
@@ -4100,10 +4289,12 @@ function evaluateAegisFiltering() {
 
 function getAegisFilterLabel(targetQuery: string): string {
   const q = targetQuery.toLowerCase().trim();
-  if (q === 'god') return 'God Rolls';
-  if (q === 'upgrade' || q === 'upgradeable') return 'Upgradeable';
-  if (q === 'chase') return 'Chase List';
-  if (q === 'bis' || q === 'bestinclass') return 'Best in Class';
+  if (q === '5/5' || q === 'perfect' || q === '5of5' || q === 'godroll') return t('perfectRollFilter');
+  if (q === 'omni' || q === 'master' || q === 'allperks') return t('omniRollFilter');
+  if (q === 'god') return t('godRolls');
+  if (q === 'upgrade' || q === 'upgradeable') return t('upgradeable');
+  if (q === 'chase') return t('chaseList');
+  if (q === 'bis' || q === 'bestinclass') return t('bestInClass');
   if (q === 'meta') return 'Meta Tier';
 
   if (q.startsWith('s:') || q.startsWith('source:')) {

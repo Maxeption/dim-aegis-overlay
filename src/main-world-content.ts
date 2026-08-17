@@ -1149,17 +1149,30 @@ async function initManifestDatabase() {
   scan();
 }
 
+const globalWeaponRegistry: Record<number, string> = {};
+
+function flushWeaponRegistry() {
+  let weaponRegEl = document.getElementById('aegis-global-weapon-registry');
+  if (!weaponRegEl) {
+    weaponRegEl = document.createElement('div');
+    weaponRegEl.id = 'aegis-global-weapon-registry';
+    weaponRegEl.style.display = 'none';
+    document.body.appendChild(weaponRegEl);
+  }
+  weaponRegEl.setAttribute('data-registry', JSON.stringify(globalWeaponRegistry));
+}
+
 async function buildWeaponIndex() {
   if (!manifestDbName || !itemStoreName) return;
 
-  sendDiagnosticLog(`Starting weapon indexing. itemStoreName: "${itemStoreName}"...`);
+  sendDiagnosticLog(`Starting weapon & perk indexing. itemStoreName: "${itemStoreName}"...`);
 
   // 1. If it's a key-value store, load the entire manifest dictionary into memory first
   if (itemStoreName.startsWith('keyval:')) {
     const itemKeyName = itemStoreName.split(':')[1];
     const dict = await getManifestDictionaryByKey(itemKeyName);
     if (dict) {
-      sendDiagnosticLog('Loaded cached manifest dictionary from keyval store. Building weapon name-to-hash index...');
+      sendDiagnosticLog('Loaded cached manifest dictionary from keyval store. Building weapon & perk indexes...');
       // Find the items table
       const itemsTable = dict.DestinyInventoryItemDefinition || dict.InventoryItem || dict;
       for (const [hashStr, item] of Object.entries(itemsTable)) {
@@ -1169,15 +1182,25 @@ async function buildWeaponIndex() {
             itemObj.itemType === 3 || // DestinyItemType.Weapon
             (itemObj.itemCategoryHashes && itemObj.itemCategoryHashes.includes(1)) ||
             (itemObj.sockets && itemObj.itemTypeDisplayName?.toLowerCase().includes('weapon'));
+          const hash = itemObj.hash || Number(hashStr);
+          const name = itemObj.displayProperties.name.trim();
+
           if (isWeapon) {
-            const name = itemObj.displayProperties.name.toLowerCase().trim();
-            weaponNameToHash[name] = itemObj.hash || Number(hashStr);
+            weaponNameToHash[name.toLowerCase()] = hash;
+            globalWeaponRegistry[hash] = name;
+          } else if (itemObj.plug || itemObj.itemCategoryHashes?.includes(59) || itemObj.itemType === 19) {
+            const icon = itemObj.displayProperties.icon || '';
+            if (name && !name.includes('Unknown')) {
+              globalRegistry[hash] = { name, icon };
+            }
           }
         }
       }
-      sendDiagnosticLog(`Indexed ${Object.keys(weaponNameToHash).length} weapons from cached manifest dictionary.`);
+      sendDiagnosticLog(`Indexed ${Object.keys(weaponNameToHash).length} weapons and ${Object.keys(globalRegistry).length} perks.`);
       indexBuilt = true;
       if (indexReadyResolve) indexReadyResolve();
+      flushRegistry();
+      flushWeaponRegistry();
       return;
     }
   }
@@ -1210,9 +1233,17 @@ async function buildWeaponIndex() {
                     itemObj.itemType === 3 ||
                     (itemObj.itemCategoryHashes && itemObj.itemCategoryHashes.includes(1)) ||
                     (itemObj.sockets && itemObj.itemTypeDisplayName?.toLowerCase().includes('weapon'));
+                  const hash = itemObj.hash || Number(hashStr);
+                  const name = itemObj.displayProperties.name.trim();
+
                   if (isWeapon) {
-                    const name = itemObj.displayProperties.name.toLowerCase().trim();
-                    weaponNameToHash[name] = itemObj.hash || Number(hashStr);
+                    weaponNameToHash[name.toLowerCase()] = hash;
+                    globalWeaponRegistry[hash] = name;
+                  } else if (itemObj.plug || itemObj.itemCategoryHashes?.includes(59) || itemObj.itemType === 19) {
+                    const icon = itemObj.displayProperties.icon || '';
+                    if (name && !name.includes('Unknown')) {
+                      globalRegistry[hash] = { name, icon };
+                    }
                   }
                 }
               }
@@ -1222,9 +1253,17 @@ async function buildWeaponIndex() {
                 val.itemType === 3 ||
                 (val.itemCategoryHashes && val.itemCategoryHashes.includes(1)) ||
                 (val.sockets && val.itemTypeDisplayName?.toLowerCase().includes('weapon'));
+              const hash = val.hash;
+              const name = val.displayProperties.name.trim();
+
               if (isWeapon) {
-                const name = val.displayProperties.name.toLowerCase().trim();
-                weaponNameToHash[name] = val.hash;
+                weaponNameToHash[name.toLowerCase()] = hash;
+                globalWeaponRegistry[hash] = name;
+              } else if (val.plug || val.itemCategoryHashes?.includes(59) || val.itemType === 19) {
+                const icon = val.displayProperties.icon || '';
+                if (name && !name.includes('Unknown')) {
+                  globalRegistry[hash] = { name, icon };
+                }
               }
             }
           }
@@ -1243,6 +1282,8 @@ async function buildWeaponIndex() {
     if (indexReadyResolve) {
       indexReadyResolve();
     }
+    flushRegistry();
+    flushWeaponRegistry();
   }
 }
 

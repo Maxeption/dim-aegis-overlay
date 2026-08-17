@@ -28,6 +28,9 @@ export interface ScoringResult {
   potentialGrade?: string;
   wishlistNotes?: string;
   upgradeAvailable?: boolean;
+  isPerfect5of5?: boolean;
+  isOmniRoll?: boolean;
+  matchedSlotsCount?: number;
 }
 
 /**
