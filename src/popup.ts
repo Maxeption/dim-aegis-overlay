@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisTwoTier',
         'aegisBadgePosition',
         'aegisBadgeStyle',
+        'aegisBadgeScale',
         'aegisFadeHover',
         'aegisGradeDisplayMode',
         'aegisHoverEnabled',
@@ -265,12 +266,24 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
+        // Set Aegis Badge Scale Slider
+        const badgeScaleVal = typeof res.aegisBadgeScale === 'number' ? res.aegisBadgeScale : 100;
+        const scaleSlider = document.getElementById('aegis-badge-scale-slider') as HTMLInputElement;
+        const scaleValueText = document.getElementById('badge-scale-value');
+        if (scaleSlider) {
+          scaleSlider.value = badgeScaleVal.toString();
+        }
+        if (scaleValueText) {
+          scaleValueText.textContent = `${badgeScaleVal}%`;
+        }
+        document.documentElement.style.setProperty('--aegis-badge-scale', (badgeScaleVal / 100).toString());
+
         // Update Live Interactive Weapon Tile Preview
         const mockBadge = document.getElementById('mock-aegis-badge');
         if (mockBadge) {
           // Remove old position and style classes
           mockBadge.classList.remove('aegis-pos-bl', 'aegis-pos-tl', 'aegis-pos-tr', 'aegis-pos-br');
-          mockBadge.classList.remove('aegis-style-classic', 'aegis-style-pill', 'aegis-style-notch', 'aegis-style-corner', 'aegis-style-dot');
+          mockBadge.classList.remove('aegis-style-classic', 'aegis-style-pill', 'aegis-style-notch');
 
           const posKey = badgePosVal.replace('bottom-left', 'bl').replace('top-left', 'tl').replace('top-right', 'tr').replace('bottom-right', 'br');
           mockBadge.classList.add(`aegis-pos-${posKey}`);
@@ -540,6 +553,27 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       }
+    });
+  }
+
+  // Handle Badge Scale Slider
+  const scaleSlider = document.getElementById('aegis-badge-scale-slider') as HTMLInputElement;
+  const scaleValueText = document.getElementById('badge-scale-value');
+  if (scaleSlider) {
+    scaleSlider.addEventListener('input', () => {
+      const val = parseInt(scaleSlider.value, 10) || 100;
+      if (scaleValueText) {
+        scaleValueText.textContent = `${val}%`;
+      }
+      document.documentElement.style.setProperty('--aegis-badge-scale', (val / 100).toString());
+    });
+
+    scaleSlider.addEventListener('change', () => {
+      const val = parseInt(scaleSlider.value, 10) || 100;
+      chrome.storage.local.set({ aegisBadgeScale: val }, () => {
+        console.log(`[DIM Aegis Overlay] Aegis Badge Scale changed to: ${val}%`);
+        updateUI();
+      });
     });
   }
 

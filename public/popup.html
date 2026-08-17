@@ -284,20 +284,20 @@
             <button type="button" data-value="classic" data-i18n="styleClassic">Original</button>
             <button type="button" data-value="pill" class="active" data-i18n="stylePill">Slim Pill</button>
             <button type="button" data-value="notch" data-i18n="styleNotch">Top Notch</button>
-            <button type="button" data-value="corner" data-i18n="styleCorner">Corner Tab</button>
-            <button type="button" data-value="dot" data-i18n="styleDot">Dot</button>
           </div>
+        </div>
+        <div class="input-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label data-i18n="badgeTextScale">Badge Text Size</label>
+            <span id="badge-scale-value" style="font-size: 11px; font-weight: 700; color: #ffd700;">100%</span>
+          </div>
+          <input type="range" id="aegis-badge-scale-slider" min="70" max="130" step="5" value="100" style="width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px;" />
         </div>
         <div class="input-group">
           <label data-i18n="badgePosition">Badge Position (Click a corner on the weapon tile)</label>
           <div class="interactive-portrait-container">
             <div class="interactive-weapon-tile" id="interactive-weapon-tile">
-              <div class="mock-weapon-art">
-                <div class="mock-watermark" title="Seasonal Watermark">⯎</div>
-                <div class="mock-tag" title="Item Tag">🔖</div>
-                <div class="mock-gun-silhouette">🔫</div>
-                <div class="mock-power">2039</div>
-              </div>
+              <img src="weapon-mockup.png" class="mock-weapon-img" alt="Weapon Portrait Reference" />
 
               <!-- 4 Interactive Corner Click Hotspots -->
               <div class="corner-target target-tl" data-pos="top-left" title="Top-Left"></div>

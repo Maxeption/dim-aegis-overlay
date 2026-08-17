@@ -188,7 +188,8 @@ let aegisLayoutSide = 'side';
 let aegisDbMode = 'both';
 let aegisTwoTier = false;
 let aegisBadgePosition: 'bottom-left' | 'top-left' | 'top-right' | 'bottom-right' = 'bottom-left';
-let aegisBadgeStyle: 'classic' | 'pill' | 'notch' | 'corner' | 'dot' = 'pill';
+let aegisBadgeStyle: 'classic' | 'pill' | 'notch' = 'pill';
+let aegisBadgeScale = 100;
 let aegisFadeHover = true;
 let aegisGradeDisplayMode: 'equipped' | 'dual' | 'potential' = 'equipped';
 let aegisHoverEnabled = true;
@@ -2374,7 +2375,7 @@ function showWinnowerWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
   initLanguage(res.aegisLanguage);
   wishlistDb = res.wishlistData || {};
   enhancedToNormalMap = res.enhancedToNormal || {};
@@ -2386,7 +2387,9 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisMode = res.aegisMode || 'pve';
   aegisTwoTier = res.aegisTwoTier || false;
   aegisBadgePosition = res.aegisBadgePosition || 'bottom-left';
-  aegisBadgeStyle = res.aegisBadgeStyle || 'pill';
+  aegisBadgeStyle = (res.aegisBadgeStyle === 'classic' || res.aegisBadgeStyle === 'notch') ? res.aegisBadgeStyle : 'pill';
+  aegisBadgeScale = typeof res.aegisBadgeScale === 'number' ? res.aegisBadgeScale : 100;
+  document.documentElement.style.setProperty('--aegis-badge-scale', (aegisBadgeScale / 100).toString());
   aegisFadeHover = res.aegisFadeHover !== false;
   aegisGradeDisplayMode = res.aegisGradeDisplayMode || 'equipped';
   aegisHoverEnabled = res.aegisHoverEnabled !== false;
@@ -2465,7 +2468,13 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       changed = true;
     }
     if (changes.aegisBadgeStyle) {
-      aegisBadgeStyle = changes.aegisBadgeStyle.newValue || 'pill';
+      const val = changes.aegisBadgeStyle.newValue;
+      aegisBadgeStyle = (val === 'classic' || val === 'notch') ? val : 'pill';
+      changed = true;
+    }
+    if (changes.aegisBadgeScale) {
+      aegisBadgeScale = typeof changes.aegisBadgeScale.newValue === 'number' ? changes.aegisBadgeScale.newValue : 100;
+      document.documentElement.style.setProperty('--aegis-badge-scale', (aegisBadgeScale / 100).toString());
       changed = true;
     }
     if (changes.aegisFadeHover) {
