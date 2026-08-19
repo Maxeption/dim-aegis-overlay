@@ -12,13 +12,7 @@ It integrates Aegis's PvE meta spreadsheet, Finnald's PvP spreadsheet, local DIM
 Get it on Firefox Add-ons: **[Download for Firefox](https://addons.mozilla.org/en-US/firefox/addon/dim-aegis-overlay/)**
 
 ### Chrome & Opera
-> *Submitted to the Chrome Web Store and currently pending review. In the meantime, you can install it manually in seconds:*
-
-1. Download the latest pre-built **`dim-aegis-overlay-v1.7.2.zip`** from the **[Releases](https://github.com/Maxeption/dim-aegis-overlay/releases)** page.
-2. Unzip the file to a permanent folder on your computer.
-3. Open Chrome or Opera and navigate to `chrome://extensions/`.
-4. Enable **Developer mode** (toggle in the top-right corner).
-5. Click **Load unpacked** (top-left) and select the unzipped extension directory.
+Get it on the chrome webstore: **[Download for Chromium-based browsers (Opera/Chrome/Brave/...)](https://chromewebstore.google.com/detail/dim-aegis-pvp-roll-overla/affllljndbmlmcpghkklkgifklobkokc)**
 
 ---
 
