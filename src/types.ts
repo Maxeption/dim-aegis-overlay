@@ -136,6 +136,13 @@ export interface TooltipPerk {
   matched: boolean;
   type: 'barrel' | 'mag' | 'perk1' | 'perk2' | 'origin';
   status?: 'active' | 'selectable' | 'missing';
+  rankIndex?: number;
+}
+
+export interface SheetPerksGroup {
+  matched: TooltipPerk[];
+  missing: TooltipPerk[];
+  all?: TooltipPerk[];
 }
 
 

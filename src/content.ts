@@ -1,5 +1,5 @@
 import { scoreWeapon } from './scorer';
-import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet } from './types';
+import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes } from './tooltip';
 import { initLanguage, t, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
 import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
@@ -185,6 +185,7 @@ let wishlistDb: WishlistDatabase = {};
 let enhancedToNormalMap: Record<number, number> = {};
 let scoringSource = 'aegis';
 let aegisLayoutSide = 'side';
+let aegisPerkOrder: 'sheet' | 'owned' = 'sheet';
 let aegisDbMode = 'both';
 let aegisTwoTier = false;
 let aegisBadgePosition: 'bottom-left' | 'top-left' | 'top-right' | 'bottom-right' = 'bottom-left';
@@ -405,7 +406,8 @@ function setupRegistryObserver() {
               perkNameToIcon,
               null,
               equippedMW,
-              aegisMode as any
+              aegisMode as any,
+              aegisPerkOrder
             );
           }
         }
@@ -934,7 +936,7 @@ function scoreSheetWeapon(
   result: ScoringResult;
   potentialGrade: string;
   upgradeAdvice: string;
-  sheetPerks: { matched: TooltipPerk[]; missing: TooltipPerk[] };
+  sheetPerks: SheetPerksGroup;
 } {
   if (sheetWeapon.exoticViability || sheetWeapon.source === 'Exotic') {
     const grade = sheetWeapon.tier ? sheetWeapon.tier.trim() : 'S';
@@ -949,7 +951,7 @@ function scoreSheetWeapon(
       },
       potentialGrade: grade,
       upgradeAdvice: '',
-      sheetPerks: { matched: [], missing: [] }
+      sheetPerks: { matched: [], missing: [], all: [] }
     };
   }
 
@@ -990,6 +992,7 @@ function scoreSheetWeapon(
 
   const matchedList: TooltipPerk[] = [];
   const missingList: TooltipPerk[] = [];
+  const allList: TooltipPerk[] = [];
 
   const categories: { type: TooltipPerk['type']; evals: EvaluatedPerk[] }[] = [
     { type: 'barrel', evals: barrelEvals },
@@ -1002,14 +1005,18 @@ function scoreSheetWeapon(
   const selectablePerkNames: string[] = [];
 
   for (const cat of categories) {
-    for (const perk of cat.evals) {
+    for (let i = 0; i < cat.evals.length; i++) {
+      const perk = cat.evals[i];
       const tooltipPerk: TooltipPerk = {
         name: perk.name,
         icon: perk.icon,
         matched: perk.matched,
         type: cat.type,
         status: perk.status,
+        rankIndex: i + 1,
       };
+
+      allList.push(tooltipPerk);
 
       if (perk.status === 'active' || perk.status === 'selectable') {
         matchedList.push(tooltipPerk);
@@ -1064,7 +1071,7 @@ function scoreSheetWeapon(
     },
     potentialGrade,
     upgradeAdvice,
-    sheetPerks: { matched: matchedList, missing: missingList }
+    sheetPerks: { matched: matchedList, missing: missingList, all: allList }
   };
 }
 
@@ -2375,7 +2382,7 @@ function showWinnowerWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
   initLanguage(res.aegisLanguage);
   wishlistDb = res.wishlistData || {};
   enhancedToNormalMap = res.enhancedToNormal || {};
@@ -2383,6 +2390,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   chaseList = res.aegisChaseList || {};
   scoringSource = res.scoringSource || 'aegis';
   aegisLayoutSide = res.aegisLayoutSide || 'side';
+  aegisPerkOrder = res.aegisPerkOrder || 'sheet';
   aegisDbMode = res.aegisDbMode || 'both';
   aegisMode = res.aegisMode || 'pve';
   aegisTwoTier = res.aegisTwoTier || false;
@@ -2449,6 +2457,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisLayoutSide) {
       aegisLayoutSide = changes.aegisLayoutSide.newValue || 'side';
+      changed = true;
+    }
+    if (changes.aegisPerkOrder) {
+      aegisPerkOrder = changes.aegisPerkOrder.newValue || 'sheet';
       changed = true;
     }
     if (changes.aegisDbMode) {
@@ -2594,7 +2606,8 @@ function showTooltipForElement(dataEl: HTMLElement, anchor: HTMLElement): boolea
     perkNameToIcon,
     (dataEl as any)._aegisSheetArmor,
     (dataEl as any)._aegisEquippedMasterwork,
-    aegisMode as any
+    aegisMode as any,
+    aegisPerkOrder
   );
   return true;
 }
@@ -2726,7 +2739,7 @@ function injectPopupSummary(
   result: ScoringResult,
   scoringSource: string,
   sheetWeapon?: AegisSheetWeapon,
-  sheetPerks?: { matched: TooltipPerk[]; missing: TooltipPerk[] },
+  sheetPerks?: SheetPerksGroup,
   sheetArmor?: AegisArmorSet | null,
   equippedMasterwork?: string
 ) {
@@ -2988,25 +3001,22 @@ function injectPopupSummary(
         
         let chipsHtml = '';
         if (sheetPerks) {
-          const matched = sheetPerks.matched.filter(p => p.type === item.type);
-          const missing = sheetPerks.missing.filter(p => p.type === item.type);
-
-          for (const perk of matched) {
-            const statusClass = perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable';
-            const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
-            const statusLabel = perk.status === 'active' ? '' : ` (${t('selectable')})`;
-            chipsHtml += `
-              <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
-                ${iconHtml}
-                <span class="aegis-chip-name">${perk.name}</span>
-              </span>
-            `;
+          let perksToRender: TooltipPerk[] = [];
+          if (aegisPerkOrder === 'owned' || !sheetPerks.all) {
+            const matched = sheetPerks.matched.filter(p => p.type === item.type);
+            const missing = sheetPerks.missing.filter(p => p.type === item.type);
+            perksToRender = [...matched, ...missing];
+          } else {
+            perksToRender = sheetPerks.all.filter(p => p.type === item.type);
           }
 
-          for (const perk of missing) {
+          for (const perk of perksToRender) {
+            const isMissing = perk.status === 'missing' || !perk.matched;
+            const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
             const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+            const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
             chipsHtml += `
-              <span class="aegis-perk-chip aegis-chip-missing" title="${perk.name} (${t('missing')})">
+              <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
                 ${iconHtml}
                 <span class="aegis-chip-name">${perk.name}</span>
               </span>

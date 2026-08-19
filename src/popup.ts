@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'lightggData',
         'lightggLastSync',
         'aegisLayoutSide',
+        'aegisPerkOrder',
         'aegisDbMode',
         'aegisMode',
         'aegisTwoTier',
@@ -220,6 +221,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (layoutSegmented) {
           layoutSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === layoutVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Aegis Recommended Perks Order segmented control
+        const perkOrderVal = res.aegisPerkOrder || 'sheet';
+        const perkOrderSegmented = document.getElementById('aegis-perk-order-segmented');
+        if (perkOrderSegmented) {
+          perkOrderSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === perkOrderVal) {
               btn.classList.add('active');
             } else {
               btn.classList.remove('active');
@@ -480,6 +494,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (val) {
           chrome.storage.local.set({ aegisLayoutSide: val }, () => {
             console.log(`[DIM Aegis Overlay] Aegis layout changed to: ${val}`);
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Recommended Perks Order segmented control click
+  const perkOrderSegmented = document.getElementById('aegis-perk-order-segmented');
+  if (perkOrderSegmented) {
+    perkOrderSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisPerkOrder: val }, () => {
+            console.log(`[DIM Aegis Overlay] Aegis perk order changed to: ${val}`);
             updateUI();
           });
         }

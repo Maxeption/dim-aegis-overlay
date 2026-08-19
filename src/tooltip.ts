@@ -1,4 +1,4 @@
-import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet } from './types';
+import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup } from './types';
 import { t, getLocalizedElement } from './i18n';
 
 /** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
@@ -176,11 +176,12 @@ export function showTooltip(
   sheetWeapon?: AegisSheetWeapon,
   bestAlternative?: string,
   isBestInClass?: boolean,
-  sheetPerks?: { matched: TooltipPerk[]; missing: TooltipPerk[] },
+  sheetPerks?: SheetPerksGroup,
   _globalPerkNameToIcon?: Record<string, string>,
   sheetArmor?: AegisArmorSet | null,
   equippedMasterwork?: string,
-  aegisMode?: 'pve' | 'pvp'
+  aegisMode?: 'pve' | 'pvp',
+  aegisPerkOrder?: 'sheet' | 'owned'
 ) {
   const tooltip = getOrCreateTooltip();
   const isLightGGMode = !!isLightGG;
@@ -322,25 +323,22 @@ export function showTooltip(
       
       let chipsHtml = '';
       if (sheetPerks) {
-        const matched = sheetPerks.matched.filter(p => p.type === item.type);
-        const missing = sheetPerks.missing.filter(p => p.type === item.type);
-
-        for (const perk of matched) {
-          const statusClass = perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable';
-          const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
-          const statusLabel = perk.status === 'active' ? '' : ` (${t('selectable')})`;
-          chipsHtml += `
-            <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
-              ${iconHtml}
-              <span class="aegis-chip-name">${perk.name}</span>
-            </span>
-          `;
+        let perksToRender: TooltipPerk[] = [];
+        if (aegisPerkOrder === 'owned' || !sheetPerks.all) {
+          const matched = sheetPerks.matched.filter(p => p.type === item.type);
+          const missing = sheetPerks.missing.filter(p => p.type === item.type);
+          perksToRender = [...matched, ...missing];
+        } else {
+          perksToRender = sheetPerks.all.filter(p => p.type === item.type);
         }
 
-        for (const perk of missing) {
+        for (const perk of perksToRender) {
+          const isMissing = perk.status === 'missing' || !perk.matched;
+          const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
           const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+          const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
           chipsHtml += `
-            <span class="aegis-perk-chip aegis-chip-missing" title="${perk.name} (${t('missing')})">
+            <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
               ${iconHtml}
               <span class="aegis-chip-name">${perk.name}</span>
             </span>
