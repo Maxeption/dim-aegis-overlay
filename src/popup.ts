@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisFadeHover',
         'aegisGradeDisplayMode',
         'aegisHoverEnabled',
+        'aegisCompactPerksMatrix',
+        'aegisInlineHeader',
+        'aegisAutoMaxHeight',
+        'aegisTooltipWidthMode',
+        'aegisTooltipWidth',
         'aegisArmorSource',
         'aegisLanguage',
         'updateAvailableVersion',
@@ -352,6 +357,69 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
+        // Set Aegis 2-Column Perks Matrix segmented control
+        const matrixVal = res.aegisCompactPerksMatrix === true ? 'true' : 'false';
+        const matrixSegmented = document.getElementById('aegis-matrix-segmented');
+        if (matrixSegmented) {
+          matrixSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === matrixVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Aegis Inline Header segmented control
+        const inlineHeaderVal = res.aegisInlineHeader !== false ? 'true' : 'false';
+        const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
+        if (inlineHeaderSegmented) {
+          inlineHeaderSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === inlineHeaderVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Aegis Auto Max-Height segmented control
+        const autoMaxHeightVal = res.aegisAutoMaxHeight !== false ? 'true' : 'false';
+        const autoMaxHeightSegmented = document.getElementById('aegis-auto-max-height-segmented');
+        if (autoMaxHeightSegmented) {
+          autoMaxHeightSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === autoMaxHeightVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Aegis Tooltip Width Mode segmented control
+        const tooltipWidthModeVal = res.aegisTooltipWidthMode || 'fixed';
+        const tooltipWidthModeSegmented = document.getElementById('aegis-tooltip-width-mode-segmented');
+        if (tooltipWidthModeSegmented) {
+          tooltipWidthModeSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === tooltipWidthModeVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Aegis Tooltip Width Slider
+        const tooltipWidthVal = typeof res.aegisTooltipWidth === 'number' ? res.aegisTooltipWidth : 280;
+        const widthSlider = document.getElementById('aegis-tooltip-width-slider') as HTMLInputElement;
+        const widthValText = document.getElementById('tooltip-width-value');
+        if (widthSlider) {
+          widthSlider.value = tooltipWidthVal.toString();
+        }
+        if (widthValText) {
+          widthValText.textContent = `${tooltipWidthVal}px`;
+        }
+
         // Set Aegis Armor Source segmented control
         const armorSourceVal = res.aegisArmorSource || 'lowco';
         const armorSourceSegmented = document.getElementById('aegis-armor-source-segmented');
@@ -515,6 +583,89 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       }
+    });
+  }
+
+  // Handle 2-Column Perks Matrix segmented control click
+  const matrixSegmented = document.getElementById('aegis-matrix-segmented');
+  if (matrixSegmented) {
+    matrixSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisCompactPerksMatrix: val === 'true' }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Inline Header segmented control click
+  const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
+  if (inlineHeaderSegmented) {
+    inlineHeaderSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisInlineHeader: val === 'true' }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Auto Max-Height segmented control click
+  const autoMaxHeightSegmented = document.getElementById('aegis-auto-max-height-segmented');
+  if (autoMaxHeightSegmented) {
+    autoMaxHeightSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisAutoMaxHeight: val === 'true' }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Tooltip Width Mode segmented control click
+  const tooltipWidthModeSegmented = document.getElementById('aegis-tooltip-width-mode-segmented');
+  if (tooltipWidthModeSegmented) {
+    tooltipWidthModeSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisTooltipWidthMode: val }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Tooltip Width Slider input & change
+  const widthSlider = document.getElementById('aegis-tooltip-width-slider') as HTMLInputElement;
+  const widthValText = document.getElementById('tooltip-width-value');
+  if (widthSlider) {
+    widthSlider.addEventListener('input', () => {
+      const val = parseInt(widthSlider.value, 10);
+      if (widthValText) {
+        widthValText.textContent = `${val}px`;
+      }
+    });
+
+    widthSlider.addEventListener('change', () => {
+      const val = parseInt(widthSlider.value, 10);
+      chrome.storage.local.set({ aegisTooltipWidth: val, aegisTooltipWidthMode: 'fixed' }, () => {
+        updateUI();
+      });
     });
   }
 
@@ -705,9 +856,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const wishlistSyncStatusRow = document.getElementById('wishlist-sync-status-row') as HTMLDivElement;
-  const wishlistSyncStatusText = document.getElementById('wishlist-sync-status-text') as HTMLSpanElement;
-
   const sheetsSyncStatusRow = document.getElementById('sheets-sync-status-row') as HTMLDivElement;
   const sheetsSyncStatusText = document.getElementById('sheets-sync-status-text') as HTMLSpanElement;
 
@@ -808,10 +956,12 @@ document.addEventListener('DOMContentLoaded', () => {
     syncStatus.className = 'status-value status-loading';
     errorContainer.classList.add('hidden');
 
-    if (wishlistSyncStatusRow) wishlistSyncStatusRow.style.display = 'block';
-    if (wishlistSyncStatusText) {
-      wishlistSyncStatusText.textContent = '⏳ Syncing wishlist...';
-      wishlistSyncStatusText.style.color = '#ffb300';
+    const syncStatusBox = document.getElementById('sync-status');
+    const syncStatusTextEl = document.getElementById('sync-status-text');
+    if (syncStatusBox) syncStatusBox.classList.remove('hidden');
+    if (syncStatusTextEl) {
+      syncStatusTextEl.textContent = '⏳ Syncing wishlist...';
+      syncStatusTextEl.style.color = '#ffb300';
     }
 
     chrome.runtime.sendMessage({ action: 'syncNow', url }, (response) => {
@@ -820,15 +970,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoadingState(false);
         updateUI();
         if (response && response.success) {
-          if (wishlistSyncStatusText) {
-            wishlistSyncStatusText.textContent = '✅ Wishlist synced successfully!';
-            wishlistSyncStatusText.style.color = '#4caf50';
+          if (syncStatusTextEl) {
+            syncStatusTextEl.textContent = '✅ Wishlist synced successfully!';
+            syncStatusTextEl.style.color = '#4caf50';
           }
         } else {
-          if (wishlistSyncStatusText) {
+          if (syncStatusTextEl) {
             const errMsg = response?.error || 'Unknown error';
-            wishlistSyncStatusText.textContent = `❌ Wishlist sync failed: ${errMsg}`;
-            wishlistSyncStatusText.style.color = '#f44336';
+            syncStatusTextEl.textContent = `❌ Wishlist sync failed: ${errMsg}`;
+            syncStatusTextEl.style.color = '#f44336';
           }
         }
       }, 300);

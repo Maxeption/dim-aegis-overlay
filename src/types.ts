@@ -47,7 +47,13 @@ export interface LocalStorageSchema {
   aegisSheetDb?: AegisSheetDatabase;
   aegisSheetDbPvE?: AegisSheetDatabase;
   aegisSheetDbPvP?: AegisSheetDatabase;
+  aegisShoppingDb?: AegisShoppingDatabase;
   aegisMode?: 'pve' | 'pvp';
+  aegisCompactPerksMatrix?: boolean;
+  aegisInlineHeader?: boolean;
+  aegisAutoMaxHeight?: boolean;
+  aegisTooltipWidthMode?: 'auto' | 'fixed';
+  aegisTooltipWidth?: number;
   aegisSheetLastSync?: number;
   aegisChaseList?: Record<string, {
     name: string;
@@ -143,6 +149,32 @@ export interface SheetPerksGroup {
   matched: TooltipPerk[];
   missing: TooltipPerk[];
   all?: TooltipPerk[];
+}
+
+/**
+ * An item entry parsed from Aegis's "Shopping List" spreadsheet tab.
+ */
+export interface AegisShoppingItem {
+  role: string;
+  name: string;
+  source: string;
+  priorityNum: number;
+  priority: 'high' | 'medium' | 'low' | 'niche';
+  column1: string;
+  column2: string;
+  alternatives: string[];
+  isArmor: boolean;
+  isExotic?: boolean;
+}
+
+/**
+ * Structured database of the Aegis Shopping List containing items, quick lookup by name,
+ * and mapping of alternative gear to their primary recommendations.
+ */
+export interface AegisShoppingDatabase {
+  items: AegisShoppingItem[];
+  byName: Record<string, AegisShoppingItem>;
+  alternativesMap: Record<string, { primaryName: string; role: string; priority: string; priorityNum: number }>;
 }
 
 

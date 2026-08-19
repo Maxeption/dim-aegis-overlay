@@ -279,6 +279,41 @@
           </div>
         </div>
         <div class="input-group">
+          <label data-i18n="compactPerksMatrix">2-Column Perks Matrix</label>
+          <div class="segmented-control" id="aegis-matrix-segmented">
+            <button type="button" data-value="true" data-i18n="matrix2Col">2-Column</button>
+            <button type="button" data-value="false" class="active" data-i18n="matrixStacked">Stacked (Classic)</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label data-i18n="inlineHeaderTitle">Inline Tooltip Header</label>
+          <div class="segmented-control" id="aegis-inline-header-segmented">
+            <button type="button" data-value="true" class="active" data-i18n="inlineHeaderEnabled">Compact Inline</button>
+            <button type="button" data-value="false" data-i18n="inlineHeaderClassic">Classic Stacked</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label data-i18n="autoMaxHeightTitle">Screen-Aware Auto Height</label>
+          <div class="segmented-control" id="aegis-auto-max-height-segmented">
+            <button type="button" data-value="true" class="active" data-i18n="autoMaxHeightEnabled">Auto Fit & Scroll</button>
+            <button type="button" data-value="false" data-i18n="autoMaxHeightDisabled">Unlimited</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label data-i18n="tooltipWidthMode">Tooltip Width Mode</label>
+          <div class="segmented-control" id="aegis-tooltip-width-mode-segmented">
+            <button type="button" data-value="auto" data-i18n="widthModeAuto">Auto (Fit Content)</button>
+            <button type="button" data-value="fixed" class="active" data-i18n="widthModeFixed">Fixed (Slider)</button>
+          </div>
+        </div>
+        <div class="input-group" id="aegis-tooltip-width-slider-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label data-i18n="tooltipWidthSlider">Custom Tooltip Width</label>
+            <span id="tooltip-width-value" style="font-size: 11px; font-weight: 700; color: #ffd700;">280px</span>
+          </div>
+          <input type="range" id="aegis-tooltip-width-slider" min="260" max="450" step="10" value="280" style="width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px;" />
+        </div>
+        <div class="input-group">
           <label data-i18n="badgeMode">Badge Overlay Mode</label>
           <div class="segmented-control" id="aegis-two-tier-segmented">
             <button type="button" data-value="false" class="active" data-i18n="badgeStandard">Standard (S, A, B...)</button>

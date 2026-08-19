@@ -707,10 +707,6 @@ function processElement(el: HTMLElement) {
 
     if (isArmor) {
       const newHash = String(item.hash);
-      const existingHash = el.getAttribute('data-aegis-item-hash');
-      if (existingHash === newHash) {
-        return;
-      }
       el.setAttribute('data-aegis-item-hash', newHash);
       el.setAttribute('data-aegis-item-name', item.name || 'Unknown Armor');
       el.setAttribute('data-aegis-item-type', 'armor');
@@ -718,6 +714,33 @@ function processElement(el: HTMLElement) {
       if (instanceId) {
         el.setAttribute('data-aegis-instance-id', String(instanceId));
       }
+
+      // Extract armor socketed perks / intrinsic archetype
+      const armorPerks: string[] = [];
+      if (item.sockets && item.sockets.allSockets) {
+        for (const s of item.sockets.allSockets) {
+          const name = s?.plugged?.plugDef?.displayProperties?.name;
+          if (name && !name.toLowerCase().includes('shader') && !name.toLowerCase().includes('ornament') && !name.toLowerCase().includes('energy')) {
+            armorPerks.push(name);
+          }
+        }
+      }
+      if (armorPerks.length > 0) {
+        el.setAttribute('data-aegis-armor-perks', JSON.stringify(armorPerks));
+      }
+
+      // Extract base stats if available
+      if (item.stats && Array.isArray(item.stats)) {
+        const statsMap: Record<string, number> = {};
+        for (const st of item.stats) {
+          const statName = st.stat?.displayProperties?.name || st.name || '';
+          if (statName) {
+            statsMap[statName.toLowerCase().trim()] = st.base ?? st.value ?? 0;
+          }
+        }
+        el.setAttribute('data-aegis-armor-stats', JSON.stringify(statsMap));
+      }
+
       // Clear weapon-specific attributes
       el.removeAttribute('data-aegis-perk-hashes');
       el.removeAttribute('data-aegis-perks-data');

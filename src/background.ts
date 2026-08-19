@@ -1,5 +1,5 @@
 import { parseWishlist } from './parser';
-import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet } from './types';
+import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet, AegisShoppingDatabase, AegisShoppingItem } from './types';
 
 const DEFAULT_URL =
   'https://raw.githubusercontent.com/charlesxcaliber/DIMAegisWeaponWishlist/main/MrCharlesWishlist_MRB_PPC2.txt';
@@ -373,6 +373,123 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
 }
 
 /**
+ * Fetches and parses Aegis's "Shopping List" tab containing curated endgame chase weapons & armor.
+ */
+async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShoppingDatabase> {
+  const items: AegisShoppingItem[] = [];
+  const byName: Record<string, AegisShoppingItem> = {};
+  const alternativesMap: Record<string, { primaryName: string; role: string; priority: string; priorityNum: number }> = {};
+
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Shopping List')}`;
+    const res = await fetch(url, { credentials: 'omit' });
+    if (res.ok) {
+      const csvText = await res.text();
+      if (!csvText.trimStart().startsWith('<')) {
+        const rows = parseCSV(csvText);
+        if (rows.length >= 2) {
+          let headerRowIndex = 0;
+          for (let r = 0; r < Math.min(rows.length, 3); r++) {
+            if (rows[r].some(c => c.trim().toLowerCase() === 'name' || c.trim().toLowerCase() === 'role')) {
+              headerRowIndex = r;
+              break;
+            }
+          }
+
+          const header = rows[headerRowIndex].map(h => h.trim().toLowerCase());
+          const roleIdx = header.indexOf('role');
+          const nameIdx = header.indexOf('name');
+          const sourceIdx = header.indexOf('source');
+          const numIdx = header.indexOf('#');
+          const priorityIdx = header.indexOf('priority');
+          const col1Idx = header.indexOf('column 1');
+          const col2Idx = header.indexOf('column 2');
+          const altIdx = header.indexOf('alternatives');
+
+          for (let r = headerRowIndex + 1; r < rows.length; r++) {
+            const row = rows[r];
+            const rawName = (row[nameIdx] || '').replace(/\n+/g, ' ').trim();
+            if (!rawName || rawName.toLowerCase() === 'name') continue;
+
+            const role = (row[roleIdx] || '').replace(/\n+/g, ' ').trim();
+            const source = (row[sourceIdx] || '').replace(/\n+/g, ' ').trim();
+            const priorityNum = parseInt(row[numIdx] || '3', 10) || 3;
+            const rawPriority = (row[priorityIdx] || '').toLowerCase().trim();
+            const priority: 'high' | 'medium' | 'low' | 'niche' =
+              rawPriority === 'high' || rawPriority === 'medium' || rawPriority === 'low' || rawPriority === 'niche'
+                ? rawPriority
+                : (priorityNum === 1 ? 'high' : priorityNum === 2 ? 'medium' : priorityNum === 3 ? 'low' : 'niche');
+
+            const col1 = (row[col1Idx] || '').trim();
+            const col2 = (row[col2Idx] || '').trim();
+            const rawAlts = row[altIdx] || '';
+            const alternatives = rawAlts
+              .split(/[\/\n\\]+/)
+              .map(a => a.trim())
+              .filter(a => a && a.toLowerCase() !== 'n/a');
+
+            const rLow = role.toLowerCase();
+            const sLow = source.toLowerCase();
+            const c1Low = col1.toLowerCase();
+            const nLow = rawName.toLowerCase();
+
+            const isArmor =
+              rLow.includes('dr') ||
+              rLow.includes('pcs') ||
+              rLow.includes('armor') ||
+              rLow.includes('regen') ||
+              rLow.includes('augmentation') ||
+              c1Low.includes('specialist') ||
+              c1Low.includes('powerhouse') ||
+              c1Low.includes('gunner') ||
+              c1Low.includes('skirmisher') ||
+              (sLow.includes('rahool') && (!col2 || col2 === 'N/A' || col2 === '-'));
+
+            const isExotic =
+              rLow.includes('exotic') ||
+              sLow.includes('rahool') ||
+              sLow.includes('monument') ||
+              sLow.includes('kiosk') ||
+              nLow.includes('exotic');
+
+            const item: AegisShoppingItem = {
+              role,
+              name: rawName,
+              source,
+              priorityNum,
+              priority,
+              column1: col1,
+              column2: col2,
+              alternatives,
+              isArmor,
+              isExotic,
+            };
+
+            items.push(item);
+            byName[normName(rawName)] = item;
+            byName[rawName.toLowerCase().trim()] = item;
+
+            for (const alt of alternatives) {
+              const altNorm = normName(alt);
+              alternativesMap[altNorm] = {
+                primaryName: rawName,
+                role,
+                priority,
+                priorityNum,
+              };
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('DIM Aegis Overlay: Failed to fetch Shopping List database:', err);
+  }
+
+  return { items, byName, alternativesMap };
+}
+
+/**
  * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet tabs, parses them, and caches the output databases in local storage.
  */
 async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: string }> {
@@ -380,6 +497,7 @@ async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: st
     const aegisSheetDbPvE = await fetchSpreadsheetDatabase(SHEET_ID, ALL_TABS);
     const pvpTabs = [...ALL_TABS, 'Legendary Weapons'];
     const aegisSheetDbPvP = await fetchSpreadsheetDatabase(PVP_SHEET_ID, pvpTabs);
+    const aegisShoppingDb = await fetchShoppingListDatabase(SHEET_ID);
 
     const storage = await chrome.storage.local.get(['aegisMode']);
     const aegisMode = storage.aegisMode || 'pve';
@@ -389,6 +507,7 @@ async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: st
       aegisSheetDbPvE,
       aegisSheetDbPvP,
       aegisSheetDb: activeDb,
+      aegisShoppingDb,
       aegisSheetLastSync: Date.now(),
     });
 
