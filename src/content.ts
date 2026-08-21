@@ -2919,22 +2919,23 @@ function showWelcomeModal() {
       </div>
       
       <div class="aegis-welcome-slides">
-        <!-- Slide 1: Welcome & What's New in v1.7.0 -->
+        <!-- Slide 1: Welcome & What's New in v1.8.0 -->
         <div class="aegis-welcome-slide active" data-slide="0">
           <div class="tooltip-section">
-            <span class="tooltip-section-header">Getting Started & What's New in v1.7.2</span>
+            <span class="tooltip-section-header">Getting Started & What's New in v1.8.0</span>
             <p class="tooltip-desc" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px; margin-bottom: 10px;">
               This extension enhances Destiny Item Manager (DIM) by displaying meta spreadsheet weapon rankings, perk accuracy ratings, and custom armor set configurations directly on your items.
             </p>
 
             <div style="border: 1px solid rgba(255, 215, 0, 0.3); background: rgba(255, 215, 0, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
               <div style="font-size: 10px; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                <span>What's New in Release v1.7.2</span>
+                <span>What's New in Release v1.8.0</span>
               </div>
               <ul style="font-size: 11px; line-height: 1.45; color: #e5e9f0; margin: 0; padding-left: 16px;">
-                <li><strong>Winnower Support (winnower.garden):</strong> Full support for the Winnower Destiny vault-cleanup app with inline badges, click-to-pin tooltips, and row cleanup.</li>
-                <li><strong>Recommended Perks Breakdown & 2-Column Active Perks:</strong> Restructured Recommended Perks into full-width rows with interactive perk icons and status chips (Active/Selectable/Missing), and Active Perks into a 2-column grid.</li>
-                <li><strong>Weapon Source Filtering & Aegis Combobox UI:</strong> Search and filter by weapon drop sources (Raid, Dungeon, Nightfall, Trials, Onslaught, World Drop) in Database Explorer and DIM search bar (<code>aegis:s:&lt;source&gt;</code>) with a custom dark gold-accented combobox component.</li>
+                <li><strong>Aegis Shopping List & Live Vault Readiness:</strong> Real-time inventory audit classifying weapons into Ready, Suboptimal, or Missing with expandable cards, vault copies drawers, and viable alternatives with hover tooltips.</li>
+                <li><strong>Multi-Language Localization:</strong> Translation support across 6 languages (EN, ES, KO, JA, ZH-Hans, ZH-Hant) with auto DIM language detection <em>(WIP & mostly machine-translated for now)</em>.</li>
+                <li><strong>Interactive Badge Customization Suite:</strong> Interactive 4-corner positioner, visual styles (Original, Slim Pill, Top Notch), text scaling (70%–130%), and smooth peek-on-hover fading.</li>
+                <li><strong>Deep Tooltip Customization:</strong> Custom width slider (260px–450px), compact 2-column recommended perk matrix, and strict spreadsheet perk rank ordering.</li>
               </ul>
             </div>
             
