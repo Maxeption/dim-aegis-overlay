@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && node scripts/build.mjs",
     "package": "node scripts/package.mjs",
-    "build:all": "tsc && vite build && node scripts/package.mjs",
+    "build:all": "tsc && node scripts/build.mjs && node scripts/package.mjs",
     "preview": "vite preview"
   },
   "dependencies": {},

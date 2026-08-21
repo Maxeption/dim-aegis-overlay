@@ -5,27 +5,33 @@
 /* ------------------------------------------
    1. Badge Overlay Styles (Bottom-Right)
    ------------------------------------------ */
+:root {
+  --aegis-badge-scale: 1;
+}
+
 .aegis-badge {
   position: absolute !important;
   bottom: 2px !important;
   left: 2px !important;
-  width: 18px !important;
-  height: 18px !important;
+  width: 15px !important;
+  height: 15px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 11px !important;
+  font-size: calc(9.5px * var(--aegis-badge-scale, 1)) !important;
   font-weight: 800 !important;
   color: #ffffff !important;
   z-index: 99 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
   user-select: none !important;
   pointer-events: none !important;
-  transition: transform 0.2s ease, opacity 0.25s ease !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  transition: transform 0.18s ease, opacity 0.18s ease !important;
 }
 
 /* Ensure badge is dimmed if the parent store item is filtered or has low opacity */
@@ -40,40 +46,160 @@
   filter: grayscale(0.8) !important;
 }
 
+/* Badge Position Options */
+.aegis-badge.aegis-pos-bl {
+  bottom: 2px !important;
+  left: 2px !important;
+  top: auto !important;
+  right: auto !important;
+}
+.aegis-badge.aegis-pos-tl {
+  top: 2px !important;
+  left: 2px !important;
+  bottom: auto !important;
+  right: auto !important;
+}
+.aegis-badge.aegis-pos-tr {
+  top: 2px !important;
+  right: 2px !important;
+  bottom: auto !important;
+  left: auto !important;
+}
+.aegis-badge.aegis-pos-br {
+  bottom: 2px !important;
+  right: 2px !important;
+  top: auto !important;
+  left: auto !important;
+}
 
+/* Badge Appearance Styles */
+.aegis-badge.aegis-style-classic {
+  width: 18px !important;
+  height: 18px !important;
+  font-size: calc(11px * var(--aegis-badge-scale, 1)) !important;
+  border-radius: 50% !important;
+}
 
-.aegis-badge.aegis-badge-wide {
+.aegis-badge.aegis-style-classic.aegis-badge-wide {
   width: auto !important;
+  max-width: none !important;
   height: 18px !important;
   border-radius: 9px !important;
   padding: 0 6px !important;
-  font-size: 10px !important;
+  font-size: calc(10px * var(--aegis-badge-scale, 1)) !important;
   letter-spacing: -0.2px !important;
+  line-height: 18px !important;
 }
 
-.aegis-badge.aegis-badge-dual {
-  border: 1px solid rgba(255, 215, 0, 0.8) !important;
-  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+/* Option: Slim Pill */
+.aegis-badge.aegis-style-pill {
+  width: auto !important;
+  min-width: 16px !important;
+  max-width: 34px !important;
+  height: 13.5px !important;
+  border-radius: 3px !important;
+  padding: 0 4px !important;
+  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
+  letter-spacing: -0.2px !important;
+  line-height: 13.5px !important;
+}
+
+.aegis-badge.aegis-badge-wide {
+  width: auto !important;
+  max-width: 32px !important;
+  height: 13.5px !important;
+  border-radius: 4px !important;
+  padding: 0 3px !important;
+  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
+  letter-spacing: -0.2px !important;
+  line-height: 13.5px !important;
+}
+
+/* Option 4: Top Notch Mode (Full-Width Top Header Ribbon) */
+.aegis-badge.aegis-style-notch {
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  height: 12px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 0 0 3px 3px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
+  font-size: calc(9px * var(--aegis-badge-scale, 1)) !important;
+  line-height: 12px !important;
+  text-align: center !important;
+  justify-content: center !important;
+  align-items: center !important;
+  display: flex !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+  transform: none !important;
+}
+
+/* Ensure wide badges in notch mode also span full 100% width */
+.aegis-badge.aegis-badge-wide.aegis-style-notch {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 0 3px 3px !important;
+}
+
+
+/* Peek on Hover: Smoothly fade badge on weapon tile hover */
+.item:hover .aegis-badge.aegis-hover-fade,
+[class*="StoreItem"]:hover .aegis-badge.aegis-hover-fade,
+[class*="InventoryItem"]:hover .aegis-badge.aegis-hover-fade,
+[class*="ItemTile"]:hover .aegis-badge.aegis-hover-fade,
+.item-tile:hover .aegis-badge.aegis-hover-fade,
+[data-aegis-item-hash]:hover .aegis-badge.aegis-hover-fade {
+  opacity: 0.12 !important;
+  transform: scale(0.85) !important;
+  pointer-events: none !important;
+  transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+/* Preserve full-width alignment when hover-fading Top Notch */
+.item:hover .aegis-badge.aegis-hover-fade.aegis-style-notch,
+[class*="StoreItem"]:hover .aegis-badge.aegis-hover-fade.aegis-style-notch,
+[class*="InventoryItem"]:hover .aegis-badge.aegis-hover-fade.aegis-style-notch,
+[class*="ItemTile"]:hover .aegis-badge.aegis-hover-fade.aegis-style-notch,
+.item-tile:hover .aegis-badge.aegis-hover-fade.aegis-style-notch,
+[data-aegis-item-hash]:hover .aegis-badge.aegis-hover-fade.aegis-style-notch {
+  transform: scaleY(0.85) !important;
+  transform-origin: top center !important;
+}
+
+@keyframes aegis-crown-pulse {
+  from { box-shadow: 0 0 6px rgba(255, 215, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.7); }
+  to { box-shadow: 0 0 12px rgba(255, 215, 0, 0.9), 0 2px 6px rgba(0, 0, 0, 0.9); }
 }
 
 .aegis-badge-upgrade-arrow {
   position: absolute !important;
-  top: -4px !important;
-  right: -4px !important;
-  font-size: 6px !important;
-  background: #388e3c !important;
+  top: -3px !important;
+  right: -3px !important;
+  font-size: 5px !important;
+  background: linear-gradient(135deg, #4ade80, #16a34a) !important;
   color: #ffffff !important;
-  width: 10px !important;
-  height: 10px !important;
+  width: 9px !important;
+  height: 9px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 1px solid rgba(255, 255, 255, 0.8) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
   font-family: sans-serif !important;
-  z-index: 100 !important;
+  z-index: 105 !important;
   line-height: 1 !important;
+  pointer-events: none !important;
 }
 
 /* Badge Grade Gradients */
@@ -113,7 +239,9 @@
    ------------------------------------------ */
 .aegis-tooltip {
   position: absolute;
-  width: 280px;
+  width: var(--aegis-tooltip-width, max-content);
+  min-width: var(--aegis-tooltip-min-width, 280px);
+  max-width: var(--aegis-tooltip-max-width, min(390px, calc(100vw - 28px)));
   background: rgba(18, 18, 26, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -127,6 +255,32 @@
   pointer-events: none;
   animation: aegis-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
+}
+
+.aegis-tooltip.aegis-tooltip-auto-max-height {
+  max-height: calc(100vh - 24px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.35) rgba(0, 0, 0, 0.25);
+}
+
+.aegis-tooltip.aegis-tooltip-auto-max-height::-webkit-scrollbar {
+  width: 4px;
+}
+
+.aegis-tooltip.aegis-tooltip-auto-max-height::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+.aegis-tooltip.aegis-tooltip-auto-max-height::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.35);
+  border-radius: 4px;
+}
+
+.aegis-tooltip.aegis-tooltip-auto-max-height::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.6);
 }
 
 @keyframes aegis-fade-in {
@@ -1372,6 +1526,72 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   font-size: 10.5px !important;
 }
 
+.aegis-shopping-item-badge,
+.aegis-shopping-copy-row .aegis-badge,
+.aegis-shopping-alt-row-item .aegis-badge {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  user-select: none !important;
+}
+
+/* Original/Classic Round Circle */
+.aegis-shopping-item-badge.aegis-style-classic {
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 4px !important;
+  border-radius: 9px !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+}
+
+/* Slim Pill */
+.aegis-shopping-item-badge.aegis-style-pill {
+  min-width: 16px !important;
+  height: 15px !important;
+  padding: 0 4px !important;
+  border-radius: 3px !important;
+  font-size: 9px !important;
+  line-height: 15px !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Top Notch */
+.aegis-shopping-item-badge.aegis-style-notch {
+  min-width: 18px !important;
+  height: 14px !important;
+  padding: 0 4px !important;
+  border-radius: 2px !important;
+  font-size: 8.5px !important;
+  line-height: 14px !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Wide badge modifiers for shopping item badges (Double rank / 2-tier / Dual / Perfect / Omni) */
+.aegis-shopping-item-badge.aegis-badge-wide {
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 5px !important;
+  white-space: nowrap !important;
+}
+
+.aegis-shopping-item-badge.aegis-style-classic.aegis-badge-wide {
+  border-radius: 9px !important;
+  padding: 0 6px !important;
+}
+
 .aegis-popup-label {
   font-weight: 600 !important;
   color: #9e9ea6 !important;
@@ -1453,6 +1673,32 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   box-shadow: 0 0 8px rgba(255, 215, 0, 0.1) !important;
 }
 
+.aegis-tooltip-upgrade-pill {
+  background: rgba(255, 215, 0, 0.08) !important;
+  border: 1px dashed rgba(255, 215, 0, 0.4) !important;
+  border-radius: 4px !important;
+  padding: 3.5px 7px !important;
+  margin-bottom: 6px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #ffd700 !important;
+  line-height: 1.35 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.08) !important;
+}
+
+.aegis-upgrade-pill-icon {
+  font-size: 10.5px !important;
+  color: #ffd700 !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-upgrade-pill-text {
+  flex: 1 !important;
+}
+
 .aegis-popup-upgrade-banner {
   background: rgba(255, 215, 0, 0.08) !important;
   border: 1px dashed rgba(255, 215, 0, 0.4) !important;
@@ -1502,7 +1748,7 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-popup-details-card.aegis-side-panel {
   position: absolute !important;
   top: 55px !important;
-  width: 308px !important;
+  width: var(--aegis-side-panel-width, 320px) !important;
   margin: 0 !important;
   z-index: 1000 !important;
   box-sizing: border-box !important;
@@ -1580,14 +1826,22 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-perk-chip {
   display: inline-flex !important;
   align-items: center !important;
-  padding: 3px 7px !important;
+  padding: 2.5px 6.5px !important;
   border-radius: 4px !important;
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 500 !important;
   line-height: 1 !important;
   white-space: nowrap !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
   user-select: none !important;
+}
+
+.aegis-chip-name {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .aegis-perk-chip:hover {
@@ -1600,6 +1854,7 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   margin-right: 4.5px !important;
   border-radius: 50% !important;
   background: rgba(0, 0, 0, 0.25) !important;
+  flex-shrink: 0 !important;
 }
 
 /* Active matched perks (Flat Green) */
@@ -1706,6 +1961,76 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   gap: 6px;
   margin-top: 6px;
   margin-bottom: 4px;
+}
+
+.aegis-tooltip-sheet-meta.inline-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.aegis-meta-dot {
+  color: #555;
+  font-size: 8px;
+}
+
+.aegis-tooltip-source-inline {
+  font-size: 10px;
+  color: #d8dee9;
+}
+
+/* 2-Column Perks Breakdown Matrix */
+.aegis-perk-breakdown-box {
+  margin-top: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid #88c0d0;
+  border-radius: 0 6px 6px 0;
+  padding: 5px 8px;
+}
+
+.aegis-breakdown-header-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #88c0d0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.aegis-perks-matrix-2col {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.aegis-perks-matrix-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aegis-perks-matrix-col .aegis-details-row {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  margin-top: 2px !important;
+  width: 100% !important;
+}
+
+.aegis-perks-matrix-col .aegis-details-label {
+  min-width: unset !important;
+  font-size: 8.5px !important;
+  opacity: 0.85;
+}
+
+.aegis-perks-matrix-col .aegis-details-chips-container {
+  justify-content: flex-start !important;
+  width: 100% !important;
 }
 
 .aegis-tooltip-sheet-badge {
@@ -3530,3 +3855,799 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-tooltip.aegis-tooltip-pinned {
   pointer-events: auto;
 }
+
+/* ==========================================
+   Interactive Weapon Portrait Position Picker
+   ========================================== */
+.interactive-portrait-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  background: rgba(18, 18, 26, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  margin-top: 4px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.interactive-weapon-tile {
+  position: relative;
+  width: 72px;
+  height: 84px;
+  background: #11141c;
+  border: 1.5px solid #84cc16;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 10px rgba(132, 204, 22, 0.25);
+  user-select: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.interactive-weapon-tile:hover {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 14px rgba(132, 204, 22, 0.45);
+}
+
+.mock-weapon-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.corner-target {
+  position: absolute;
+  width: 36px;
+  height: 40px;
+  cursor: pointer;
+  z-index: 20;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.corner-target.target-tl { top: 0; left: 0; border-radius: 4px 0 0 0; }
+.corner-target.target-tr { top: 0; right: 0; border-radius: 0 4px 0 0; }
+.corner-target.target-bl { bottom: 0; left: 0; border-radius: 0 0 0 4px; }
+.corner-target.target-br { bottom: 0; right: 0; border-radius: 0 0 4px 0; }
+
+.corner-target:hover {
+  background: rgba(255, 215, 0, 0.18);
+  outline: 1.5px dashed rgba(255, 215, 0, 0.7);
+  outline-offset: -2px;
+}
+
+.corner-target.active-corner {
+  background: rgba(255, 215, 0, 0.12);
+}
+
+#mock-aegis-badge {
+  z-index: 15 !important;
+  pointer-events: none !important;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.segmented-control-mini {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 3px !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.segmented-control-mini button {
+  padding: 3px 8px !important;
+  font-size: 10px !important;
+}
+
+/* Settings Card Dividers & Subheadings */
+.settings-divider {
+  width: 100% !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.45), rgba(255, 255, 255, 0.1), transparent) !important;
+  border: none !important;
+  margin: 16px 0 12px 0 !important;
+  display: block !important;
+}
+
+.settings-subgroup-title {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  color: #ffd700 !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* ==========================================================================
+   Aegis Shopping List & Endgame Readiness Audit Styles
+   ========================================================================== */
+
+/* Tooltip Shopping Banners */
+.aegis-tooltip-shopping-banner {
+  margin-bottom: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.14), rgba(255, 170, 0, 0.05));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aegis-tooltip-shopping-banner.aegis-priority-high {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 170, 0, 0.06));
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.18);
+}
+
+.aegis-tooltip-shopping-banner.aegis-priority-medium {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(37, 99, 235, 0.06));
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+}
+
+.aegis-tooltip-shopping-banner.aegis-priority-low {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(5, 150, 105, 0.06));
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.aegis-tooltip-shopping-banner.aegis-priority-niche {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.16), rgba(147, 51, 234, 0.06));
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.aegis-tooltip-shopping-alt-banner {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(136, 192, 208, 0.15), rgba(76, 86, 106, 0.1));
+  border: 1px solid rgba(136, 192, 208, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aegis-shopping-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.aegis-shopping-banner-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #ffd700;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.aegis-tooltip-shopping-alt-banner .aegis-shopping-banner-title {
+  color: #88c0d0;
+}
+
+.aegis-shopping-banner-meta {
+  font-size: 10.5px;
+  color: #d8dee9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aegis-meta-sep {
+  color: #555;
+}
+
+/* Priority Pills */
+.aegis-priority-pill {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+}
+
+.aegis-pill-high {
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+}
+
+.aegis-pill-medium {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.aegis-pill-low {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.aegis-pill-niche {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+/* Shopping Audit Header in Explorer */
+.aegis-shopping-audit-header {
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aegis-audit-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aegis-audit-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 0.2px;
+}
+
+.aegis-audit-pct {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #88c0d0;
+}
+
+.aegis-audit-priority-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.aegis-audit-pill {
+  font-size: 9.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d8dee9;
+}
+
+.aegis-audit-pill.pill-high strong { color: #ffd700; }
+.aegis-audit-pill.pill-med strong { color: #60a5fa; }
+.aegis-audit-pill.pill-low strong { color: #34d399; }
+.aegis-audit-pill.pill-niche strong { color: #c084fc; }
+
+/* Shopping Filter Bar */
+.aegis-explorer-panel.tab-shopping .aegis-explorer-selects,
+.aegis-explorer-panel.tab-shopping .aegis-explorer-sub-controls {
+  display: none !important;
+}
+
+.aegis-explorer-panel.tab-shopping .aegis-shopping-filter-bar {
+  display: flex !important;
+}
+
+.aegis-explorer-panel:not(.tab-shopping) .aegis-shopping-filter-bar {
+  display: none !important;
+}
+
+.aegis-shopping-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.aegis-shopping-filter-group {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.aegis-filter-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.aegis-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.aegis-filter-chip.active {
+  background: rgba(255, 215, 0, 0.18);
+  border-color: #ffd700;
+  color: #ffd700;
+  font-weight: 700;
+}
+
+.aegis-filter-chip.chip-high.active {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
+.aegis-filter-chip.chip-med.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.aegis-filter-chip.chip-low.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #34d399;
+  color: #34d399;
+}
+
+.aegis-filter-chip.chip-niche.active {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #c084fc;
+  color: #c084fc;
+}
+
+.aegis-filter-chip.chip-ready.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #34d399;
+  color: #34d399;
+}
+
+.aegis-filter-chip.chip-suboptimal.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.aegis-filter-chip.chip-missing.active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #f87171;
+  color: #f87171;
+}
+
+/* Shopping Item Cards */
+.aegis-shopping-card {
+  background: #1e2430;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.aegis-shopping-card:hover {
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.aegis-shopping-card.status-ready {
+  border-left: 3px solid #10b981;
+}
+
+.aegis-shopping-card.status-suboptimal {
+  border-left: 3px solid #f59e0b;
+}
+
+.aegis-shopping-card.status-missing {
+  border-left: 3px solid #ef4444;
+}
+
+.aegis-shopping-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.aegis-shopping-chevron {
+  font-size: 9px;
+  color: #88c0d0;
+  display: inline-block;
+  transition: transform 0.15s ease;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.aegis-shopping-card.expanded .aegis-shopping-chevron {
+  transform: rotate(90deg);
+}
+
+.aegis-shopping-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.aegis-shopping-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.aegis-shopping-role-tag {
+  font-size: 9.5px;
+  color: #88c0d0;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+.aegis-shopping-status-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.aegis-status-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.aegis-status-pill.status-ready {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.aegis-status-pill.status-suboptimal {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.aegis-status-pill.status-missing {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.aegis-shopping-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10.5px;
+}
+
+.aegis-shopping-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #d8dee9;
+}
+
+.aegis-shopping-copies-badge {
+  background: rgba(136, 192, 208, 0.1);
+  border: 1px solid rgba(136, 192, 208, 0.28);
+  color: #88c0d0;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aegis-shopping-copies-badge:hover,
+.aegis-shopping-copies-badge.active {
+  background: rgba(136, 192, 208, 0.22);
+  border-color: #88c0d0;
+  color: #fff;
+}
+
+/* Recommended Perks Layout in Shopping Card */
+.aegis-shopping-perks-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  flex-wrap: wrap;
+}
+
+.aegis-shopping-perks-col-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.aegis-shopping-col-divider {
+  color: #ffd700;
+  font-weight: 800;
+  font-size: 10.5px;
+}
+
+.aegis-shopping-chips-list {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.aegis-shopping-perk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.28);
+  color: #ffd700;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.aegis-shopping-perk-chip.col2 {
+  background: rgba(136, 192, 208, 0.1);
+  border-color: rgba(136, 192, 208, 0.28);
+  color: #88c0d0;
+}
+
+.aegis-shopping-perk-chip.archetype-chip {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+}
+
+.aegis-shopping-chip-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  object-fit: contain;
+}
+
+.aegis-shopping-chip-text {
+  letter-spacing: 0.1px;
+}
+
+.aegis-shopping-vault-count-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.aegis-shopping-alt-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: #d8dee9;
+}
+
+.aegis-shopping-alt-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.aegis-btn-find-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(136, 192, 208, 0.08) !important;
+  border: 1px solid rgba(136, 192, 208, 0.25) !important;
+  color: #88c0d0 !important;
+  font-size: 10px !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  height: auto !important;
+  line-height: 1.3;
+}
+
+.aegis-btn-find-alt:hover {
+  background: rgba(136, 192, 208, 0.2) !important;
+  border-color: rgba(136, 192, 208, 0.5) !important;
+  color: #fff !important;
+}
+
+.aegis-btn-find-alt.has-owned {
+  background: rgba(30, 215, 96, 0.08) !important;
+  border-color: rgba(30, 215, 96, 0.3) !important;
+  color: #a8f0c0 !important;
+}
+
+.aegis-btn-find-alt.has-owned:hover {
+  background: rgba(30, 215, 96, 0.2) !important;
+  border-color: rgba(30, 215, 96, 0.6) !important;
+  color: #fff !important;
+}
+
+.aegis-alt-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 3px;
+  letter-spacing: 0.2px;
+}
+
+/* Expandable Copies Drawer */
+.aegis-shopping-copies-drawer {
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aegis-copies-drawer-title {
+  font-size: 9px;
+  font-weight: 700;
+  color: #88c0d0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 1px;
+}
+
+.aegis-copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aegis-shopping-copy-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aegis-shopping-copy-row:hover {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: rgba(255, 215, 0, 0.35);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+.aegis-copy-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.aegis-copy-num {
+  font-weight: 700;
+  color: #ffd700;
+  font-size: 9px;
+}
+
+.aegis-copy-perks-container {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.aegis-shopping-copy-perk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  color: #d8dee9;
+  font-weight: 500;
+}
+
+.aegis-shopping-copy-perk-chip.archetype-chip {
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.25);
+  background: rgba(168, 85, 247, 0.08);
+}
+
+.aegis-copy-empty {
+  color: #888;
+  font-size: 9.5px;
+  font-style: italic;
+}
+
+.aegis-btn-locate-copy {
+  background: rgba(136, 192, 208, 0.12);
+  border: 1px solid rgba(136, 192, 208, 0.3);
+  color: #88c0d0;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1.5px 5px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.aegis-btn-locate-copy:hover {
+  background: rgba(136, 192, 208, 0.25);
+  border-color: #88c0d0;
+  color: #fff;
+}
+
+.aegis-shopping-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.aegis-btn-find-vault, .aegis-btn-find-alt {
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #ffd700;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aegis-btn-find-vault:hover, .aegis-btn-find-alt:hover {
+  background: rgba(255, 215, 0, 0.22);
+  border-color: #ffd700;
+}
+
