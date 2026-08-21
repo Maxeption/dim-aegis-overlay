@@ -235,6 +235,10 @@ interface PlayerOwnedItemInfo {
   perkHashes?: number[];
   equippedMasterwork?: string;
   instanceId?: string;
+  potentialGrade?: string;
+  upgradeAvailable?: boolean;
+  isOmniRoll?: boolean;
+  isPerfect5of5?: boolean;
 }
 const playerVaultInventory = new Map<string, PlayerOwnedItemInfo[]>();
 let hoveredElement: HTMLElement | null = null;
@@ -1390,9 +1394,118 @@ function buildSelectHtml(currentValue: string, recommendedList: string[], global
   return html;
 }
 
+function formatShoppingBadgeHtml(
+  rawGrade: string,
+  options: {
+    potentialGrade?: string;
+    isOmniRoll?: boolean;
+    isPerfect5of5?: boolean;
+    upgradeAvailable?: boolean;
+    sheetWeapon?: AegisSheetWeapon;
+    isArmor?: boolean;
+  } = {}
+): string {
+  if (!rawGrade) return '';
+  const { potentialGrade, isOmniRoll, isPerfect5of5, upgradeAvailable, sheetWeapon, isArmor } = options;
+
+  let activeGrade = rawGrade;
+  let potGrade = potentialGrade;
+  const hasHigherPotential = potGrade && potGrade !== activeGrade && getGradeValue(potGrade) > getGradeValue(activeGrade);
+
+  let displayRollGrade = activeGrade;
+  if (hasHigherPotential && aegisGradeDisplayMode === 'dual') {
+    displayRollGrade = `${activeGrade}➔${potGrade}`;
+  } else if (hasHigherPotential && aegisGradeDisplayMode === 'potential') {
+    displayRollGrade = potGrade;
+  }
+
+  let finalGradeStr = displayRollGrade;
+  if (aegisTwoTier && !isArmor && sheetWeapon && sheetWeapon.tier) {
+    const archetypeTier = sheetWeapon.tier.trim();
+    finalGradeStr = `${archetypeTier}${displayRollGrade}`;
+  }
+
+  const isDual = finalGradeStr.includes('➔');
+  const isTwoTier = aegisTwoTier && !isArmor && !!(sheetWeapon && sheetWeapon.tier);
+
+  let baseLetter = '';
+  if (isDual) {
+    const parts = finalGradeStr.split('➔');
+    const potPart = parts[1] || parts[0];
+    baseLetter = potPart.toLowerCase().trim().charAt(0);
+  } else if (isTwoTier) {
+    baseLetter = displayRollGrade.charAt(0).toLowerCase();
+  } else {
+    baseLetter = finalGradeStr ? finalGradeStr.charAt(0).toLowerCase() : '';
+  }
+
+  const styleKey = aegisBadgeStyle || 'classic';
+  const classes = [
+    'aegis-shopping-item-badge',
+    `aegis-badge-${baseLetter}`,
+    `aegis-style-${styleKey}`
+  ];
+
+  if (isTwoTier || isDual || isOmniRoll || isPerfect5of5) {
+    classes.push('aegis-badge-wide');
+  }
+  if (isDual) {
+    classes.push('aegis-badge-dual');
+  }
+  if (isOmniRoll) {
+    classes.push('aegis-badge-omni');
+  }
+  if (isPerfect5of5 && !isDual) {
+    classes.push('aegis-badge-perfect');
+  }
+
+  let text = finalGradeStr;
+  if (isOmniRoll) {
+    if (styleKey === 'classic') text = `✦ ${finalGradeStr}`;
+  } else if (isPerfect5of5 && !isDual) {
+    if (styleKey === 'classic') text = `★ ${finalGradeStr}`;
+  }
+
+  let arrowHtml = '';
+  if (upgradeAvailable || hasHigherPotential) {
+    arrowHtml = '<span class="aegis-badge-upgrade-arrow">▲</span>';
+  }
+
+  return `<span class="${classes.join(' ')}">${text}${arrowHtml}</span>`;
+}
+
+function getLiveEvaluatedCopyInfo(copy: PlayerOwnedItemInfo, sheetWFallback?: AegisSheetWeapon | null) {
+  const el = copy.element as any;
+  if (el && el._aegisPerksMap && el._aegisActiveHashes) {
+    const perksMap = el._aegisPerksMap;
+    const activeHashes = el._aegisActiveHashes;
+    const sheetW = findAegisWeapon(copy.name, perksMap, activeHashes, undefined, copy.hash) || sheetWFallback;
+    if (sheetW) {
+      const score = scoreSheetWeapon(sheetW, perksMap, activeHashes);
+      return {
+        grade: score.result.grade || copy.grade,
+        potentialGrade: score.potentialGrade,
+        upgradeAvailable: !!score.result.upgradeAvailable,
+        isOmniRoll: !!score.result.isOmniRoll,
+        isPerfect5of5: !!score.result.isPerfect5of5,
+        sheetWeapon: sheetW
+      };
+    }
+  }
+  return {
+    grade: copy.grade,
+    potentialGrade: copy.potentialGrade,
+    upgradeAvailable: copy.upgradeAvailable,
+    isOmniRoll: copy.isOmniRoll,
+    isPerfect5of5: copy.isPerfect5of5 || copy.isPerfect,
+    sheetWeapon: sheetWFallback
+  };
+}
+
 function renderResults() {
   const resultsContainer = document.querySelector('.aegis-explorer-results') as HTMLElement;
   if (!resultsContainer) return;
+  const savedScrollTop = resultsContainer.scrollTop;
 
   const db = aegisSheetDb;
   addDiagnosticLog(`renderResults called. activeTab: "${activeTab}". Has db: ${!!db}. Weapons count: ${db ? Object.keys(db.weapons || {}).length : 0}. Items in chaseList: ${JSON.stringify(Object.keys(chaseList))}`);
@@ -1451,7 +1564,6 @@ function renderResults() {
           if (isItemArmor) {
             const targetArchetypes = item.column1.toLowerCase().split(/[\/\n\\]+/).map(a => a.trim()).filter(Boolean);
             let hasMatchingArchetype = false;
-            let matchedArchName = '';
 
             for (const owned of ownedList) {
               if (owned.armorPerks && owned.armorPerks.length > 0) {
@@ -1459,7 +1571,6 @@ function renderResults() {
                   const pLow = perk.toLowerCase();
                   if (targetArchetypes.some(target => pLow.includes(target))) {
                     hasMatchingArchetype = true;
-                    matchedArchName = perk;
                     break;
                   }
                 }
@@ -1469,21 +1580,25 @@ function renderResults() {
 
             if (hasMatchingArchetype) {
               status = 'ready';
-              bestGrade = matchedArchName || 'Ready';
+              bestGrade = '';
             } else if (targetArchetypes.length > 0 && targetArchetypes[0] !== 'n/a' && targetArchetypes[0] !== '-') {
               status = 'suboptimal';
-              bestGrade = 'Re-farm Archetype';
+              bestGrade = '';
             } else {
               status = 'ready';
-              bestGrade = 'Ready';
+              bestGrade = '';
             }
           } else {
+            const sheetW = db.weapons[normItemName] || db.weapons[normName(item.name.replace(/\s*\([^)]+\)\s*$/, '').trim())];
             let highestVal = -1;
+            let bestOwnedEval: ReturnType<typeof getLiveEvaluatedCopyInfo> | null = null;
             for (const owned of ownedList) {
-              const val = getGradeValue(owned.grade);
+              const liveEval = getLiveEvaluatedCopyInfo(owned, sheetW);
+              const val = getGradeValue(liveEval.grade);
               if (val > highestVal) {
                 highestVal = val;
-                bestGrade = owned.grade;
+                bestGrade = liveEval.grade;
+                bestOwnedEval = liveEval;
               }
             }
             if (highestVal >= 85) {
@@ -1491,18 +1606,40 @@ function renderResults() {
             } else {
               status = 'suboptimal';
             }
+
+            if (bestOwnedEval) {
+              let activeGrade = bestOwnedEval.grade;
+              let potGrade = bestOwnedEval.potentialGrade;
+              const hasHigher = potGrade && potGrade !== activeGrade && getGradeValue(potGrade) > getGradeValue(activeGrade);
+              let displayRollGrade = activeGrade;
+              if (hasHigher && aegisGradeDisplayMode === 'dual') {
+                displayRollGrade = `${activeGrade}➔${potGrade}`;
+              } else if (hasHigher && aegisGradeDisplayMode === 'potential') {
+                displayRollGrade = potGrade;
+              }
+
+              const activeSheetW = bestOwnedEval.sheetWeapon || sheetW;
+              if (aegisTwoTier && activeSheetW && activeSheetW.tier) {
+                const archTier = activeSheetW.tier.trim();
+                displayRollGrade = `${archTier}${displayRollGrade}`;
+              }
+              bestGrade = displayRollGrade;
+            }
           }
         } else {
           if (item.alternatives && item.alternatives.length > 0) {
             let altHighestVal = -1;
             for (const alt of item.alternatives) {
-              const altOwned = playerVaultInventory.get(normName(alt)) || [];
+              const normAlt = normName(alt);
+              const altOwned = playerVaultInventory.get(normAlt) || [];
+              const altSheetW = db.weapons[normAlt] || db.weapons[normName(alt.replace(/\s*\([^)]+\)\s*$/, '').trim())];
               if (altOwned.length > 0) {
                 for (const o of altOwned) {
-                  const val = getGradeValue(o.grade);
+                  const lEval = getLiveEvaluatedCopyInfo(o, altSheetW);
+                  const val = getGradeValue(lEval.grade);
                   if (val > altHighestVal) {
                     altHighestVal = val;
-                    bestAlternative = { name: alt, grade: o.grade };
+                    bestAlternative = { name: alt, grade: lEval.grade };
                   }
                 }
               }
@@ -1579,7 +1716,7 @@ function renderResults() {
       }
 
       for (const entry of evaluatedList) {
-        const { item, status, bestGrade, bestAlternative, ownedCount } = entry;
+        const { item, status, bestGrade, ownedCount } = entry;
         const isArmor = isShoppingItemArmor(item);
         const normItemName = normName(item.name);
         const isExpanded = expandedShoppingCards.has(normItemName);
@@ -1590,27 +1727,75 @@ function renderResults() {
 
         let statusBadgeHtml = '';
         if (status === 'ready') {
-          statusBadgeHtml = `<span class="aegis-status-pill status-ready">${t('statusReady')} (${bestGrade})</span>`;
+          statusBadgeHtml = isArmor || !bestGrade
+            ? `<span class="aegis-status-pill status-ready">${t('statusReady')}</span>`
+            : `<span class="aegis-status-pill status-ready">${t('statusReady')} (${bestGrade})</span>`;
         } else if (status === 'suboptimal') {
-          statusBadgeHtml = `<span class="aegis-status-pill status-suboptimal">${t('statusSuboptimal')} (${bestGrade})</span>`;
+          statusBadgeHtml = isArmor || !bestGrade
+            ? `<span class="aegis-status-pill status-suboptimal">${t('statusSuboptimal')}</span>`
+            : `<span class="aegis-status-pill status-suboptimal">${t('statusSuboptimal')} (${bestGrade})</span>`;
         } else {
           statusBadgeHtml = `<span class="aegis-status-pill status-missing">${t('statusMissing')}</span>`;
         }
 
+        const ownedBadgeHtml = ownedCount > 0
+          ? `<span class="aegis-shopping-vault-count-tag">${ownedCount} in Vault</span>`
+          : '';
+
+        const validAlts = (item.alternatives || []).filter(a => {
+          const u = a.toUpperCase().trim();
+          return u && u !== 'N/A' && u !== '-' && u !== 'NA' && u !== 'NONE' && u !== 'N' && u !== 'A';
+        });
+
         let altHtml = '';
-        if (bestAlternative) {
+        if (!isArmor) {
           altHtml = `
-            <div class="aegis-shopping-alt-owned">
-              <span class="aegis-alt-label">${t('viableAlternatives')} in Vault:</span>
-              <span class="aegis-alt-owned-name"><strong>${bestAlternative.name}</strong> (${bestAlternative.grade})</span>
-              <button class="aegis-action-btn aegis-btn-find-alt" data-search-name="${bestAlternative.name.replace(/"/g, '&quot;')}">${t('findInVault')}</button>
-            </div>
-          `;
-        } else if (item.alternatives.length > 0) {
-          altHtml = `
-            <div class="aegis-shopping-alt-row">
-              <span class="aegis-alt-label">${t('viableAlternatives')}:</span>
-              <span class="aegis-alt-list">${item.alternatives.join(' / ')}</span>
+            <div class="aegis-shopping-copies-drawer">
+              <div class="aegis-copies-drawer-title">${t('viableAlternatives').toUpperCase()} (${validAlts.length}):</div>
+              ${validAlts.length === 0 ? `<div class="aegis-copy-empty" style="padding: 3px 6px;">No viable alternatives listed for this weapon.</div>` : `
+                <div class="aegis-copies-list">
+                  ${validAlts.map((altName, aIdx) => {
+                    const normAlt = normName(altName);
+                    const altOwnedList = playerVaultInventory.get(normAlt) || [];
+                    const altSheetW = db.weapons[normAlt] || db.weapons[normName(altName.replace(/\s*\([^)]+\)\s*$/, '').trim())];
+                    
+                    let bestAltEval: ReturnType<typeof getLiveEvaluatedCopyInfo> | null = null;
+                    if (altOwnedList.length > 0) {
+                      let highest = -1;
+                      for (const o of altOwnedList) {
+                        const lEval = getLiveEvaluatedCopyInfo(o, altSheetW);
+                        const v = getGradeValue(lEval.grade);
+                        if (v > highest) {
+                          highest = v;
+                          bestAltEval = lEval;
+                        }
+                      }
+                    }
+
+                    const badgeHtml = bestAltEval
+                      ? formatShoppingBadgeHtml(bestAltEval.grade, {
+                          potentialGrade: bestAltEval.potentialGrade,
+                          isOmniRoll: bestAltEval.isOmniRoll,
+                          isPerfect5of5: bestAltEval.isPerfect5of5,
+                          upgradeAvailable: bestAltEval.upgradeAvailable,
+                          sheetWeapon: bestAltEval.sheetWeapon || altSheetW,
+                          isArmor: false
+                        })
+                      : `<span class="aegis-status-pill status-missing" style="font-size: 8.5px; padding: 1px 4px;">${t('statusMissing')}</span>`;
+
+                    return `
+                      <div class="aegis-shopping-copy-row aegis-shopping-alt-row-item" data-alt-name="${altName.replace(/"/g, '&quot;')}" data-search-name="${altName.replace(/"/g, '&quot;')}">
+                        <div class="aegis-copy-info">
+                          <span class="aegis-copy-num">#${aIdx + 1}</span>
+                          <span class="aegis-shopping-alt-name" style="font-weight: 700; color: #fff; margin-right: 4px;">${altName}</span>
+                          ${badgeHtml}
+                        </div>
+                        <button type="button" class="aegis-btn-locate-copy aegis-btn-find-alt" data-search-name="${altName.replace(/"/g, '&quot;')}">${t('findInVault')}</button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
             </div>
           `;
         }
@@ -1640,7 +1825,7 @@ function renderResults() {
           perksSectionHtml = `
             <div class="aegis-shopping-perks-section">
               <div class="aegis-shopping-perks-col-group">
-                <span class="aegis-perks-label">COLUMN 3 / PERK 1:</span>
+                <span class="aegis-perks-label">${t('perk1').toUpperCase()}:</span>
                 <div class="aegis-shopping-chips-list">
                   ${item.column1.split(/[\/\n\\]+/).map(p => renderCompactShoppingPerkChip(p, true)).join('')}
                 </div>
@@ -1648,7 +1833,7 @@ function renderResults() {
               ${item.column2 && item.column2 !== 'N/A' && item.column2 !== '-' ? `
                 <div class="aegis-shopping-col-divider">+</div>
                 <div class="aegis-shopping-perks-col-group">
-                  <span class="aegis-perks-label">COLUMN 4 / PERK 2:</span>
+                  <span class="aegis-perks-label">${t('perk2').toUpperCase()}:</span>
                   <div class="aegis-shopping-chips-list">
                     ${item.column2.split(/[\/\n\\]+/).map(p => renderCompactShoppingPerkChip(p, false)).join('')}
                   </div>
@@ -1658,71 +1843,106 @@ function renderResults() {
           `;
         }
 
-        let copiesDrawerHtml = '';
-        if (isExpanded) {
-          copiesDrawerHtml = `
-            <div class="aegis-shopping-copies-drawer">
-              <div class="aegis-copies-drawer-title">Vault Copies (${ownedList.length}):</div>
-              ${ownedList.length === 0 ? `<div class="aegis-copy-empty">No copies found in Vault.</div>` : `
-                <div class="aegis-copies-list">
-                  ${ownedList.map((copy, cIdx) => {
-                    const copyGradeClass = `aegis-badge-${copy.grade.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-                    let perksHtml = '';
+        let copiesDrawerHtml = `
+          <div class="aegis-shopping-copies-drawer">
+            <div class="aegis-copies-drawer-title">${t('ownedInVault').toUpperCase()} (${ownedList.length}):</div>
+            ${ownedList.length === 0 ? `<div class="aegis-copy-empty" style="padding: 3px 6px;">${t('notInInventory')} (0 in Vault).</div>` : `
+              <div class="aegis-copies-list">
+                ${ownedList.map((copy, cIdx) => {
+                  const sheetW = db.weapons[normItemName] || db.weapons[normName(item.name.replace(/\s*\([^)]+\)\s*$/, '').trim())];
+                  const liveEval = getLiveEvaluatedCopyInfo(copy, sheetW);
+                  const copyBadgeHtml = !isArmor && liveEval.grade
+                    ? formatShoppingBadgeHtml(liveEval.grade, {
+                        potentialGrade: liveEval.potentialGrade,
+                        isOmniRoll: liveEval.isOmniRoll,
+                        isPerfect5of5: liveEval.isPerfect5of5,
+                        upgradeAvailable: liveEval.upgradeAvailable,
+                        sheetWeapon: liveEval.sheetWeapon || sheetW,
+                        isArmor: false
+                      })
+                    : '';
+                  let perksHtml = '';
 
-                    if (isArmor) {
-                      const KNOWN_ARCHETYPES = ['powerhouse', 'specialist', 'gunner', 'skirmisher', 'brawler', 'paragon', 'tank', 'tactician'];
-                      const targetArchetypes = item.column1.toLowerCase().split(/[\/\n\\]+/).map(a => a.trim()).filter(Boolean);
-                      const matchedArchetypes = (copy.armorPerks || []).filter(p => {
-                        const pLow = p.toLowerCase();
-                        return targetArchetypes.some(t => t && t !== 'n/a' && t !== '-' && pLow.includes(t)) || KNOWN_ARCHETYPES.some(k => pLow.includes(k));
-                      });
-                      if (matchedArchetypes.length > 0) {
-                        perksHtml = matchedArchetypes.map(p => {
-                          return `<span class="aegis-shopping-copy-perk-chip archetype-chip"><span>${p}</span></span>`;
-                        }).join('');
-                      }
-                    } else {
-                      const el = copy.element as any;
-                      let traitChips: { name: string; icon?: string }[] = [];
+                  if (isArmor) {
+                    const KNOWN_ARCHETYPES = ['powerhouse', 'specialist', 'gunner', 'skirmisher', 'brawler', 'paragon', 'tank', 'tactician'];
+                    const targetArchetypes = item.column1.toLowerCase().split(/[\/\n\\]+/).map(a => a.trim()).filter(Boolean);
+                    const matchedArchetypes = (copy.armorPerks || []).filter(p => {
+                      const pLow = p.toLowerCase();
+                      return targetArchetypes.some(t => t && t !== 'n/a' && t !== '-' && pLow.includes(t)) || KNOWN_ARCHETYPES.some(k => pLow.includes(k));
+                    });
+                    if (matchedArchetypes.length > 0) {
+                      perksHtml = matchedArchetypes.map(p => {
+                        return `<span class="aegis-shopping-copy-perk-chip archetype-chip"><span>${p}</span></span>`;
+                      }).join('');
+                    }
+                  } else {
+                    const el = copy.element as any;
+                    let traitChips: { name: string; icon?: string }[] = [];
 
-                      if (el?._aegisSheetPerks) {
-                        const sheetPerks = el._aegisSheetPerks as SheetPerksGroup;
-                        const allPerks = sheetPerks.all || [...sheetPerks.matched, ...sheetPerks.missing];
-                        const activeTraits = allPerks.filter(p => (p.type === 'perk1' || p.type === 'perk2') && p.status === 'active');
-                        if (activeTraits.length > 0) {
-                          traitChips = activeTraits.map(p => ({ name: p.name, icon: p.icon }));
-                        }
-                      }
-
-                      if (traitChips.length === 0 && copy.matchedPerks) {
-                        const traits = copy.matchedPerks.filter(p => p.type === 'perk1' || p.type === 'perk2');
-                        if (traits.length > 0) {
-                          traitChips = traits.map(p => ({ name: p.name, icon: p.icon }));
-                        }
-                      }
-
-                      if (traitChips.length > 0) {
-                        perksHtml = traitChips.map(p => {
-                          const icon = p.icon || getPerkIcon(p.name) || perkNameToIcon[normName(p.name)];
-                          const iconHtml = icon ? `<img src="https://www.bungie.net${icon}" class="aegis-shopping-chip-icon" />` : '';
-                          return `<span class="aegis-shopping-copy-perk-chip" title="${p.name}">${iconHtml}<span>${p.name}</span></span>`;
-                        }).join('');
+                    if (el?._aegisSheetPerks) {
+                      const sheetPerks = el._aegisSheetPerks as SheetPerksGroup;
+                      const allPerks = sheetPerks.all || [...sheetPerks.matched, ...sheetPerks.missing];
+                      const activeTraits = allPerks.filter(p => (p.type === 'perk1' || p.type === 'perk2') && p.status === 'active');
+                      if (activeTraits.length > 0) {
+                        traitChips = activeTraits.map(p => ({ name: p.name, icon: p.icon }));
                       }
                     }
 
-                    return `
-                      <div class="aegis-shopping-copy-row" data-shopping-name="${item.name.replace(/"/g, '&quot;')}" data-copy-idx="${cIdx}">
-                        <div class="aegis-copy-info">
-                          <span class="aegis-copy-num">#${cIdx + 1}</span>
-                          <span class="aegis-popup-grade-badge ${copyGradeClass}">${copy.grade}</span>
-                          ${perksHtml ? `<div class="aegis-copy-perks-container">${perksHtml}</div>` : ''}
-                        </div>
-                        <button class="aegis-btn-locate-copy" data-action="locate-copy" data-search-name="${item.name.replace(/"/g, '&quot;')}">Locate</button>
+                    if (traitChips.length === 0 && copy.matchedPerks) {
+                      const traits = copy.matchedPerks.filter(p => p.type === 'perk1' || p.type === 'perk2');
+                      if (traits.length > 0) {
+                        traitChips = traits.map(p => ({ name: p.name, icon: p.icon }));
+                      }
+                    }
+
+                    if (traitChips.length > 0) {
+                      perksHtml = traitChips.map(p => {
+                        const icon = p.icon || getPerkIcon(p.name) || perkNameToIcon[normName(p.name)];
+                        const iconHtml = icon ? `<img src="https://www.bungie.net${icon}" class="aegis-shopping-chip-icon" />` : '';
+                        return `<span class="aegis-shopping-copy-perk-chip" title="${p.name}">${iconHtml}<span>${p.name}</span></span>`;
+                      }).join('');
+                    }
+                  }
+
+                  return `
+                    <div class="aegis-shopping-copy-row" data-shopping-name="${item.name.replace(/"/g, '&quot;')}" data-copy-idx="${cIdx}">
+                      <div class="aegis-copy-info">
+                        <span class="aegis-copy-num">#${cIdx + 1}</span>
+                        ${copyBadgeHtml}
+                        ${perksHtml ? `<div class="aegis-copy-perks-container">${perksHtml}</div>` : ''}
                       </div>
-                    `;
-                  }).join('')}
-                </div>
-              `}
+                      <button type="button" class="aegis-btn-locate-copy" data-action="locate-copy" data-search-name="${item.name.replace(/"/g, '&quot;')}">${t('findInVault')}</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        `;
+
+        let expandedContentHtml = '';
+        if (isExpanded) {
+          expandedContentHtml = `
+            <div class="aegis-shopping-card-body">
+              <div class="aegis-shopping-meta-row">
+                <span><strong>${t('farmingSource')}:</strong> <span style="color: #ffd700;">${item.source}</span></span>
+                ${item.role ? `<span><strong>${t('itemRole')}:</strong> <span style="color: #88c0d0;">${item.role}</span></span>` : ''}
+              </div>
+              ${perksSectionHtml}
+              ${altHtml}
+              ${copiesDrawerHtml}
+              <div class="aegis-shopping-card-actions">
+                <button type="button" class="aegis-action-btn aegis-btn-find-vault" data-search-name="${item.name.replace(/"/g, '&quot;')}">${t('findInVault')}</button>
+                ${!isArmor ? (() => {
+                  const baseNameForReport = normItemName.replace(/\s*\([^)]+\)\s*$/, '').trim();
+                  const weaponHashForReport = nameToHash[normItemName] || nameToHash[baseNameForReport];
+                  if (weaponHashForReport) {
+                    return `<a class="aegis-action-btn aegis-btn-report" href="https://destiny.report/w/${weaponHashForReport}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">Destiny.Report ↗</a>`;
+                  } else {
+                    return `<a class="aegis-action-btn aegis-btn-report" href="https://destiny.report/weapons?search=${encodeURIComponent(item.name)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">Destiny.Report ↗</a>`;
+                  }
+                })() : ''}
+              </div>
             </div>
           `;
         }
@@ -1731,34 +1951,25 @@ function renderResults() {
           <div class="aegis-shopping-card status-${status} priority-${item.priority} ${isExpanded ? 'expanded' : ''}" data-shopping-name="${item.name.replace(/"/g, '&quot;')}">
             <div class="aegis-shopping-card-header">
               <div class="aegis-shopping-title-group">
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span class="aegis-shopping-chevron">▶</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="aegis-shopping-chevron">${isExpanded ? '▼' : '▶'}</span>
                   <span class="aegis-shopping-item-name">${item.name}</span>
+                  <span class="aegis-shopping-role-tag">${item.role}</span>
                 </div>
-                <span class="aegis-shopping-role-tag">${item.role}</span>
               </div>
               <div class="aegis-shopping-status-group">
+                ${ownedBadgeHtml}
                 <span class="aegis-priority-pill aegis-pill-${item.priority}">${priLabel}</span>
                 ${statusBadgeHtml}
               </div>
             </div>
-            <div class="aegis-shopping-card-body">
-              <div class="aegis-shopping-meta-row">
-                <span><strong>${t('farmingSource')}:</strong> <span style="color: #ffd700;">${item.source}</span></span>
-                ${ownedCount > 0 ? `<button class="aegis-shopping-copies-badge ${isExpanded ? 'active' : ''}" data-action="toggle-copies">${ownedCount} ${t('ownedInVault')} ${isExpanded ? '▴' : '▾'}</button>` : ''}
-              </div>
-              ${perksSectionHtml}
-              ${altHtml}
-              ${copiesDrawerHtml}
-            </div>
-            <div class="aegis-shopping-card-actions">
-              <button class="aegis-action-btn aegis-btn-find-vault" data-search-name="${item.name.replace(/"/g, '&quot;')}">${t('findInVault')}</button>
-            </div>
+            ${expandedContentHtml}
           </div>
         `;
       }
 
       resultsContainer.innerHTML = html;
+      resultsContainer.scrollTop = savedScrollTop;
 
       // Bind Shopping List Card click listeners
       resultsContainer.querySelectorAll('.aegis-shopping-card').forEach(card => {
@@ -1768,17 +1979,7 @@ function renderResults() {
 
         card.querySelector('.aegis-shopping-card-header')?.addEventListener('click', (e) => {
           const target = e.target as HTMLElement;
-          if (target.closest('.aegis-shopping-card-actions') || target.closest('button')) return;
-          if (expandedShoppingCards.has(norm)) {
-            expandedShoppingCards.delete(norm);
-          } else {
-            expandedShoppingCards.add(norm);
-          }
-          renderResults();
-        });
-
-        card.querySelector('[data-action="toggle-copies"]')?.addEventListener('click', (e) => {
-          e.stopPropagation();
+          if (target.closest('.aegis-shopping-card-actions') || target.closest('button') || target.closest('a')) return;
           if (expandedShoppingCards.has(norm)) {
             expandedShoppingCards.delete(norm);
           } else {
@@ -1808,6 +2009,69 @@ function renderResults() {
         }
       });
 
+      // Bind Alternative row hover listeners to trigger tooltip
+      resultsContainer.querySelectorAll('.aegis-shopping-alt-row-item').forEach(row => {
+        const altName = row.getAttribute('data-alt-name');
+        if (!altName) return;
+        const norm = normName(altName);
+        const owned = playerVaultInventory.get(norm) || [];
+        const copy = owned.length > 0 ? owned[0] : null;
+
+        row.addEventListener('mouseenter', () => {
+          if (copy && copy.element) {
+            showTooltipForElement(copy.element, row as HTMLElement);
+          } else {
+            const sheetW = db.weapons[norm] || db.weapons[normName(altName.replace(/\s*\([^)]+\)\s*$/, '').trim())];
+            if (sheetW) {
+              const mockResult: ScoringResult = {
+                grade: sheetW.rank || sheetW.tier || '★ S',
+                matchPercentage: 100,
+                matchedPerks: [],
+                missingPerks: [],
+                notes: sheetW.notes || '',
+                wishlistPerks: []
+              };
+              showTooltip(
+                row as HTMLElement,
+                mockResult,
+                sheetW.name || altName,
+                {},
+                [],
+                false,
+                sheetW,
+                undefined,
+                false,
+                undefined,
+                perkNameToIcon,
+                undefined,
+                undefined,
+                aegisMode as any,
+                aegisPerkOrder,
+                undefined,
+                undefined,
+                {
+                  compactPerksMatrix: aegisCompactPerksMatrix,
+                  inlineHeader: aegisInlineHeader,
+                  autoMaxHeight: aegisAutoMaxHeight,
+                  tooltipWidthMode: aegisTooltipWidthMode,
+                  tooltipWidth: aegisTooltipWidth
+                }
+              );
+            }
+          }
+        });
+        row.addEventListener('mouseleave', () => {
+          hideTooltip();
+        });
+
+        row.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button')) return;
+          const targetName = row.getAttribute('data-search-name');
+          if (targetName) triggerDimSearch(targetName);
+        });
+      });
+
       resultsContainer.querySelectorAll('[data-action="locate-copy"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -1823,6 +2087,12 @@ function renderResults() {
           if (targetName) {
             triggerDimSearch(targetName);
           }
+        });
+      });
+
+      resultsContainer.querySelectorAll('.aegis-btn-report').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.stopPropagation();
         });
       });
 
@@ -2062,6 +2332,7 @@ function renderResults() {
       }
 
       resultsContainer.innerHTML = html;
+      resultsContainer.scrollTop = savedScrollTop;
       // Bind Chase List event handlers
       const chaseRows = resultsContainer.querySelectorAll('.aegis-chase-row');
       chaseRows.forEach(row => {
@@ -2255,6 +2526,7 @@ function renderResults() {
     }
 
     resultsContainer.innerHTML = html;
+    resultsContainer.scrollTop = savedScrollTop;
 
     // Bind Explorer List event handlers
     const rows = resultsContainer.querySelectorAll('.aegis-explorer-row');
@@ -4507,7 +4779,11 @@ function processElement(el: HTMLElement) {
         matchedPerks: sheetPerks ? sheetPerks.matched : undefined,
         perkHashes: result.matchedPerks,
         equippedMasterwork: equippedMasterwork || undefined,
-        instanceId: el.getAttribute('data-aegis-instance-id') || undefined
+        instanceId: el.getAttribute('data-aegis-instance-id') || undefined,
+        potentialGrade: result.potentialGrade,
+        upgradeAvailable: result.upgradeAvailable,
+        isOmniRoll: result.isOmniRoll,
+        isPerfect5of5: result.isPerfect5of5
       };
       if (idx >= 0) {
         existing[idx] = itemInfo;
@@ -4635,22 +4911,30 @@ function compareGrades(itemGrade: string, queryStr: string): boolean {
     return compareGrades(equippedPart, queryStr) || compareGrades(potentialPart, queryStr);
   }
 
+  const isArmor = normalizedGrade.includes('/');
+  const isTwoTier = !isArmor && (normalizedGrade.length > 2 || (normalizedGrade.length === 2 && !normalizedGrade.endsWith('+') && !normalizedGrade.endsWith('-')));
+  const rollGradePart = isTwoTier ? normalizedGrade.substring(1) : normalizedGrade;
+  const archTierPart = isTwoTier ? normalizedGrade.charAt(0) : '';
+
   const match = queryStr.match(/^([><]=?|==?)(.+)$/);
   
   if (match) {
     const op = match[1];
-    const targetRank = match[2].trim();
-    const valItem = GRADE_VALUES[normalizedGrade] ?? 0;
+    const targetRank = match[2].trim().toLowerCase();
+    const valItem = GRADE_VALUES[rollGradePart] ?? GRADE_VALUES[normalizedGrade] ?? 0;
     const valTarget = GRADE_VALUES[targetRank] ?? 0;
     
     if (op === '>=') return valItem >= valTarget;
     if (op === '>') return valItem > valTarget;
     if (op === '<=') return valItem <= valTarget;
     if (op === '<') return valItem < valTarget;
-    if (op === '=' || op === '==') return normalizedGrade === targetRank || normalizedGrade.startsWith(targetRank);
+    if (op === '=' || op === '==') {
+      return normalizedGrade === targetRank || rollGradePart === targetRank || (isTwoTier && archTierPart === targetRank);
+    }
   }
   
-  return normalizedGrade === queryStr || normalizedGrade.startsWith(queryStr);
+  const qLow = queryStr.toLowerCase().trim();
+  return normalizedGrade === qLow || rollGradePart === qLow || (isTwoTier && archTierPart === qLow) || normalizedGrade.startsWith(qLow);
 }
 
 function setupSearchWidget() {
@@ -5168,6 +5452,10 @@ function reprocessAllElements() {
   const elements = document.querySelectorAll<HTMLElement>('[data-aegis-item-hash]');
   for (let i = 0; i < elements.length; i++) {
     processElement(elements[i]);
+  }
+  const explorerPanel = document.querySelector('.aegis-explorer-panel');
+  if (explorerPanel && !explorerPanel.classList.contains('hidden')) {
+    renderResults();
   }
 }
 

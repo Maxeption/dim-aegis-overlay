@@ -422,11 +422,14 @@ async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShopping
 
             const col1 = (row[col1Idx] || '').trim();
             const col2 = (row[col2Idx] || '').trim();
-            const rawAlts = row[altIdx] || '';
-            const alternatives = rawAlts
-              .split(/[\/\n\\]+/)
-              .map(a => a.trim())
-              .filter(a => a && a.toLowerCase() !== 'n/a');
+            const rawAlts = (row[altIdx] || '').trim();
+            let alternatives: string[] = [];
+            if (rawAlts && rawAlts.toUpperCase() !== 'N/A' && rawAlts !== '-' && rawAlts.toUpperCase() !== 'NA' && rawAlts.toUpperCase() !== 'NONE') {
+              alternatives = rawAlts
+                .split(/[\/\n\\]+/)
+                .map(a => a.trim())
+                .filter(a => a && a.toUpperCase() !== 'N/A' && a !== '-' && a.toUpperCase() !== 'NA' && a.toUpperCase() !== 'NONE' && a.toUpperCase() !== 'N' && a.toUpperCase() !== 'A');
+            }
 
             const rLow = role.toLowerCase();
             const sLow = source.toLowerCase();
