@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set Aegis Badge Style segmented control
-        const badgeStyleVal = res.aegisBadgeStyle || 'pill';
+        const badgeStyleVal = res.aegisBadgeStyle || 'classic';
         const badgeStyleSegmented = document.getElementById('aegis-badge-style-segmented');
         if (badgeStyleSegmented) {
           badgeStyleSegmented.querySelectorAll('button').forEach(btn => {
@@ -319,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Set Aegis Fade on Hover segmented control
-        const fadeHoverVal = res.aegisFadeHover !== false ? 'true' : 'false';
+        const fadeHoverVal = res.aegisFadeHover === true ? 'true' : 'false';
         const fadeHoverSegmented = document.getElementById('aegis-fade-hover-segmented');
         if (fadeHoverSegmented) {
           fadeHoverSegmented.querySelectorAll('button').forEach(btn => {

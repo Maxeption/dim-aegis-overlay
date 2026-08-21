@@ -235,6 +235,13 @@
           </div>
         </div>
         <div class="input-group">
+          <label data-i18n="badgeMode">Badge Overlay Mode</label>
+          <div class="segmented-control" id="aegis-two-tier-segmented">
+            <button type="button" data-value="false" class="active" data-i18n="badgeStandard">Standard (S, A, B...)</button>
+            <button type="button" data-value="true" data-i18n="badgeTwoTier">2-Tier (BS+, SF...)</button>
+          </div>
+        </div>
+        <div class="input-group">
           <label data-i18n="perkEvaluation">Perk Evaluation Basis</label>
           <div class="segmented-control" id="aegis-grade-display-segmented">
             <button type="button" data-value="equipped" class="active" data-i18n="evalEquipped">Equipped Perks</button>
@@ -314,17 +321,10 @@
           <input type="range" id="aegis-tooltip-width-slider" min="260" max="450" step="10" value="280" style="width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px;" />
         </div>
         <div class="input-group">
-          <label data-i18n="badgeMode">Badge Overlay Mode</label>
-          <div class="segmented-control" id="aegis-two-tier-segmented">
-            <button type="button" data-value="false" class="active" data-i18n="badgeStandard">Standard (S, A, B...)</button>
-            <button type="button" data-value="true" data-i18n="badgeTwoTier">2-Tier (BS+, SF...)</button>
-          </div>
-        </div>
-        <div class="input-group">
           <label data-i18n="badgeStyle">Badge Style (Appearance)</label>
           <div class="segmented-control" id="aegis-badge-style-segmented">
-            <button type="button" data-value="classic" data-i18n="styleClassic">Original</button>
-            <button type="button" data-value="pill" class="active" data-i18n="stylePill">Slim Pill</button>
+            <button type="button" data-value="classic" class="active" data-i18n="styleClassic">Original</button>
+            <button type="button" data-value="pill" data-i18n="stylePill">Slim Pill</button>
             <button type="button" data-value="notch" data-i18n="styleNotch">Top Notch</button>
           </div>
         </div>
@@ -348,7 +348,7 @@
               <div class="corner-target target-br" data-pos="bottom-right" title="Bottom-Right"></div>
 
               <!-- Live Preview Badge -->
-              <div class="aegis-badge aegis-badge-s aegis-badge-wide aegis-pos-bl aegis-style-pill" id="mock-aegis-badge">★ S+</div>
+              <div class="aegis-badge aegis-badge-s aegis-badge-wide aegis-pos-bl aegis-style-classic" id="mock-aegis-badge">★ S+</div>
             </div>
 
             <div class="portrait-pos-label-row">
@@ -364,8 +364,8 @@
         <div class="input-group">
           <label data-i18n="fadeOnHover">Peek on Hover (Fade Badge)</label>
           <div class="segmented-control" id="aegis-fade-hover-segmented">
-            <button type="button" data-value="true" class="active" data-i18n="fadeHoverEnabled">Enabled</button>
-            <button type="button" data-value="false" data-i18n="fadeHoverDisabled">Disabled</button>
+            <button type="button" data-value="true" data-i18n="fadeHoverEnabled">Enabled</button>
+            <button type="button" data-value="false" class="active" data-i18n="fadeHoverDisabled">Disabled</button>
           </div>
         </div>
       </section>

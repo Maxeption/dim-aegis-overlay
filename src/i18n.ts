@@ -1310,32 +1310,46 @@ let currentLanguage: SupportedLanguage = 'en';
 export function detectLanguage(): SupportedLanguage {
   const candidates: string[] = [];
 
-  // Check DIM/document HTML lang attribute
+  // 1. Check DIM localStorage settings (dim-settings / dim-lang)
   try {
-    const docLang = (document.documentElement?.lang || document.querySelector('html')?.getAttribute('lang') || '').toLowerCase();
-    if (docLang) candidates.push(docLang);
+    const rawSettings = localStorage.getItem('dim-settings');
+    if (rawSettings) {
+      const parsed = JSON.parse(rawSettings);
+      if (parsed && typeof parsed.language === 'string' && parsed.language.trim()) {
+        candidates.push(parsed.language.trim().toLowerCase());
+      }
+    }
   } catch (e) {}
 
-  // Check localStorage for DIM language settings
   try {
-    const dimLang = (localStorage.getItem('dim-lang') || localStorage.getItem('dim-settings-lang') || localStorage.getItem('destiny-language') || '').toLowerCase();
+    const dimLang = (localStorage.getItem('dim-lang') || localStorage.getItem('dim-settings-lang') || localStorage.getItem('destiny-language') || '').toLowerCase().trim();
     if (dimLang) candidates.push(dimLang);
   } catch (e) {}
 
-  // Check browser navigator languages
-  if (navigator.language) candidates.push(navigator.language.toLowerCase());
+  // 2. Check DIM/document HTML lang attribute
+  try {
+    const docLang = (document.documentElement?.lang || document.querySelector('html')?.getAttribute('lang') || '').toLowerCase().trim();
+    if (docLang) candidates.push(docLang);
+  } catch (e) {}
+
+  // 3. Check browser navigator languages (primary first)
+  if (navigator.language) {
+    candidates.push(navigator.language.toLowerCase().trim());
+  }
   if (Array.isArray(navigator.languages)) {
     for (const l of navigator.languages) {
-      if (l) candidates.push(l.toLowerCase());
+      if (l && typeof l === 'string') candidates.push(l.toLowerCase().trim());
     }
   }
 
   for (const lang of candidates) {
+    if (!lang) continue;
+    if (lang.startsWith('en')) return 'en';
     if (lang.startsWith('es')) return 'es';
     if (lang.startsWith('ko')) return 'ko';
     if (lang.startsWith('ja')) return 'ja';
-    if (lang.includes('tw') || lang.includes('hk') || lang.includes('hant') || lang === 'zh-cht') return 'zh-CHT';
-    if (lang.startsWith('zh') || lang === 'zh-chs') return 'zh-CHS';
+    if (lang.includes('tw') || lang.includes('hk') || lang.includes('hant') || lang === 'zh-cht' || lang === 'zh-tw' || lang === 'zh-hk') return 'zh-CHT';
+    if (lang.startsWith('zh') || lang === 'zh-chs' || lang === 'zh-cn' || lang.includes('hans')) return 'zh-CHS';
   }
 
   return 'en';
