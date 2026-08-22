@@ -569,7 +569,7 @@ async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: st
     let aegisSheetDbPvP: AegisSheetDatabase | null = null;
     let aegisShoppingDb: AegisShoppingDatabase | null = null;
 
-    // 1. Fast path: Fetch pre-compiled databases from GitHub CDN mirror (~30ms)
+    // 1. Fast path: Fetch pre-compiled databases from GitHub CDN mirror
     try {
       const [pveRes, pvpRes] = await Promise.all([
         fetch(PVE_DB_CDN_URL, { cache: 'no-cache' }),
