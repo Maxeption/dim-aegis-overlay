@@ -423,12 +423,14 @@ export function showTooltip(
   }
 
   const widthMode = options?.tooltipWidthMode || 'fixed';
-  const customWidth = typeof options?.tooltipWidth === 'number' ? options.tooltipWidth : (aegisMode === 'both' ? 340 : 280);
+  const customWidth = typeof options?.tooltipWidth === 'number' 
+    ? (aegisMode === 'both' ? Math.max(options.tooltipWidth, 540) : options.tooltipWidth)
+    : (aegisMode === 'both' ? 560 : 280);
 
   if (widthMode === 'auto') {
     tooltip.style.width = 'max-content';
-    tooltip.style.minWidth = aegisMode === 'both' ? '320px' : '280px';
-    tooltip.style.maxWidth = 'min(420px, calc(100vw - 28px))';
+    tooltip.style.minWidth = aegisMode === 'both' ? '500px' : '280px';
+    tooltip.style.maxWidth = 'min(640px, calc(100vw - 28px))';
   } else {
     tooltip.style.width = `${customWidth}px`;
     tooltip.style.minWidth = 'unset';
@@ -541,16 +543,15 @@ export function showTooltip(
   if (aegisMode === 'both' && options?.dualInfo) {
     const { sheetWeaponPvE, sheetWeaponPvP, sheetPerksPvE, sheetPerksPvP, isBestInClassPvE, isBestInClassPvP, bestAlternativePvE, bestAlternativePvP } = options.dualInfo;
 
-    let pveSectionHtml = '';
-    let pvpSectionHtml = '';
+    let pveColHtml = '';
+    let pvpColHtml = '';
 
     if (sheetWeaponPvE) {
-      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
-      pveSectionHtml = `
-        <div class="aegis-tooltip-dual-section aegis-section-pve">
-          <div class="aegis-dual-section-header">
-            <span class="aegis-dual-section-icon">⚔️</span>
-            <span class="aegis-dual-section-title">${t('modePve')}</span>
+      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork, true, true, aegisPerkOrder || 'sheet');
+      pveColHtml = `
+        <div class="aegis-dual-col aegis-col-pve">
+          <div class="aegis-dual-col-header">
+            <span class="aegis-dual-col-title">⚔️ ${t('modePve')}</span>
           </div>
           ${pveSection.metaHtml}
           ${pveSection.bodyHtml}
@@ -560,12 +561,11 @@ export function showTooltip(
     }
 
     if (sheetWeaponPvP) {
-      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
-      pvpSectionHtml = `
-        <div class="aegis-tooltip-dual-section aegis-section-pvp">
-          <div class="aegis-dual-section-header">
-            <span class="aegis-dual-section-icon">🎯</span>
-            <span class="aegis-dual-section-title">${t('modePvp')}</span>
+      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork, true, true, aegisPerkOrder || 'sheet');
+      pvpColHtml = `
+        <div class="aegis-dual-col aegis-col-pvp">
+          <div class="aegis-dual-col-header">
+            <span class="aegis-dual-col-title">🎯 ${t('modePvp')}</span>
           </div>
           ${pvpSection.metaHtml}
           ${pvpSection.bodyHtml}
@@ -575,9 +575,10 @@ export function showTooltip(
     }
 
     sheetBodyHtml = `
-      ${pveSectionHtml}
-      ${pveSectionHtml && pvpSectionHtml ? '<div class="aegis-tooltip-dual-divider"></div>' : ''}
-      ${pvpSectionHtml}
+      <div class="aegis-tooltip-dual-grid">
+        ${pveColHtml}
+        ${pvpColHtml}
+      </div>
     `;
   } else if (sheetWeapon) {
     const singleSection = renderSheetWeaponSection(sheetWeapon, sheetPerks, (aegisMode === 'pvp' ? 'pvp' : 'pve'), isBestInClass, bestAlternative, equippedMasterwork, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
@@ -595,8 +596,6 @@ export function showTooltip(
 
   let elementBadgeHtml = '';
   let stunBadgeHtml = '';
-
-
 
   if (sheetWeapon) {
     const energy = getWeaponEnergy(sheetWeapon);
@@ -636,6 +635,16 @@ export function showTooltip(
     }
   }
 
+  let gradeBadgeHtml = '';
+  if (isSplit) {
+    const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
+    const pveLetter = pveStr.replace(/[^a-z]/gi, '').charAt(0).toLowerCase() || 'none';
+    const pvpLetter = pvpStr.replace(/[^a-z]/gi, '').charAt(0).toLowerCase() || 'none';
+    gradeBadgeHtml = `<span class="aegis-tooltip-grade aegis-tooltip-split-grade"><span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span></span>`;
+  } else {
+    gradeBadgeHtml = `<span class="aegis-tooltip-grade ${gradeClass}">${result.grade}</span>`;
+  }
+
   // Assemble premium HTML content
   let html = `
     <div class="aegis-tooltip-header">
@@ -646,7 +655,7 @@ export function showTooltip(
           ${elementBadgeHtml}
           ${stunBadgeHtml}
         </div>
-        <span class="aegis-tooltip-grade ${gradeClass}">${result.grade}</span>
+        ${gradeBadgeHtml}
       </div>
       ${tagsHtml}
       ${sheetMetaHtml}

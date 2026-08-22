@@ -310,8 +310,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const isTwoTier = res.aegisTwoTier === true;
           if (aegisModeVal === 'both') {
-            mockBadge.textContent = isTwoTier ? 'SS+ | AA' : 'S+ | A';
+            mockBadge.classList.add('aegis-badge-split', 'aegis-badge-wide');
+            const pveStr = isTwoTier ? 'SS+' : 'S+';
+            const pvpStr = isTwoTier ? 'AA' : 'A';
+            mockBadge.innerHTML = `<span class="aegis-split-half aegis-split-left aegis-badge-s">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-a">${pvpStr}</span>`;
           } else {
+            mockBadge.classList.remove('aegis-badge-split');
             mockBadge.textContent = isTwoTier ? 'SS+' : 'S+';
           }
         }

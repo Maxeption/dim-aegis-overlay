@@ -233,26 +233,23 @@
   box-shadow: 0 0 6px rgba(127, 140, 141, 0.1), 0 2px 4px rgba(0, 0, 0, 0.6) !important;
 }
 
-/* Split Badge (Both PvE + PvP Mode) */
+/* Split Badge (Both PvE + PvP Mode) - Authentic Aegis Dual Pill */
 .aegis-badge.aegis-badge-split {
+  padding: 0 !important;
   display: inline-flex !important;
-  align-items: center !important;
+  align-items: stretch !important;
   justify-content: center !important;
-  gap: 2px !important;
-  padding: 0 4px !important;
   width: auto !important;
   max-width: none !important;
-  background: rgba(15, 18, 26, 0.88) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  backdrop-filter: blur(4px) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7) !important;
-  font-family: inherit !important;
-  letter-spacing: -0.2px !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-classic {
-  height: 17px !important;
-  border-radius: 9px !important;
+  height: 16px !important;
+  border-radius: 8px !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-pill {
@@ -264,74 +261,86 @@
   border-radius: 0 0 3px 3px !important;
 }
 
-.aegis-badge-pve-part {
-  font-weight: 800;
-  color: #88c0d0;
+.aegis-split-half {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  padding: 0 4.5px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  font-size: inherit !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
 }
 
-.aegis-badge-pve-part.aegis-part-s { color: #ffd700 !important; text-shadow: 0 0 4px rgba(255, 215, 0, 0.4); }
-.aegis-badge-pve-part.aegis-part-a { color: #d08770 !important; }
-.aegis-badge-pve-part.aegis-part-b { color: #88c0d0 !important; }
-.aegis-badge-pve-part.aegis-part-c { color: #a3be8c !important; }
-.aegis-badge-pve-part.aegis-part-d,
-.aegis-badge-pve-part.aegis-part-f { color: #bf616a !important; }
-.aegis-badge-pve-part.aegis-part-none { color: rgba(255, 255, 255, 0.35) !important; }
-
-.aegis-badge-divider {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 0.85em;
-  margin: 0 1px;
+.aegis-split-half.aegis-split-right {
+  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
 }
 
-.aegis-badge-pvp-part {
-  font-weight: 800;
-  color: #ebcb8b;
+.aegis-badge-none {
+  background: #3b4252 !important;
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
-.aegis-badge-pvp-part.aegis-part-s { color: #ffd700 !important; text-shadow: 0 0 4px rgba(255, 215, 0, 0.4); }
-.aegis-badge-pvp-part.aegis-part-a { color: #d08770 !important; }
-.aegis-badge-pvp-part.aegis-part-b { color: #88c0d0 !important; }
-.aegis-badge-pvp-part.aegis-part-c { color: #a3be8c !important; }
-.aegis-badge-pvp-part.aegis-part-d,
-.aegis-badge-pvp-part.aegis-part-f { color: #bf616a !important; }
-.aegis-badge-pvp-part.aegis-part-none { color: rgba(255, 255, 255, 0.35) !important; }
-
-/* Dual Section Tooltip Layout */
-.aegis-tooltip-dual-section {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 8px;
-  margin-top: 6px;
+/* Dual Section Side-by-Side Tooltip Layout */
+.aegis-tooltip-dual-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin-top: 6px !important;
+  align-items: start !important;
 }
 
-.aegis-section-pve {
-  border-left: 3px solid #88c0d0;
+.aegis-dual-col {
+  background: rgba(0, 0, 0, 0.25) !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
 }
 
-.aegis-section-pvp {
-  border-left: 3px solid #ebcb8b;
+.aegis-col-pve {
+  border-top: 2.5px solid #88c0d0 !important;
 }
 
-.aegis-dual-section-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 800;
-  color: #eceff4;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.aegis-col-pvp {
+  border-top: 2.5px solid #ebcb8b !important;
 }
 
-.aegis-dual-section-icon {
-  font-size: 12px;
+.aegis-dual-col-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 4px !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-.aegis-tooltip-dual-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-  margin: 8px 0;
+.aegis-dual-col-title {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: #eceff4 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+}
+
+.aegis-tooltip-split-grade {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  padding: 0 !important;
+  height: 18px !important;
+}
+
+.aegis-tooltip-split-grade .aegis-split-half {
+  padding: 0 6px !important;
+  font-size: 11px !important;
 }
 
 /* ------------------------------------------

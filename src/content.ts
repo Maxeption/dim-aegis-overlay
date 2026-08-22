@@ -4397,7 +4397,7 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
     const pveLetter = pveStr.replace(/[^a-z]/gi, '').charAt(aegisTwoTier ? 1 : 0).toLowerCase() || 'none';
     const pvpLetter = pvpStr.replace(/[^a-z]/gi, '').charAt(aegisTwoTier ? 1 : 0).toLowerCase() || 'none';
     
-    badge.innerHTML = `<span class="aegis-badge-pve-part aegis-part-${pveLetter}">${pveStr}</span><span class="aegis-badge-divider">|</span><span class="aegis-badge-pvp-part aegis-part-${pvpLetter}">${pvpStr}</span>`;
+    badge.innerHTML = `<span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span>`;
   } else if (isDual) {
     badge.classList.add('aegis-badge-dual');
   }
