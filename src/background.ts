@@ -84,6 +84,12 @@ const SHEET_ID = '1JM-0SlxVDAi-C6rGVlLxa-J1WGewEeL8Qvq4htWZHhY';
 const PVP_SHEET_ID = '1TVgtTRWNGEPi6OMlTLxXFSKUTi_ycwykhwuw8EW_jJ0';
 const ARMOR_SHEET_ID = '14LnzOhmeXzKaSV3OR35pQJkclg6vLC4YmKtlKTctY3o';
 const ARMOR_GID = '631213508';
+
+const PVE_DB_CDN_URL =
+  'https://raw.githubusercontent.com/Maxeption/dim-aegis-overlay/master/data/pve-database.json';
+const PVP_DB_CDN_URL =
+  'https://raw.githubusercontent.com/Maxeption/dim-aegis-overlay/master/data/pvp-database.json';
+
 const ALL_TABS = [
   'Autos', 'Bows', 'HCs', 'Pulses', 'Scouts', 'Sidearms', 'SMGs',
   'BGLs', 'Fusions', 'Glaives', 'Shotguns', 'Snipers',
@@ -493,14 +499,51 @@ async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShopping
 }
 
 /**
- * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet tabs, parses them, and caches the output databases in local storage.
+ * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet databases, prioritizing the fast GitHub CDN mirror,
+ * with graceful fallback to live spreadsheet extraction if CDN is unavailable.
  */
 async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: string }> {
   try {
-    const aegisSheetDbPvE = await fetchSpreadsheetDatabase(SHEET_ID, ALL_TABS);
-    const pvpTabs = [...ALL_TABS, 'Legendary Weapons'];
-    const aegisSheetDbPvP = await fetchSpreadsheetDatabase(PVP_SHEET_ID, pvpTabs);
-    const aegisShoppingDb = await fetchShoppingListDatabase(SHEET_ID);
+    let aegisSheetDbPvE: AegisSheetDatabase | null = null;
+    let aegisSheetDbPvP: AegisSheetDatabase | null = null;
+    let aegisShoppingDb: AegisShoppingDatabase | null = null;
+
+    // 1. Fast path: Fetch pre-compiled databases from GitHub CDN mirror (~30ms)
+    try {
+      const [pveRes, pvpRes] = await Promise.all([
+        fetch(PVE_DB_CDN_URL, { cache: 'no-cache' }),
+        fetch(PVP_DB_CDN_URL, { cache: 'no-cache' }),
+      ]);
+
+      if (pveRes.ok && pvpRes.ok) {
+        const pveJson = (await pveRes.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
+        const pvpJson = (await pvpRes.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
+
+        if (pveJson && pveJson.weapons && Object.keys(pveJson.weapons).length > 0) {
+          aegisSheetDbPvE = pveJson;
+          if (pveJson.shopping && pveJson.shopping.items && pveJson.shopping.items.length > 0) {
+            aegisShoppingDb = pveJson.shopping;
+          }
+        }
+
+        if (pvpJson && pvpJson.weapons && Object.keys(pvpJson.weapons).length > 0) {
+          aegisSheetDbPvP = pvpJson;
+          if (!aegisShoppingDb && pvpJson.shopping && pvpJson.shopping.items && pvpJson.shopping.items.length > 0) {
+            aegisShoppingDb = pvpJson.shopping;
+          }
+        }
+      }
+    } catch (cdnErr) {
+      console.warn('DIM Aegis Overlay: CDN mirror fetch failed, falling back to direct spreadsheet sync:', cdnErr);
+    }
+
+    // 2. Fallback path: Direct Google Spreadsheet extraction if CDN was unavailable
+    if (!aegisSheetDbPvE || !aegisSheetDbPvP) {
+      aegisSheetDbPvE = aegisSheetDbPvE || (await fetchSpreadsheetDatabase(SHEET_ID, ALL_TABS));
+      const pvpTabs = [...ALL_TABS, 'Legendary Weapons'];
+      aegisSheetDbPvP = aegisSheetDbPvP || (await fetchSpreadsheetDatabase(PVP_SHEET_ID, pvpTabs));
+      aegisShoppingDb = aegisShoppingDb || (await fetchShoppingListDatabase(SHEET_ID));
+    }
 
     const storage = await chrome.storage.local.get(['aegisMode']);
     const aegisMode = storage.aegisMode || 'pve';
