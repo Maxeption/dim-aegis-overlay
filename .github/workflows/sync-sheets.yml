@@ -2,8 +2,8 @@ name: Sync Spreadsheets Database
 
 on:
   schedule:
-    # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
-    - cron: '0 */6 * * *'
+    # Runs once every day at 00:00 UTC
+    - cron: '0 0 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions UI
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Run Spreadsheets Sync Script
         run: node scripts/sync-sheets-cron.mjs
