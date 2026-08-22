@@ -1,4 +1,4 @@
-import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem } from './types';
+import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo } from './types';
 import { t, getLocalizedElement } from './i18n';
 
 /** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
@@ -18,12 +18,12 @@ interface PerkInfo {
 let tooltipEl: HTMLDivElement | null = null;
 
 /**
- * Creates the global tooltip element in the DOM if it doesn't already exist.
+ * Ensures the global hover tooltip element exists in the DOM.
  */
-function getOrCreateTooltip(): HTMLDivElement {
+export function initTooltip(): HTMLDivElement {
   if (!tooltipEl) {
     tooltipEl = document.createElement('div');
-    tooltipEl.id = 'aegis-tooltip';
+    tooltipEl.id = 'aegis-hover-tooltip';
     tooltipEl.className = 'aegis-tooltip hidden';
     document.body.appendChild(tooltipEl);
   }
@@ -81,12 +81,7 @@ function getPerkInfo(hash: number, localPerksMap: Record<number, PerkInfo>): Per
  */
 function positionTooltip(target: HTMLElement, tooltip: HTMLElement) {
   const targetRect = target.getBoundingClientRect();
-  
-  // Temporarily show the tooltip off-screen to measure its size
-  tooltip.style.visibility = 'hidden';
-  tooltip.classList.remove('hidden');
   const tooltipRect = tooltip.getBoundingClientRect();
-  tooltip.classList.add('hidden');
   tooltip.style.visibility = '';
 
   const tooltipWidth = tooltipRect.width || 260;
@@ -144,18 +139,7 @@ function extractRecommendedMod(notes: string): string | null {
   return match ? match[1].split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : null;
 }
 
-export interface DualSheetInfo {
-  sheetWeaponPvE?: AegisSheetWeapon | null;
-  sheetWeaponPvP?: AegisSheetWeapon | null;
-  sheetPerksPvE?: SheetPerksGroup | null;
-  sheetPerksPvP?: SheetPerksGroup | null;
-  pveResult?: ScoringResult | null;
-  pvpResult?: ScoringResult | null;
-  bestAlternativePvE?: string;
-  bestAlternativePvP?: string;
-  isBestInClassPvE?: boolean;
-  isBestInClassPvP?: boolean;
-}
+export type { DualSheetInfo };
 
 /**
  * Renders a full weapon recommendations section for a single spreadsheet (PvE or PvP).
@@ -410,7 +394,7 @@ export function showTooltip(
     dualInfo?: DualSheetInfo;
   }
 ) {
-  const tooltip = getOrCreateTooltip();
+  const tooltip = initTooltip();
   const isLightGGMode = !!isLightGG;
   const isInlineHeader = options?.inlineHeader !== false;
   const isCompactMatrix = options?.compactPerksMatrix === true;
@@ -638,8 +622,21 @@ export function showTooltip(
   let gradeBadgeHtml = '';
   if (isSplit) {
     const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
-    const pveLetter = pveStr.replace(/[^a-z]/gi, '').charAt(0).toLowerCase() || 'none';
-    const pvpLetter = pvpStr.replace(/[^a-z]/gi, '').charAt(0).toLowerCase() || 'none';
+    const getLetter = (str: string) => {
+      if (!str || str === '—') return 'none';
+      if (str.includes('➔')) {
+        const parts = str.split('➔');
+        const potPart = parts[1] || parts[0];
+        const clean = potPart.replace(/[^a-z]/gi, '');
+        if (!clean) return 'none';
+        return (clean.length >= 2 ? clean.charAt(1) : clean.charAt(0)).toLowerCase();
+      }
+      const clean = str.replace(/[^a-z]/gi, '');
+      if (!clean) return 'none';
+      return (clean.length >= 2 ? clean.charAt(1) : clean.charAt(0)).toLowerCase();
+    };
+    const pveLetter = getLetter(pveStr);
+    const pvpLetter = getLetter(pvpStr);
     gradeBadgeHtml = `<span class="aegis-tooltip-grade aegis-tooltip-split-grade"><span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span></span>`;
   } else {
     gradeBadgeHtml = `<span class="aegis-tooltip-grade ${gradeClass}">${result.grade}</span>`;

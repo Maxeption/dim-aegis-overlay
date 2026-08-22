@@ -153,6 +153,19 @@ export interface SheetPerksGroup {
   all?: TooltipPerk[];
 }
 
+export interface DualSheetInfo {
+  sheetWeaponPvE?: AegisSheetWeapon | null;
+  sheetWeaponPvP?: AegisSheetWeapon | null;
+  sheetPerksPvE?: SheetPerksGroup | null;
+  sheetPerksPvP?: SheetPerksGroup | null;
+  pveResult?: ScoringResult | null;
+  pvpResult?: ScoringResult | null;
+  bestAlternativePvE?: string;
+  bestAlternativePvP?: string;
+  isBestInClassPvE?: boolean;
+  isBestInClassPvP?: boolean;
+}
+
 /**
  * An item entry parsed from Aegis's "Shopping List" spreadsheet tab.
  */

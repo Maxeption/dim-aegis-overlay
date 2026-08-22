@@ -84,18 +84,18 @@
   width: auto !important;
   max-width: none !important;
   height: 18px !important;
-  border-radius: 9px !important;
+  border-radius: 9999px !important;
   padding: 0 6px !important;
   font-size: calc(10px * var(--aegis-badge-scale, 1)) !important;
   letter-spacing: -0.2px !important;
   line-height: 18px !important;
 }
 
-/* Option: Slim Pill */
+/* Option: Slim Pill (Sleek Compact Badge) */
 .aegis-badge.aegis-style-pill {
   width: auto !important;
   min-width: 16px !important;
-  max-width: 34px !important;
+  max-width: 44px !important;
   height: 13.5px !important;
   border-radius: 3px !important;
   padding: 0 4px !important;
@@ -104,13 +104,13 @@
   line-height: 13.5px !important;
 }
 
-.aegis-badge.aegis-badge-wide {
+.aegis-badge.aegis-style-pill.aegis-badge-wide {
   width: auto !important;
-  max-width: 32px !important;
+  max-width: none !important;
   height: 13.5px !important;
-  border-radius: 4px !important;
-  padding: 0 3px !important;
-  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
+  border-radius: 3px !important;
+  padding: 0 4px !important;
+  font-size: calc(8px * var(--aegis-badge-scale, 1)) !important;
   letter-spacing: -0.2px !important;
   line-height: 13.5px !important;
 }
@@ -240,31 +240,43 @@
   align-items: stretch !important;
   justify-content: center !important;
   width: auto !important;
-  max-width: none !important;
+  max-width: calc(100% - 4px) !important;
   overflow: hidden !important;
+  isolation: isolate !important;
+  -webkit-mask-image: -webkit-radial-gradient(white, black) !important;
+  border-radius: 9999px !important;
   background: transparent !important;
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  box-sizing: border-box !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-classic {
-  height: 16px !important;
-  border-radius: 8px !important;
+  height: 18px !important;
+  border-radius: 9999px !important;
+  font-size: calc(9.5px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-pill {
   height: 13.5px !important;
   border-radius: 3px !important;
+  font-size: calc(8px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-notch {
+  height: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
   border-radius: 0 0 3px 3px !important;
+  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-split-half {
+  flex: 1 1 auto !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  text-align: center !important;
   height: 100% !important;
   padding: 0 4.5px !important;
   font-weight: 800 !important;
@@ -273,9 +285,49 @@
   font-size: inherit !important;
   box-sizing: border-box !important;
   line-height: 1 !important;
+  letter-spacing: -0.2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
 }
 
-.aegis-split-half.aegis-split-right {
+/* Compact scaling for potential transition arrows */
+.aegis-badge-split .aegis-split-half.aegis-split-transition {
+  font-size: calc(7.5px * var(--aegis-badge-scale, 1)) !important;
+  padding: 0 3px !important;
+  letter-spacing: -0.35px !important;
+}
+
+/* Classic Round Capsule Halves */
+.aegis-badge.aegis-style-classic .aegis-split-half.aegis-split-left {
+  border-top-left-radius: 9999px !important;
+  border-bottom-left-radius: 9999px !important;
+}
+
+.aegis-badge.aegis-style-classic .aegis-split-half.aegis-split-right {
+  border-top-right-radius: 9999px !important;
+  border-bottom-right-radius: 9999px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Slim Pill Halves */
+.aegis-badge.aegis-style-pill .aegis-split-half.aegis-split-left {
+  border-top-left-radius: 2px !important;
+  border-bottom-left-radius: 2px !important;
+}
+
+.aegis-badge.aegis-style-pill .aegis-split-half.aegis-split-right {
+  border-top-right-radius: 2px !important;
+  border-bottom-right-radius: 2px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Top Notch Halves */
+.aegis-badge.aegis-style-notch .aegis-split-half.aegis-split-left {
+  border-radius: 0 0 0 3px !important;
+}
+
+.aegis-badge.aegis-badge-split.aegis-style-notch .aegis-split-half.aegis-split-right {
+  border-radius: 0 0 3px 0 !important;
   border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
 }
 
@@ -341,6 +393,78 @@
 .aegis-tooltip-split-grade .aegis-split-half {
   padding: 0 6px !important;
   font-size: 11px !important;
+}
+
+/* Dual Details Modal / Popup Grid Layout */
+.aegis-popup-dual-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  margin-top: 6px !important;
+  align-items: start !important;
+}
+
+.aegis-popup-dual-col {
+  background: rgba(0, 0, 0, 0.28) !important;
+  border-radius: 6px !important;
+  padding: 8px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+.aegis-popup-dual-col.aegis-col-pve {
+  border-top: 2.5px solid #88c0d0 !important;
+}
+
+.aegis-popup-dual-col.aegis-col-pvp {
+  border-top: 2.5px solid #ebcb8b !important;
+}
+
+.aegis-popup-col-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding-bottom: 5px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  margin-bottom: 4px !important;
+}
+
+.aegis-popup-col-title {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: #eceff4 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+}
+
+.aegis-popup-dual-col .aegis-details-row {
+  font-size: 11px !important;
+}
+
+.aegis-popup-dual-col .aegis-details-label {
+  width: 48px !important;
+  font-size: 10.5px !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-popup-dual-col .aegis-details-chips-container {
+  gap: 3px !important;
+  justify-content: flex-end !important;
+}
+
+.aegis-popup-dual-col .aegis-perk-chip {
+  font-size: 9.5px !important;
+  padding: 2px 5.5px !important;
+}
+
+.aegis-popup-dual-col .aegis-chip-icon {
+  width: 12px !important;
+  height: 12px !important;
+  margin-right: 3px !important;
 }
 
 /* ------------------------------------------
@@ -1635,6 +1759,31 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   font-size: 10.5px !important;
 }
 
+.aegis-popup-grade-badge.aegis-badge-split {
+  width: auto !important;
+  min-width: 52px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  display: inline-flex !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  flex-shrink: 0 !important;
+  margin-right: 4px !important;
+}
+
+.aegis-popup-grade-badge.aegis-badge-split .aegis-split-half {
+  padding: 0 6px !important;
+  font-size: 11px !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 .aegis-shopping-item-badge,
 .aegis-shopping-copy-row .aegis-badge,
 .aegis-shopping-alt-row-item .aegis-badge {
@@ -1837,14 +1986,22 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-popup-details-card {
   margin: 12px 0 !important;
   padding: 14px 16px !important;
-  background: #18181c !important; /* Match DIM dark theme */
-  border: 1px solid #333339 !important; /* Simple clean border */
-  border-radius: 4px !important; /* Flat corner styling */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  background: #18181c !important; /* Solid DIM dark theme background */
+  border: 1px solid #333339 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75) !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 /* Allow elements to overflow the popup container/sheet boundaries only when they contain an Aegis details card */
+[class*="ItemPopup"], 
+[class*="item-popup"], 
+[class*="Sheet"], 
+[class*="sheet"], 
+.item-popup {
+  z-index: 10000 !important;
+}
+
 [class*="ItemPopup"]:has(.aegis-popup-details-card), 
 [class*="item-popup"]:has(.aegis-popup-details-card), 
 [class*="Sheet"]:has(.aegis-popup-details-card), 
@@ -1857,10 +2014,11 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-popup-details-card.aegis-side-panel {
   position: absolute !important;
   top: 55px !important;
-  width: var(--aegis-side-panel-width, 320px) !important;
   margin: 0 !important;
-  z-index: 1000 !important;
+  z-index: 10001 !important;
   box-sizing: border-box !important;
+  background: #18181c !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.15) inset !important;
 }
 
 .aegis-details-header {
