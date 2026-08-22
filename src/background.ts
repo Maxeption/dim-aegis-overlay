@@ -97,6 +97,29 @@ const ALL_TABS = [
   'Swords', 'Other', 'Exotic Weapons',
 ];
 
+function decodeHtml(html: string): string {
+  return (html || '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
+
+function parseHtmlTable(htmlText: string): string[][] {
+  const rowMatches = [...htmlText.matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)];
+  const rows: string[][] = [];
+  for (const r of rowMatches) {
+    const cells = [...r[1].matchAll(/<t[dh][^>]*>(.*?)<\/t[dh]>/gs)].map(m => decodeHtml(m[1]));
+    rows.push(cells);
+  }
+  return rows;
+}
+
 function parseCSV(text: string): string[][] {
   const normalizedText = text.replace(/\r\n|\r/g, '\n');
   const rows: string[][] = [];
@@ -116,6 +139,53 @@ function parseCSV(text: string): string[][] {
   }
   if (row.length || field) { row.push(field); rows.push(row); }
   return rows;
+}
+
+async function fetchHtmlViewMetadata(sheetId: string): Promise<Record<string, string>> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, credentials: 'omit' });
+    if (!res.ok) return {};
+    const text = await res.text();
+    const regex = /items\.push\(\s*\{\s*name:\s*"([^"]+)"\s*,\s*pageUrl:\s*"([^"]+)"\s*,\s*gid:\s*"([^"]+)"/g;
+    const matches = [...text.matchAll(regex)];
+    const tabs: Record<string, string> = {};
+    for (const m of matches) {
+      const name = m[1].replace(/\\x26/g, '&').replace(/\\'/g, "'").trim();
+      const gid = m[3].trim();
+      tabs[name] = gid;
+    }
+    return tabs;
+  } catch (err) {
+    return {};
+  }
+}
+
+async function fetchTabRows(sheetId: string, tabName: string, gid?: string): Promise<string[][]> {
+  if (gid) {
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview/sheet?headers=true&gid=${gid}`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, credentials: 'omit' });
+      if (res.ok) {
+        const text = await res.text();
+        const rows = parseHtmlTable(text);
+        if (rows.length >= 2) return rows;
+      }
+    } catch (e) {}
+  }
+
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, credentials: 'omit' });
+    if (res.ok) {
+      const text = await res.text();
+      if (!text.trimStart().startsWith('<')) {
+        return parseCSV(text);
+      }
+    }
+  } catch (e) {}
+
+  return [];
 }
 
 function normName(s: string): string {
@@ -140,16 +210,12 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
   const variants: Record<string, AegisSheetWeapon[]> = {};
   const categories: Record<string, AegisSheetWeapon[]> = {};
 
+  const discoveredTabs = await fetchHtmlViewMetadata(sheetId);
+
   const promises = tabs.map(async (tab) => {
     try {
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-      const res = await fetch(url, { credentials: 'omit' });
-      if (!res.ok) return;
-
-      const csvText = await res.text();
-      if (csvText.trimStart().startsWith('<')) return;
-
-      const rows = parseCSV(csvText);
+      const gid = discoveredTabs[tab];
+      const rows = await fetchTabRows(sheetId, tab, gid);
       if (rows.length < 2) return;
 
       let headerRowIndex = 0;
@@ -387,13 +453,10 @@ async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShopping
   const alternativesMap: Record<string, { primaryName: string; role: string; priority: string; priorityNum: number }> = {};
 
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Shopping List')}`;
-    const res = await fetch(url, { credentials: 'omit' });
-    if (res.ok) {
-      const csvText = await res.text();
-      if (!csvText.trimStart().startsWith('<')) {
-        const rows = parseCSV(csvText);
-        if (rows.length >= 2) {
+    const discoveredTabs = await fetchHtmlViewMetadata(sheetId);
+    const shoppingGid = discoveredTabs['Shopping List'];
+    const rows = await fetchTabRows(sheetId, 'Shopping List', shoppingGid);
+    if (rows.length >= 2) {
           let headerRowIndex = 0;
           for (let r = 0; r < Math.min(rows.length, 3); r++) {
             if (rows[r].some(c => c.trim().toLowerCase() === 'name' || c.trim().toLowerCase() === 'role')) {
@@ -489,14 +552,12 @@ async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShopping
             }
           }
         }
+      } catch (err) {
+        console.error('DIM Aegis Overlay: Failed to fetch Shopping List database:', err);
       }
-    }
-  } catch (err) {
-    console.error('DIM Aegis Overlay: Failed to fetch Shopping List database:', err);
-  }
 
-  return { items, byName, alternativesMap };
-}
+      return { items, byName, alternativesMap };
+    }
 
 /**
  * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet databases, prioritizing the fast GitHub CDN mirror,
