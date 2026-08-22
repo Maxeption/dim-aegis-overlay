@@ -31,6 +31,8 @@ export interface ScoringResult {
   isPerfect5of5?: boolean;
   isOmniRoll?: boolean;
   matchedSlotsCount?: number;
+  pveGrade?: string;
+  pvpGrade?: string;
 }
 
 /**
@@ -48,7 +50,7 @@ export interface LocalStorageSchema {
   aegisSheetDbPvE?: AegisSheetDatabase;
   aegisSheetDbPvP?: AegisSheetDatabase;
   aegisShoppingDb?: AegisShoppingDatabase;
-  aegisMode?: 'pve' | 'pvp';
+  aegisMode?: 'pve' | 'pvp' | 'both';
   aegisCompactPerksMatrix?: boolean;
   aegisInlineHeader?: boolean;
   aegisAutoMaxHeight?: boolean;

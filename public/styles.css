@@ -233,6 +233,106 @@
   box-shadow: 0 0 6px rgba(127, 140, 141, 0.1), 0 2px 4px rgba(0, 0, 0, 0.6) !important;
 }
 
+/* Split Badge (Both PvE + PvP Mode) */
+.aegis-badge.aegis-badge-split {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  padding: 0 4px !important;
+  width: auto !important;
+  max-width: none !important;
+  background: rgba(15, 18, 26, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(4px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7) !important;
+  font-family: inherit !important;
+  letter-spacing: -0.2px !important;
+}
+
+.aegis-badge.aegis-badge-split.aegis-style-classic {
+  height: 17px !important;
+  border-radius: 9px !important;
+}
+
+.aegis-badge.aegis-badge-split.aegis-style-pill {
+  height: 13.5px !important;
+  border-radius: 3px !important;
+}
+
+.aegis-badge.aegis-badge-split.aegis-style-notch {
+  border-radius: 0 0 3px 3px !important;
+}
+
+.aegis-badge-pve-part {
+  font-weight: 800;
+  color: #88c0d0;
+}
+
+.aegis-badge-pve-part.aegis-part-s { color: #ffd700 !important; text-shadow: 0 0 4px rgba(255, 215, 0, 0.4); }
+.aegis-badge-pve-part.aegis-part-a { color: #d08770 !important; }
+.aegis-badge-pve-part.aegis-part-b { color: #88c0d0 !important; }
+.aegis-badge-pve-part.aegis-part-c { color: #a3be8c !important; }
+.aegis-badge-pve-part.aegis-part-d,
+.aegis-badge-pve-part.aegis-part-f { color: #bf616a !important; }
+.aegis-badge-pve-part.aegis-part-none { color: rgba(255, 255, 255, 0.35) !important; }
+
+.aegis-badge-divider {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85em;
+  margin: 0 1px;
+}
+
+.aegis-badge-pvp-part {
+  font-weight: 800;
+  color: #ebcb8b;
+}
+
+.aegis-badge-pvp-part.aegis-part-s { color: #ffd700 !important; text-shadow: 0 0 4px rgba(255, 215, 0, 0.4); }
+.aegis-badge-pvp-part.aegis-part-a { color: #d08770 !important; }
+.aegis-badge-pvp-part.aegis-part-b { color: #88c0d0 !important; }
+.aegis-badge-pvp-part.aegis-part-c { color: #a3be8c !important; }
+.aegis-badge-pvp-part.aegis-part-d,
+.aegis-badge-pvp-part.aegis-part-f { color: #bf616a !important; }
+.aegis-badge-pvp-part.aegis-part-none { color: rgba(255, 255, 255, 0.35) !important; }
+
+/* Dual Section Tooltip Layout */
+.aegis-tooltip-dual-section {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 6px;
+}
+
+.aegis-section-pve {
+  border-left: 3px solid #88c0d0;
+}
+
+.aegis-section-pvp {
+  border-left: 3px solid #ebcb8b;
+}
+
+.aegis-dual-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #eceff4;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.aegis-dual-section-icon {
+  font-size: 12px;
+}
+
+.aegis-tooltip-dual-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  margin: 8px 0;
+}
 
 /* ------------------------------------------
    2. Premium Glassmorphism Tooltip

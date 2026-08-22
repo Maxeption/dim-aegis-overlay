@@ -195,7 +195,7 @@ let aegisFadeHover = false;
 let aegisGradeDisplayMode: 'equipped' | 'dual' | 'potential' = 'equipped';
 let aegisHoverEnabled = true;
 let aegisArmorSource = 'lowco';
-let aegisMode: 'pve' | 'pvp' = 'pve';
+let aegisMode: 'pve' | 'pvp' | 'both' = 'pve';
 let aegisCompactPerksMatrix = false;
 let aegisInlineHeader = true;
 let aegisAutoMaxHeight = true;
@@ -219,6 +219,8 @@ function applyTooltipWidthStyles() {
 
 let lightggDb: Record<string, string> = {};
 let aegisSheetDb: AegisSheetDatabase | null = null;
+let aegisSheetDbPvE: AegisSheetDatabase | null = null;
+let aegisSheetDbPvP: AegisSheetDatabase | null = null;
 let aegisShoppingDb: AegisShoppingDatabase | null = null;
 function normName(s: string): string {
   return (s ?? '').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -608,9 +610,11 @@ function findAegisWeapon(
   perksMap?: Record<number, { name: string; icon: string }>,
   activeHashes?: number[],
   elText?: string,
-  itemHash?: number
+  itemHash?: number,
+  targetDb?: AegisSheetDatabase | null
 ): AegisSheetWeapon | null {
-  if (!aegisSheetDb || !aegisSheetDb.weapons) return null;
+  const db = targetDb || aegisSheetDb;
+  if (!db || !db.weapons) return null;
 
   let lookupName = name.split('\n')[0].trim().toLowerCase();
   if (itemHash) {
@@ -624,7 +628,7 @@ function findAegisWeapon(
   const baseNormalized = cleanWeaponNameBase(normalized);
 
   // 1. Get variants array for this base weapon name
-  const variants = aegisSheetDb.variants?.[baseNormalized] || aegisSheetDb.variants?.[normalized] || [];
+  const variants = db.variants?.[baseNormalized] || db.variants?.[normalized] || [];
 
   // 2. Multi-variant disambiguation (when 2+ variants exist for the base name)
   if (variants.length > 1) {
@@ -745,12 +749,12 @@ function findAegisWeapon(
   }
 
   // 3. Single variant or no variant list fallback
-  if (aegisSheetDb.weapons[normalized]) return aegisSheetDb.weapons[normalized];
-  if (aegisSheetDb.weapons[baseNormalized]) return aegisSheetDb.weapons[baseNormalized];
+  if (db.weapons[normalized]) return db.weapons[normalized];
+  if (db.weapons[baseNormalized]) return db.weapons[baseNormalized];
   if (variants.length > 0 && variants[0]) return variants[0];
 
   // 4. Fuzzy fallback across all weapons in the sheet
-  for (const [sheetKey, weapon] of Object.entries(aegisSheetDb.weapons)) {
+  for (const [sheetKey, weapon] of Object.entries(db.weapons)) {
     const cleanKey = cleanWeaponNameBase(sheetKey);
     if (cleanKey === baseNormalized || sheetKey.toLowerCase().trim() === normalized) {
       return weapon;
@@ -760,8 +764,9 @@ function findAegisWeapon(
   return null;
 }
 
-function findWeaponCategory(weaponName: string, itemHash?: number): string {
-  if (!aegisSheetDb || !aegisSheetDb.categories) return '';
+function findWeaponCategory(weaponName: string, itemHash?: number, targetDb?: AegisSheetDatabase | null): string {
+  const db = targetDb || aegisSheetDb;
+  if (!db || !db.categories) return '';
   let lookupName = weaponName.split('\n')[0].trim().toLowerCase();
   if (itemHash) {
     const canonicalEnglish = getEnglishWeaponNameFromHash(itemHash);
@@ -771,7 +776,7 @@ function findWeaponCategory(weaponName: string, itemHash?: number): string {
   }
   const norm = lookupName;
   const baseNorm = norm.replace(/\s*\([^)]+\)\s*$/, '').trim();
-  for (const [tab, list] of Object.entries(aegisSheetDb.categories)) {
+  for (const [tab, list] of Object.entries(db.categories)) {
     if (list.some(w => {
       const n = w.name.toLowerCase();
       return n === norm || n === baseNorm;
@@ -782,11 +787,12 @@ function findWeaponCategory(weaponName: string, itemHash?: number): string {
   return '';
 }
 
-function findSuperiors(categoryTab: string, currentEnergy: string, currentFrame: string) {
-  if (!aegisSheetDb || !aegisSheetDb.categories || !categoryTab) {
+function findSuperiors(categoryTab: string, currentEnergy: string, currentFrame: string, targetDb?: AegisSheetDatabase | null) {
+  const db = targetDb || aegisSheetDb;
+  if (!db || !db.categories || !categoryTab) {
     return { byEnergy: null, byFrame: null, byBoth: null };
   }
-  const list = aegisSheetDb.categories[categoryTab] || [];
+  const list = db.categories[categoryTab] || [];
   const normEnergy = currentEnergy.toLowerCase().trim();
   const normFrame = currentFrame.toLowerCase().replace(/ frame$/, '').trim();
 
@@ -3245,7 +3251,7 @@ function showWinnowerWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisShoppingDb', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisInlineHeader', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDb', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisInlineHeader', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
   initLanguage(res.aegisLanguage);
   wishlistDb = res.wishlistData || {};
   enhancedToNormalMap = res.enhancedToNormal || {};
@@ -3273,6 +3279,8 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisArmorSource = res.aegisArmorSource || 'lowco';
   lightggDb = res.lightggData || {};
   aegisSheetDb = res.aegisSheetDb || null;
+  aegisSheetDbPvE = res.aegisSheetDbPvE || null;
+  aegisSheetDbPvP = res.aegisSheetDbPvP || null;
   aegisShoppingDb = res.aegisShoppingDb || null;
   if (clearLegacyDefaultChaseFilters()) {
     chrome.storage.local.set({ aegisChaseList: chaseList });
@@ -3339,6 +3347,14 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisShoppingDb) {
       aegisShoppingDb = changes.aegisShoppingDb.newValue || null;
+      changed = true;
+    }
+    if (changes.aegisSheetDbPvE) {
+      aegisSheetDbPvE = changes.aegisSheetDbPvE.newValue || null;
+      changed = true;
+    }
+    if (changes.aegisSheetDbPvP) {
+      aegisSheetDbPvP = changes.aegisSheetDbPvP.newValue || null;
       changed = true;
     }
     if (changes.aegisMode) {
@@ -3506,7 +3522,19 @@ function showTooltipForElement(dataEl: HTMLElement, anchor: HTMLElement): boolea
       inlineHeader: aegisInlineHeader,
       autoMaxHeight: aegisAutoMaxHeight,
       tooltipWidthMode: aegisTooltipWidthMode,
-      tooltipWidth: aegisTooltipWidth
+      tooltipWidth: aegisTooltipWidth,
+      dualInfo: aegisMode === 'both' ? {
+        sheetWeaponPvE: (dataEl as any)._aegisSheetWeaponPvE,
+        sheetWeaponPvP: (dataEl as any)._aegisSheetWeaponPvP,
+        sheetPerksPvE: (dataEl as any)._aegisSheetPerksPvE,
+        sheetPerksPvP: (dataEl as any)._aegisSheetPerksPvP,
+        pveResult: (dataEl as any)._aegisPveResult,
+        pvpResult: (dataEl as any)._aegisPvpResult,
+        bestAlternativePvE: (dataEl as any)._aegisBestAlternativePvE,
+        bestAlternativePvP: (dataEl as any)._aegisBestAlternativePvP,
+        isBestInClassPvE: (dataEl as any)._aegisIsBestInClassPvE,
+        isBestInClassPvP: (dataEl as any)._aegisIsBestInClassPvP,
+      } : undefined
     }
   );
   return true;
@@ -4136,7 +4164,7 @@ function injectPopupSummary(
 
       let exoticViabilityHtml = '';
       if (sheetWeapon.exoticViability || sheetWeapon.notes || sheetWeapon.description) {
-        const matrixHtml = sheetWeapon.exoticViability ? renderViabilityMatrix(sheetWeapon.exoticViability, aegisMode) : '';
+        const matrixHtml = sheetWeapon.exoticViability ? renderViabilityMatrix(sheetWeapon.exoticViability, aegisMode === 'pvp' ? 'pvp' : 'pve') : '';
         const tagsBadge = sheetWeapon.exoticViability?.tags 
           ? `<span style="font-size: 10px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">${sheetWeapon.exoticViability.tags.toUpperCase()}</span>` 
           : '';
@@ -4313,12 +4341,19 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
 
   // Set grade class and text (normalizing S+ / A- etc. to the first letter class)
   const gradeStr = result.grade || '';
-  const isDual = gradeStr.includes('➔');
-  const isArmor = gradeStr.includes('/');
-  const isTwoTier = !isArmor && (gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-')));
+  const isSplit = gradeStr.includes('|');
+  const isDual = !isSplit && gradeStr.includes('➔');
+  const isArmor = !isSplit && gradeStr.includes('/');
+  const isTwoTier = !isSplit && !isArmor && (gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-')));
 
   let baseLetter = '';
-  if (isArmor) {
+  if (isSplit) {
+    const parts = gradeStr.split('|').map(s => s.trim());
+    const valPvE = getGradeValue(parts[0]);
+    const valPvP = getGradeValue(parts[1]);
+    const betterRating = valPvE >= valPvP ? parts[0] : parts[1];
+    baseLetter = betterRating.replace(/[^a-z]/gi, '').charAt(0).toLowerCase() || 'n';
+  } else if (isArmor) {
     const parts = gradeStr.split('/');
     const val2 = getGradeValue(parts[0]);
     const val4 = getGradeValue(parts[1]);
@@ -4353,28 +4388,37 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
     badge.classList.add('aegis-hover-fade');
   }
 
-  if (isTwoTier || isArmor || isDual || result.isOmniRoll || result.isPerfect5of5) {
+  if (isSplit || isTwoTier || isArmor || isDual || result.isOmniRoll || result.isPerfect5of5) {
     badge.classList.add('aegis-badge-wide');
   }
-  if (isDual) {
+  if (isSplit) {
+    badge.classList.add('aegis-badge-split');
+    const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
+    const pveLetter = pveStr.replace(/[^a-z]/gi, '').charAt(aegisTwoTier ? 1 : 0).toLowerCase() || 'none';
+    const pvpLetter = pvpStr.replace(/[^a-z]/gi, '').charAt(aegisTwoTier ? 1 : 0).toLowerCase() || 'none';
+    
+    badge.innerHTML = `<span class="aegis-badge-pve-part aegis-part-${pveLetter}">${pveStr}</span><span class="aegis-badge-divider">|</span><span class="aegis-badge-pvp-part aegis-part-${pvpLetter}">${pvpStr}</span>`;
+  } else if (isDual) {
     badge.classList.add('aegis-badge-dual');
   }
-  if (result.isOmniRoll) {
-    badge.classList.add('aegis-badge-omni');
-    if (aegisBadgeStyle === 'classic') {
-      badge.textContent = `✦ ${gradeStr}`;
+  if (!isSplit) {
+    if (result.isOmniRoll) {
+      badge.classList.add('aegis-badge-omni');
+      if (aegisBadgeStyle === 'classic') {
+        badge.textContent = `✦ ${gradeStr}`;
+      } else {
+        badge.textContent = gradeStr;
+      }
+    } else if (result.isPerfect5of5 && !isDual && !isArmor) {
+      badge.classList.add('aegis-badge-perfect');
+      if (aegisBadgeStyle === 'classic') {
+        badge.textContent = `★ ${gradeStr}`;
+      } else {
+        badge.textContent = gradeStr;
+      }
     } else {
       badge.textContent = gradeStr;
     }
-  } else if (result.isPerfect5of5 && !isDual && !isArmor) {
-    badge.classList.add('aegis-badge-perfect');
-    if (aegisBadgeStyle === 'classic') {
-      badge.textContent = `★ ${gradeStr}`;
-    } else {
-      badge.textContent = gradeStr;
-    }
-  } else {
-    badge.textContent = gradeStr;
   }
 
   if (result.upgradeAvailable) {
@@ -4646,6 +4690,17 @@ function processElement(el: HTMLElement) {
     let bestAlternative = undefined;
     let isBestInClass = false;
 
+    let sheetWeaponPvE: AegisSheetWeapon | null = null;
+    let sheetWeaponPvP: AegisSheetWeapon | null = null;
+    let sheetPerksPvE: SheetPerksGroup | undefined = undefined;
+    let sheetPerksPvP: SheetPerksGroup | undefined = undefined;
+    let pveResult: ScoringResult | null = null;
+    let pvpResult: ScoringResult | null = null;
+    let bestAlternativePvE: string | undefined = undefined;
+    let isBestInClassPvE = false;
+    let bestAlternativePvP: string | undefined = undefined;
+    let isBestInClassPvP = false;
+
     if (scoringSource === 'lightgg') {
       const rawInstanceId = el.getAttribute('data-aegis-instance-id') || el.id.replace('item-', '');
       const instanceId = rawInstanceId.replace(/^[^0-9]+/, '');
@@ -4691,6 +4746,96 @@ function processElement(el: HTMLElement) {
           upgradeAdvice: aegisResult.upgradeAdvice,
           potentialGrade: aegisResult.potentialGrade,
           wishlistNotes: aegisResult.wishlistNotes,
+        };
+      } else {
+        result = {
+          grade: null,
+          matchPercentage: 0,
+          matchedPerks: [],
+          missingPerks: [],
+          notes: '',
+          wishlistPerks: [],
+        };
+      }
+    } else if (aegisMode === 'both') {
+      sheetWeaponPvE = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvE);
+      sheetWeaponPvP = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvP);
+
+      let pveGradeRaw = '';
+      if (sheetWeaponPvE) {
+        const scorePvE = scoreSheetWeapon(sheetWeaponPvE, perksMap, activeHashes);
+        pveResult = scorePvE.result;
+        sheetPerksPvE = scorePvE.sheetPerks;
+        pveResult.potentialGrade = scorePvE.potentialGrade;
+        pveResult.upgradeAdvice = scorePvE.upgradeAdvice;
+
+        const isExoticPvE = sheetWeaponPvE.exoticViability || sheetWeaponPvE.source === 'Exotic';
+        if (isExoticPvE && sheetWeaponPvE.tier) {
+          pveGradeRaw = sheetWeaponPvE.tier.trim();
+        } else {
+          pveGradeRaw = pveResult.grade || '';
+          if (aegisTwoTier && sheetWeaponPvE.tier && pveGradeRaw) {
+            pveGradeRaw = `${sheetWeaponPvE.tier.trim()}${pveGradeRaw}`;
+          }
+        }
+
+        const catPvE = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvE);
+        const superiorsPvE = findSuperiors(catPvE, sheetWeaponPvE.energy, sheetWeaponPvE.frame, aegisSheetDbPvE);
+        const bestWPvE = superiorsPvE.byBoth || superiorsPvE.byFrame || superiorsPvE.byEnergy;
+        if (bestWPvE) {
+          if (bestWPvE.name.toLowerCase() === sheetWeaponPvE.name.toLowerCase()) {
+            isBestInClassPvE = true;
+          } else {
+            bestAlternativePvE = `${bestWPvE.name} (${bestWPvE.tier} #${bestWPvE.rank})`;
+          }
+        }
+      }
+
+      let pvpGradeRaw = '';
+      if (sheetWeaponPvP) {
+        const scorePvP = scoreSheetWeapon(sheetWeaponPvP, perksMap, activeHashes);
+        pvpResult = scorePvP.result;
+        sheetPerksPvP = scorePvP.sheetPerks;
+        pvpResult.potentialGrade = scorePvP.potentialGrade;
+        pvpResult.upgradeAdvice = scorePvP.upgradeAdvice;
+
+        const isExoticPvP = sheetWeaponPvP.exoticViability || sheetWeaponPvP.source === 'Exotic';
+        if (isExoticPvP && sheetWeaponPvP.tier) {
+          pvpGradeRaw = sheetWeaponPvP.tier.trim();
+        } else {
+          pvpGradeRaw = pvpResult.grade || '';
+          if (aegisTwoTier && sheetWeaponPvP.tier && pvpGradeRaw) {
+            pvpGradeRaw = `${sheetWeaponPvP.tier.trim()}${pvpGradeRaw}`;
+          }
+        }
+
+        const catPvP = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvP);
+        const superiorsPvP = findSuperiors(catPvP, sheetWeaponPvP.energy, sheetWeaponPvP.frame, aegisSheetDbPvP);
+        const bestWPvP = superiorsPvP.byBoth || superiorsPvP.byFrame || superiorsPvP.byEnergy;
+        if (bestWPvP) {
+          if (bestWPvP.name.toLowerCase() === sheetWeaponPvP.name.toLowerCase()) {
+            isBestInClassPvP = true;
+          } else {
+            bestAlternativePvP = `${bestWPvP.name} (${bestWPvP.tier} #${bestWPvP.rank})`;
+          }
+        }
+      }
+
+      if (pveGradeRaw || pvpGradeRaw) {
+        const pveDisplay = pveGradeRaw || '—';
+        const pvpDisplay = pvpGradeRaw || '—';
+        result = {
+          grade: `${pveDisplay} | ${pvpDisplay}`,
+          matchPercentage: Math.max(pveResult?.matchPercentage || 0, pvpResult?.matchPercentage || 0),
+          matchedPerks: [...(pveResult?.matchedPerks || []), ...(pvpResult?.matchedPerks || [])],
+          missingPerks: [],
+          notes: pveResult?.notes || pvpResult?.notes || '',
+          wishlistPerks: [],
+          pveGrade: pveDisplay,
+          pvpGrade: pvpDisplay,
+          upgradeAvailable: !!(pveResult?.upgradeAvailable || pvpResult?.upgradeAvailable),
+          isPerfect5of5: !!(pveResult?.isPerfect5of5 && pvpResult?.isPerfect5of5),
+          isOmniRoll: !!(pveResult?.isOmniRoll || pvpResult?.isOmniRoll),
         };
       } else {
         result = {
@@ -4765,6 +4910,16 @@ function processElement(el: HTMLElement) {
     (el as any)._aegisEquippedMasterwork = equippedMasterwork || null;
     (el as any)._aegisShoppingItem = shoppingItem;
     (el as any)._aegisShoppingAlt = shoppingAlt;
+    (el as any)._aegisSheetWeaponPvE = sheetWeaponPvE;
+    (el as any)._aegisSheetWeaponPvP = sheetWeaponPvP;
+    (el as any)._aegisSheetPerksPvE = sheetPerksPvE;
+    (el as any)._aegisSheetPerksPvP = sheetPerksPvP;
+    (el as any)._aegisPveResult = pveResult;
+    (el as any)._aegisPvpResult = pvpResult;
+    (el as any)._aegisBestAlternativePvE = bestAlternativePvE;
+    (el as any)._aegisBestAlternativePvP = bestAlternativePvP;
+    (el as any)._aegisIsBestInClassPvE = isBestInClassPvE;
+    (el as any)._aegisIsBestInClassPvP = isBestInClassPvP;
 
     // Index into playerVaultInventory for Shopping List Audit
     if (result.grade) {
@@ -4794,7 +4949,7 @@ function processElement(el: HTMLElement) {
       playerVaultInventory.set(lookupKey, existing);
     }
 
-    if (result.grade) {
+    if (result.grade && aegisMode !== 'both') {
       const isExotic = sheetWeapon && (sheetWeapon.exoticViability || sheetWeapon.source === 'Exotic');
       if (isExotic && sheetWeapon && sheetWeapon.tier) {
         result.grade = sheetWeapon.tier.trim();
@@ -4814,14 +4969,15 @@ function processElement(el: HTMLElement) {
           displayRollGrade = potentialGrade;
         }
 
-        if (aegisTwoTier && hasSheetData && sheetWeapon && sheetWeapon.tier) {
-          const archetypeTier = sheetWeapon.tier.trim();
-          result.grade = `${archetypeTier}${displayRollGrade}`;
+        if (aegisTwoTier && sheetWeapon && sheetWeapon.tier && displayRollGrade) {
+          result.grade = `${sheetWeapon.tier.trim()}${displayRollGrade}`;
         } else {
           result.grade = displayRollGrade;
         }
       }
+    }
 
+    if (result.grade) {
       const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
       const isItemTile = IS_WINNOWER_HOST
         ? el.hasAttribute('data-aegis-item-hash')
@@ -5258,13 +5414,17 @@ function evaluateAegisFiltering() {
       if (targetQuery.startsWith('a:') || targetQuery.startsWith('armor:')) {
         isMatch = false;
       } else {
+        const isSplit = grade.includes('|');
+        const pvePart = result?.pveGrade?.toLowerCase() || (isSplit ? grade.split('|')[0].trim() : '');
+        const pvpPart = result?.pvpGrade?.toLowerCase() || (isSplit ? grade.split('|')[1].trim() : '');
+
         let weaponRank = '';
         let perkRank = '';
-        const isTwoTier = grade.length > 2 || (grade.length === 2 && !grade.endsWith('+') && !grade.endsWith('-'));
+        const isTwoTier = !isSplit && (grade.length > 2 || (grade.length === 2 && !grade.endsWith('+') && !grade.endsWith('-')));
         if (isTwoTier) {
           weaponRank = grade.charAt(0);
           perkRank = grade.substring(1);
-        } else {
+        } else if (!isSplit) {
           perkRank = grade;
         }
 
@@ -5275,15 +5435,23 @@ function evaluateAegisFiltering() {
         } else if (targetQuery === 'upgradeable' || targetQuery === 'upgradable' || targetQuery === 'upgrade') {
           isMatch = !!result?.upgradeAvailable;
         } else if (targetQuery === 'god') {
-          isMatch = compareGrades(perkRank, '>=s');
+          isMatch = isSplit 
+            ? (compareGrades(pvePart, '>=s') || compareGrades(pvpPart, '>=s'))
+            : compareGrades(perkRank, '>=s');
+        } else if (targetQuery.startsWith('pve:')) {
+          const q = targetQuery.substring(4);
+          isMatch = compareGrades(pvePart, q);
+        } else if (targetQuery.startsWith('pvp:')) {
+          const q = targetQuery.substring(4);
+          isMatch = compareGrades(pvpPart, q);
         } else if (targetQuery === 'shopping' || targetQuery === 'shop') {
           isMatch = !!(item as any)._aegisShoppingItem;
         } else if (targetQuery === 'shopping:high' || targetQuery === 'priority:1' || targetQuery === 'priority:high') {
           isMatch = (item as any)._aegisShoppingItem?.priority === 'high';
         } else if (targetQuery === 'shopping:ready') {
-          isMatch = !!(item as any)._aegisShoppingItem && compareGrades(perkRank, '>=a');
+          isMatch = !!(item as any)._aegisShoppingItem && (isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
         } else if (targetQuery === 'shopping:farm' || targetQuery === 'shopping:suboptimal') {
-          isMatch = !!(item as any)._aegisShoppingItem && !compareGrades(perkRank, '>=a');
+          isMatch = !!(item as any)._aegisShoppingItem && !(isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
         } else if (targetQuery === 'shopping:alt' || targetQuery === 'shopping:alternative') {
           isMatch = !!(item as any)._aegisShoppingAlt;
         } else if (targetQuery.startsWith('s:') || targetQuery.startsWith('source:')) {
@@ -5297,9 +5465,13 @@ function evaluateAegisFiltering() {
           isMatch = compareGrades(weaponRank, targetRank);
         } else if (targetQuery.startsWith('p:') || targetQuery.startsWith('perk:')) {
           const targetRank = targetQuery.startsWith('p:') ? targetQuery.substring(2) : targetQuery.substring(5);
-          isMatch = compareGrades(perkRank, targetRank);
+          isMatch = isSplit 
+            ? (compareGrades(pvePart, targetRank) || compareGrades(pvpPart, targetRank))
+            : compareGrades(perkRank, targetRank);
         } else {
-          isMatch = compareGrades(grade, targetQuery) || compareGrades(weaponRank, targetQuery) || compareGrades(perkRank, targetQuery);
+          isMatch = isSplit
+            ? (compareGrades(pvePart, targetQuery) || compareGrades(pvpPart, targetQuery))
+            : (compareGrades(grade, targetQuery) || compareGrades(weaponRank, targetQuery) || compareGrades(perkRank, targetQuery));
         }
       }
     }

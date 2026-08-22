@@ -307,6 +307,13 @@ document.addEventListener('DOMContentLoaded', () => {
           const posKey = badgePosVal.replace('bottom-left', 'bl').replace('top-left', 'tl').replace('top-right', 'tr').replace('bottom-right', 'br');
           mockBadge.classList.add(`aegis-pos-${posKey}`);
           mockBadge.classList.add(`aegis-style-${badgeStyleVal}`);
+
+          const isTwoTier = res.aegisTwoTier === true;
+          if (aegisModeVal === 'both') {
+            mockBadge.textContent = isTwoTier ? 'SS+ | AA' : 'S+ | A';
+          } else {
+            mockBadge.textContent = isTwoTier ? 'SS+' : 'S+';
+          }
         }
 
         const cornerTargets = document.querySelectorAll('.interactive-weapon-tile .corner-target');
