@@ -1,5 +1,6 @@
 import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo } from './types';
 import { t, getLocalizedElement } from './i18n';
+import { getOriginalEvaluationText } from './evaluation-i18n';
 
 /** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
 function safeSetInnerHTML(element: HTMLElement, htmlString: string) {
@@ -185,7 +186,9 @@ function renderSheetWeaponSection(
   if (sheetWeapon?.mw) {
     recMWs.push(...tokenizeRecommendationPerks(sheetWeapon.mw));
   }
-  const notesText = (sheetWeapon?.notes || '') + ' ' + (sheetWeapon?.description || '');
+  const notesText = getOriginalEvaluationText(sheetWeapon, 'notes')
+    + ' '
+    + getOriginalEvaluationText(sheetWeapon, 'description');
   if (recMWs.length === 0) {
     const foundMW = extractRecommendedMasterwork(notesText);
     if (foundMW) {
@@ -1415,7 +1418,7 @@ export function getWeaponStun(sheetWeapon: AegisSheetWeapon): string {
   }
 
   // 4. Archetype Frame & Description Keyword matching for all 140+ Exotic & Legendary weapons
-  const frameLower = `${sheetWeapon.frame || ''} ${sheetWeapon.notes || ''} ${sheetWeapon.description || ''} ${sheetWeapon.energy || ''}`.toLowerCase();
+  const frameLower = `${sheetWeapon.frame || ''} ${getOriginalEvaluationText(sheetWeapon, 'notes')} ${getOriginalEvaluationText(sheetWeapon, 'description')} ${sheetWeapon.energy || ''}`.toLowerCase();
 
   // Specialized archetype overrides
   if (frameLower.includes('support')) return 'Overload';

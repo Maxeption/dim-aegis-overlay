@@ -1,8 +1,9 @@
 import { scoreWeapon } from './scorer';
 import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingDatabase, AegisShoppingItem, DualSheetInfo, ManifestWeapon, AegisChaseItem, WeaponEvaluationPayload } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes, renderShoppingBannerHtml } from './tooltip';
-import { initLanguage, t, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
+import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
 import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
+import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText } from './evaluation-i18n';
 
 /** Strongly typed, GC-safe storage for weapon/armor evaluation data attached to DOM tiles */
 export const weaponDataMap = new WeakMap<HTMLElement, WeaponEvaluationPayload>();
@@ -228,6 +229,38 @@ let aegisSheetDbPvP: AegisSheetDatabase | null = null;
 let aegisShoppingDb: AegisShoppingDatabase | null = null;
 let aegisShoppingDbPvE: AegisShoppingDatabase | null = null;
 let aegisShoppingDbPvP: AegisShoppingDatabase | null = null;
+let evaluationLocaleRequestToken = 0;
+let evaluationLocaleApplyQueue: Promise<void> = Promise.resolve();
+
+async function refreshEvaluationLocale(force = false, reprocess = true): Promise<void> {
+  const token = ++evaluationLocaleRequestToken;
+  const locale = getCurrentLanguage();
+  let bundle: EvaluationLocaleBundle | null = null;
+
+  if (locale !== 'en') {
+    bundle = await new Promise<EvaluationLocaleBundle | null>((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getEvaluationLocale', locale, force }, (response) => {
+        if (chrome.runtime.lastError || !response?.success) {
+          resolve(null);
+          return;
+        }
+        resolve(response.bundle || null);
+      });
+    });
+  }
+
+  if (token !== evaluationLocaleRequestToken) return;
+  evaluationLocaleApplyQueue = evaluationLocaleApplyQueue.catch(() => {}).then(async () => {
+    if (token !== evaluationLocaleRequestToken) return;
+    await Promise.all([
+      applyEvaluationLocale(aegisSheetDb, bundle),
+      applyEvaluationLocale(aegisSheetDbPvE, bundle),
+      applyEvaluationLocale(aegisSheetDbPvP, bundle),
+    ]);
+    if (token === evaluationLocaleRequestToken && reprocess) reprocessAllElements();
+  });
+  await evaluationLocaleApplyQueue;
+}
 function normName(s: string): string {
   return (s ?? '').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
@@ -3686,6 +3719,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   updatePerkNameToIcon(res.perkRegistry || {});
   updatePerkNameToHash(res.perkRegistry || {});
   reprocessAllElements();
+  void refreshEvaluationLocale(false);
   if (!IS_WINNOWER_HOST) {
     initAegisExplorer(); // DIM-only: Winnower has its own weapon browser
   }
@@ -3703,6 +3737,8 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     let changed = false;
+    let evaluationLocaleRefreshNeeded = false;
+    let forceEvaluationLocaleRefresh = false;
     if (changes.aegisLanguage) {
       initLanguage(changes.aegisLanguage.newValue);
       const existingPanel = document.querySelector('.aegis-explorer-panel');
@@ -3715,6 +3751,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       const existingWidget = document.querySelector('.aegis-search-widget');
       if (existingWidget) existingWidget.remove();
       setupSearchWidget();
+      evaluationLocaleRefreshNeeded = true;
       changed = true;
     }
     if (changes.wishlistData) {
@@ -3756,10 +3793,14 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisSheetDbPvE) {
       aegisSheetDbPvE = changes.aegisSheetDbPvE.newValue || null;
+      evaluationLocaleRefreshNeeded = true;
+      forceEvaluationLocaleRefresh = true;
       changed = true;
     }
     if (changes.aegisSheetDbPvP) {
       aegisSheetDbPvP = changes.aegisSheetDbPvP.newValue || null;
+      evaluationLocaleRefreshNeeded = true;
+      forceEvaluationLocaleRefresh = true;
       changed = true;
     }
     if (changes.aegisMode) {
@@ -3840,6 +3881,8 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       if (clearLegacyDefaultChaseFilters()) {
         chrome.storage.local.set({ aegisChaseList: chaseList });
       }
+      evaluationLocaleRefreshNeeded = true;
+      forceEvaluationLocaleRefresh = true;
       changed = true;
     }
     if (changes.perkRegistry) {
@@ -3860,6 +3903,9 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changed) {
       reprocessAllElements();
+    }
+    if (evaluationLocaleRefreshNeeded) {
+      void refreshEvaluationLocale(forceEvaluationLocaleRefresh).then(() => renderResults());
     }
   }
 });
@@ -4457,7 +4503,9 @@ function injectPopupSummary(
       }
     }
     if (recMWs.length === 0) {
-      const notesText = (sheetW.notes || '') + ' ' + (sheetW.description || '');
+      const notesText = getOriginalEvaluationText(sheetW, 'notes')
+        + ' '
+        + getOriginalEvaluationText(sheetW, 'description');
       const foundMW = extractRecommendedMasterwork(notesText);
       if (foundMW) {
         const parts = foundMW.split(/[\/\n\\]/);

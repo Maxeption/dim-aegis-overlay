@@ -1,5 +1,6 @@
 import { parseWishlist } from './parser';
 import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet, AegisShoppingDatabase, AegisShoppingItem } from './types';
+import { fetchEvaluationLocale } from './evaluation-i18n';
 
 const DEFAULT_URL =
   'https://raw.githubusercontent.com/charlesxcaliber/DIMAegisWeaponWishlist/main/MrCharlesWishlist_MRB_PPC2.txt';
@@ -810,6 +811,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'syncSpreadsheets') {
     fetchAndCacheAegisSheet()
       .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === 'getEvaluationLocale') {
+    fetchEvaluationLocale(message.locale, message.force === true)
+      .then((bundle) => sendResponse({ success: true, bundle }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
