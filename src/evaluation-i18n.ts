@@ -44,33 +44,44 @@ export async function fetchEvaluationLocale(
   const cache = (stored[EVALUATION_LOCALE_CACHE_KEY] || {}) as Record<string, EvaluationLocaleCacheEntry>;
   const cached = cache[locale];
 
-  if (!force && cached && Date.now() - cached.fetchedAt < EVALUATION_LOCALE_CACHE_TTL_MS) {
+  if (!force && cached && cached.bundle && Date.now() - cached.fetchedAt < EVALUATION_LOCALE_CACHE_TTL_MS) {
     return cached.bundle;
   }
 
+  // 1. Try remote CDN
   try {
     const url = `${EVALUATION_LOCALE_BASE_URL}/${encodeURIComponent(locale)}.json?_=${Date.now()}`;
     const response = await fetch(url, { cache: 'no-store' });
 
-    if (response.status === 404) {
-      cache[locale] = { bundle: null, fetchedAt: Date.now() };
-      await chrome.storage.local.set({ [EVALUATION_LOCALE_CACHE_KEY]: cache });
-      return null;
+    if (response.ok) {
+      const bundle = await response.json() as unknown;
+      if (isValidBundle(bundle, locale)) {
+        cache[locale] = { bundle, fetchedAt: Date.now() };
+        await chrome.storage.local.set({ [EVALUATION_LOCALE_CACHE_KEY]: cache });
+        return bundle;
+      }
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-    const bundle = await response.json() as unknown;
-    if (!isValidBundle(bundle, locale)) {
-      throw new Error(`Invalid evaluation locale bundle for ${locale}`);
-    }
-
-    cache[locale] = { bundle, fetchedAt: Date.now() };
-    await chrome.storage.local.set({ [EVALUATION_LOCALE_CACHE_KEY]: cache });
-    return bundle;
   } catch (error) {
-    console.warn(`DIM Aegis Overlay: Failed to refresh evaluation locale "${locale}".`, error);
-    return cached?.bundle || null;
+    console.warn(`DIM Aegis Overlay: Remote fetch failed for evaluation locale "${locale}".`, error);
   }
+
+  // 2. Fallback to local extension bundled locale
+  try {
+    const localUrl = chrome.runtime.getURL(`data/locales/${encodeURIComponent(locale)}.json`);
+    const localRes = await fetch(localUrl);
+    if (localRes.ok) {
+      const localBundle = await localRes.json() as unknown;
+      if (isValidBundle(localBundle, locale)) {
+        cache[locale] = { bundle: localBundle, fetchedAt: Date.now() };
+        await chrome.storage.local.set({ [EVALUATION_LOCALE_CACHE_KEY]: cache });
+        return localBundle;
+      }
+    }
+  } catch (localErr) {
+    console.warn(`DIM Aegis Overlay: Local bundled fallback failed for evaluation locale "${locale}".`, localErr);
+  }
+
+  return cached?.bundle || null;
 }
 
 async function sourceTextHash(text: string): Promise<string> {
