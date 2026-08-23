@@ -371,41 +371,42 @@ async function buildPvEDatabase() {
     if (setBonusRows.length >= 2) {
       let setHeaderIdx = 0;
       for (let r = 0; r < Math.min(setBonusRows.length, 5); r++) {
-        if (setBonusRows[r].some(c => c.toLowerCase() === 'set name')) {
+        if (setBonusRows[r].some(c => c.toLowerCase() === 'set' || c.toLowerCase() === 'set name')) {
           setHeaderIdx = r;
           break;
         }
       }
       const sHeader = setBonusRows[setHeaderIdx].map(h => h.trim().toLowerCase());
-      const sNameIdx = sHeader.indexOf('set name');
-      const sBonusIdx = sHeader.indexOf('bonus name');
-      const sPcsIdx = sHeader.indexOf('pcs');
-      const sDescIdx = sHeader.indexOf('description');
-      const sTrigIdx = sHeader.indexOf('trigger');
-      const sEffIdx = sHeader.indexOf('effect');
-      const sTierIdx = sHeader.indexOf('tier');
+      const sNameIdx = sHeader.findIndex(h => h === 'set' || h === 'set name');
+      const sBonusIdx = sHeader.findIndex(h => h === 'bonus' || h === 'bonus name');
+      const sPcsIdx = sHeader.findIndex(h => h === 'pcs');
+      const sDescIdx = sHeader.findIndex(h => h.includes('description'));
+      const sTrigIdx = sHeader.findIndex(h => h.includes('trigger'));
+      const sEffIdx = sHeader.findIndex(h => h.includes('effect'));
+      const sTierIdx = sHeader.findIndex(h => h === 'tier');
 
       for (let r = setHeaderIdx + 1; r < setBonusRows.length; r++) {
         const row = setBonusRows[r];
         const rawSetName = (row[sNameIdx] ?? '').trim();
-        if (!rawSetName || rawSetName.toLowerCase() === 'set name') continue;
+        if (!rawSetName || rawSetName.toLowerCase() === 'set' || rawSetName.toLowerCase() === 'set name') continue;
 
-        const cleanSetName = rawSetName.replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
+        const cleanSetName = rawSetName.split('\n')[0].replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
+        const source = rawSetName.split('\n')[1] ? rawSetName.split('\n')[1].trim() : '';
         const setKey = cleanSetName.toLowerCase();
 
         if (!armorAegis[setKey]) {
           armorAegis[setKey] = {
             setName: cleanSetName,
-            piece2Name: '',
-            piece2Desc: '',
+            piece2Name: 'None',
+            piece2Desc: 'No 2-piece set bonus listed.',
             piece2Numbers: '',
-            piece2Rating: '',
-            piece4Name: '',
-            piece4Desc: '',
+            piece2Rating: 'F',
+            piece4Name: 'None',
+            piece4Desc: 'No 4-piece set bonus listed.',
             piece4Numbers: '',
-            piece4Rating: '',
-            source: '',
-            sourceType: '',
+            piece4Rating: 'F',
+            source: source,
+            sourceType: 'Activity',
           };
         }
 
@@ -439,22 +440,26 @@ async function buildPvEDatabase() {
     if (lowcoRows.length >= 3) {
       for (let r = 2; r < lowcoRows.length; r++) {
         const row = lowcoRows[r];
-        const setName = (row[0] ?? '').trim();
+        let offset = 0;
+        if (/^\d+$/.test((row[0] || '').trim()) && row.length >= 12) {
+          offset = 1;
+        }
+        const setName = (row[offset + 0] ?? '').trim();
         if (!setName || setName === 'Set Name' || setName === 'Set Pick List' || setName.toLowerCase().includes('notes:')) continue;
-        if ((row[1] ?? '').trim() === 'Name') continue;
+        if ((row[offset + 1] ?? '').trim() === 'Name') continue;
 
         const armorData = {
           setName,
-          piece2Name: (row[1] ?? '').trim(),
-          piece2Desc: (row[2] ?? '').trim(),
-          piece2Numbers: (row[3] ?? '').trim(),
-          piece2Rating: (row[4] ?? '').trim(),
-          piece4Name: (row[5] ?? '').trim(),
-          piece4Desc: (row[6] ?? '').trim(),
-          piece4Numbers: (row[7] ?? '').trim(),
-          piece4Rating: (row[8] ?? '').trim(),
-          source: (row[9] ?? '').trim(),
-          sourceType: (row[10] ?? '').trim(),
+          piece2Name: (row[offset + 1] ?? '').trim(),
+          piece2Desc: (row[offset + 2] ?? '').trim(),
+          piece2Numbers: (row[offset + 3] ?? '').trim(),
+          piece2Rating: (row[offset + 4] ?? '').trim(),
+          piece4Name: (row[offset + 5] ?? '').trim(),
+          piece4Desc: (row[offset + 6] ?? '').trim(),
+          piece4Numbers: (row[offset + 7] ?? '').trim(),
+          piece4Rating: (row[offset + 8] ?? '').trim(),
+          source: (row[offset + 9] ?? '').trim(),
+          sourceType: (row[offset + 10] ?? '').trim(),
         };
         armor[setName.toLowerCase().trim()] = armorData;
       }

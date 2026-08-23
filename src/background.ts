@@ -347,24 +347,28 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
         if (armorRows.length >= 3) {
           for (let r = 2; r < armorRows.length; r++) {
             const row = armorRows[r];
-            const setName = (row[0] ?? '').trim();
+            let offset = 0;
+            if (/^\d+$/.test((row[0] || '').trim()) && row.length >= 12) {
+              offset = 1;
+            }
+            const setName = (row[offset + 0] ?? '').trim();
             if (!setName || setName === 'Set Name' || setName === 'Set Pick List' || setName.toLowerCase().includes('notes:')) {
               continue;
             }
-            if ((row[1] ?? '').trim() === 'Name') continue;
+            if ((row[offset + 1] ?? '').trim() === 'Name') continue;
 
             const armorData: AegisArmorSet = {
               setName,
-              piece2Name: (row[1] ?? '').trim(),
-              piece2Desc: (row[2] ?? '').trim(),
-              piece2Numbers: (row[3] ?? '').trim(),
-              piece2Rating: (row[4] ?? '').trim(),
-              piece4Name: (row[5] ?? '').trim(),
-              piece4Desc: (row[6] ?? '').trim(),
-              piece4Numbers: (row[7] ?? '').trim(),
-              piece4Rating: (row[8] ?? '').trim(),
-              source: (row[9] ?? '').trim(),
-              sourceType: (row[10] ?? '').trim(),
+              piece2Name: (row[offset + 1] ?? '').trim(),
+              piece2Desc: (row[offset + 2] ?? '').trim(),
+              piece2Numbers: (row[offset + 3] ?? '').trim(),
+              piece2Rating: (row[offset + 4] ?? '').trim(),
+              piece4Name: (row[offset + 5] ?? '').trim(),
+              piece4Desc: (row[offset + 6] ?? '').trim(),
+              piece4Numbers: (row[offset + 7] ?? '').trim(),
+              piece4Rating: (row[offset + 8] ?? '').trim(),
+              source: (row[offset + 9] ?? '').trim(),
+              sourceType: (row[offset + 10] ?? '').trim(),
             };
 
             armor[setName.toLowerCase().trim()] = armorData;
