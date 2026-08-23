@@ -540,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Aegis Mode (PvE vs PvP) segmented control click
+  // Handle Aegis Mode (PvE vs PvP vs Both) segmented control click
   const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
   if (aegisModeSegmented) {
     aegisModeSegmented.addEventListener('click', (e) => {
@@ -554,6 +554,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeDb) {
               updateObj.aegisSheetDb = activeDb;
             }
+
+            // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
+            if (val === 'both') {
+              updateObj.aegisTooltipWidthMode = 'auto';
+            } else {
+              updateObj.aegisTooltipWidthMode = 'fixed';
+            }
+
             chrome.storage.local.set(updateObj, () => {
               updateUI();
             });

@@ -19,6 +19,14 @@ if (fs.existsSync(publicDir)) {
   fs.cpSync(publicDir, distDir, { recursive: true });
 }
 
+// Copy manifest-weapons.json to dist/data for local extension testing
+const dataDir = path.join(distDir, 'data');
+fs.mkdirSync(dataDir, { recursive: true });
+const manifestJsonSource = path.join(root, 'data', 'manifest-weapons.json');
+if (fs.existsSync(manifestJsonSource)) {
+  fs.copyFileSync(manifestJsonSource, path.join(dataDir, 'manifest-weapons.json'));
+}
+
 const entries = {
   background: path.join(root, 'src/background.ts'),
   content: path.join(root, 'src/content.ts'),

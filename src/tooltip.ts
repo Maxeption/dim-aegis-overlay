@@ -76,44 +76,69 @@ function getPerkInfo(hash: number, localPerksMap: Record<number, PerkInfo>): Per
   };
 }
 
+const perkTokenCache = new Map<string, string[]>();
+
+/**
+ * Memoized tokenizer for raw recommendation perk and masterwork strings.
+ */
+export function tokenizeRecommendationPerks(rawStr?: string | null): string[] {
+  if (!rawStr) return [];
+  let tokens = perkTokenCache.get(rawStr);
+  if (!tokens) {
+    tokens = rawStr
+      .split(/[\/\n,\\]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (perkTokenCache.size > 1500) perkTokenCache.clear();
+    perkTokenCache.set(rawStr, tokens);
+  }
+  return tokens;
+}
+
 /**
  * Positions the tooltip element relative to the target element, keeping it within view.
  */
 function positionTooltip(target: HTMLElement, tooltip: HTMLElement) {
-  const targetRect = target.getBoundingClientRect();
-  const tooltipRect = tooltip.getBoundingClientRect();
-  tooltip.style.visibility = '';
+  tooltip.classList.remove('hidden');
+  tooltip.style.visibility = 'hidden';
+  tooltip.style.display = 'block';
 
-  const tooltipWidth = tooltipRect.width || 260;
-  const tooltipHeight = tooltipRect.height || 180;
+  const targetRect = target.getBoundingClientRect();
+  const tooltipWidth = tooltip.offsetWidth || 320;
+  const tooltipHeight = tooltip.offsetHeight || 260;
 
   const gap = 10;
-  const margin = 10;
+  const margin = 12;
+  const innerW = window.innerWidth;
+  const innerH = window.innerHeight;
 
-  // Primary preference: Right side of the target element, aligned with target top
+  // 1. Horizontal placement: Prefer right of target; flip to left if overflowing right edge
   let left = targetRect.right + gap;
-  let top = targetRect.top;
-
-  // If placing to the right overflows the viewport boundary
-  if (left + tooltipWidth > window.innerWidth - margin) {
-    // Try placing to the left of the target element
+  if (left + tooltipWidth > innerW - margin) {
     const leftOnLeft = targetRect.left - tooltipWidth - gap;
-    if (leftOnLeft >= margin) {
-      left = leftOnLeft;
-    } else {
-      // Clamp to right edge of screen if left side also overflows
-      left = window.innerWidth - tooltipWidth - margin;
-    }
+    left = leftOnLeft >= margin ? leftOnLeft : Math.max(margin, innerW - tooltipWidth - margin);
   }
-
-  // Ensure left is at least margin
   left = Math.max(margin, left);
 
-  // Smart boundary clamp for vertical axis so top/bottom never clips off screen
-  top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
+  // 2. Vertical placement: Align with target top, shift up if overflowing bottom
+  let top = targetRect.top;
+  if (top + tooltipHeight > innerH - margin) {
+    top = innerH - tooltipHeight - margin;
+  }
+
+  // 3. Viewport boundary clamping & scrollability
+  if (top < margin) {
+    top = margin;
+    tooltip.style.maxHeight = `${innerH - 2 * margin}px`;
+    tooltip.style.overflowY = 'auto';
+  } else {
+    tooltip.style.maxHeight = '';
+    tooltip.style.overflowY = '';
+  }
 
   tooltip.style.top = `${top + window.scrollY}px`;
   tooltip.style.left = `${left + window.scrollX}px`;
+  tooltip.style.visibility = 'visible';
 }
 
 /**
@@ -157,23 +182,14 @@ function renderSheetWeaponSection(
 ): { metaHtml: string; bodyHtml: string; recMod?: string } {
   // Extract recommended Masterworks & Mod
   const recMWs: string[] = [];
-  let rawMW = sheetWeapon?.mw ? sheetWeapon.mw.trim() : null;
-  if (rawMW && rawMW !== '-') {
-    const parts = rawMW.split(/[\/\n\\]/);
-    for (const part of parts) {
-      const trimmed = part.trim();
-      if (trimmed) recMWs.push(trimmed);
-    }
+  if (sheetWeapon?.mw) {
+    recMWs.push(...tokenizeRecommendationPerks(sheetWeapon.mw));
   }
   const notesText = (sheetWeapon?.notes || '') + ' ' + (sheetWeapon?.description || '');
   if (recMWs.length === 0) {
     const foundMW = extractRecommendedMasterwork(notesText);
     if (foundMW) {
-      const parts = foundMW.split(/[\/\n\\]/);
-      for (const part of parts) {
-        const trimmed = part.trim();
-        if (trimmed) recMWs.push(trimmed);
-      }
+      recMWs.push(...tokenizeRecommendationPerks(foundMW));
     }
   }
   const recMod = extractRecommendedMod(notesText) || undefined;
@@ -240,10 +256,9 @@ function renderSheetWeaponSection(
     }
 
     if (!chipsHtml) {
-      const rawVal = item.rawVal;
-      const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).join(' / ');
-      if (!cleanVal) return '';
-      chipsHtml = `<span class="aegis-details-value-text" style="font-size: 11px; color: #e5e9f0;">${cleanVal}</span>`;
+      const cleanTokens = tokenizeRecommendationPerks(item.rawVal);
+      if (cleanTokens.length === 0) return '';
+      chipsHtml = `<span class="aegis-details-value-text" style="font-size: 11px; color: #e5e9f0;">${cleanTokens.join(' / ')}</span>`;
     }
 
     return `
@@ -367,6 +382,51 @@ function renderSheetWeaponSection(
   return { metaHtml: sheetMetaHtml, bodyHtml: sheetBodyHtml, recMod };
 }
 
+const PRIORITY_KEY_MAP: Record<AegisShoppingItem['priority'], string> = {
+  high: 'priorityHigh',
+  medium: 'priorityMedium',
+  low: 'priorityLow',
+  niche: 'priorityNiche',
+};
+
+export function renderShoppingBannerHtml(
+  shoppingItem?: AegisShoppingItem | null,
+  shoppingAlt?: { primaryName: string; role: string } | null,
+  sourceName?: string
+): string {
+  if (shoppingItem) {
+    const priKey = PRIORITY_KEY_MAP[shoppingItem.priority];
+    const priLabel = (priKey ? t(priKey as any) : null) || (shoppingItem.priority ? shoppingItem.priority.toUpperCase() : 'HIGH');
+    const bannerTitle = sourceName ? `${sourceName.toUpperCase()} SHOPPING LIST` : t('shoppingBannerTitle');
+    return `
+      <div class="aegis-tooltip-shopping-banner aegis-priority-${shoppingItem.priority}" style="margin-bottom: 6px;">
+        <div class="aegis-shopping-banner-header">
+          <span class="aegis-shopping-banner-title">${bannerTitle}</span>
+          <span class="aegis-priority-pill aegis-pill-${shoppingItem.priority}">${priLabel}</span>
+        </div>
+        ${shoppingItem.role ? `
+          <div class="aegis-shopping-banner-meta">
+            <span><strong style="color: #ffd700;">Role:</strong> ${shoppingItem.role}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  } else if (shoppingAlt) {
+    const bannerTitle = sourceName ? `${sourceName.toUpperCase()} SHOPPING LIST (ALT)` : t('shoppingAltBannerTitle');
+    return `
+      <div class="aegis-tooltip-shopping-alt-banner" style="margin-bottom: 6px;">
+        <div class="aegis-shopping-banner-header">
+          <span class="aegis-shopping-banner-title">${bannerTitle}</span>
+        </div>
+        <div class="aegis-shopping-banner-meta">
+          <span>${t('fallbackFor')}: <strong style="color: #ffd700;">${shoppingAlt.primaryName}</strong> (${shoppingAlt.role})</span>
+        </div>
+      </div>
+    `;
+  }
+  return '';
+}
+
 export function showTooltip(
   target: HTMLElement,
   result: ScoringResult,
@@ -374,13 +434,13 @@ export function showTooltip(
   localPerksMap: Record<number, PerkInfo>,
   activeHashes?: number[],
   isLightGG?: boolean,
-  sheetWeapon?: AegisSheetWeapon,
+  sheetWeapon?: AegisSheetWeapon | null,
   bestAlternative?: string,
   isBestInClass?: boolean,
-  sheetPerks?: SheetPerksGroup,
+  sheetPerks?: SheetPerksGroup | null,
   _globalPerkNameToIcon?: Record<string, string>,
   sheetArmor?: AegisArmorSet | null,
-  equippedMasterwork?: string,
+  equippedMasterwork?: string | null,
   aegisMode?: 'pve' | 'pvp' | 'both',
   aegisPerkOrder?: 'sheet' | 'owned',
   shoppingItem?: AegisShoppingItem | null,
@@ -422,33 +482,8 @@ export function showTooltip(
   }
 
   let shoppingBannerHtml = '';
-  if (shoppingItem) {
-    const priKey = `priority${shoppingItem.priority.charAt(0).toUpperCase() + shoppingItem.priority.slice(1)}` as any;
-    const priLabel = t(priKey) || shoppingItem.priority.toUpperCase();
-    shoppingBannerHtml = `
-      <div class="aegis-tooltip-shopping-banner aegis-priority-${shoppingItem.priority}">
-        <div class="aegis-shopping-banner-header">
-          <span class="aegis-shopping-banner-title">${t('shoppingBannerTitle')}</span>
-          <span class="aegis-priority-pill aegis-pill-${shoppingItem.priority}">${priLabel}</span>
-        </div>
-        ${shoppingItem.role ? `
-          <div class="aegis-shopping-banner-meta">
-            <span><strong style="color: #ffd700;">Role:</strong> ${shoppingItem.role}</span>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  } else if (shoppingAlt) {
-    shoppingBannerHtml = `
-      <div class="aegis-tooltip-shopping-alt-banner">
-        <div class="aegis-shopping-banner-header">
-          <span class="aegis-shopping-banner-title">${t('shoppingAltBannerTitle')}</span>
-        </div>
-        <div class="aegis-shopping-banner-meta">
-          <span>${t('fallbackFor')}: <strong style="color: #ffd700;">${shoppingAlt.primaryName}</strong> (${shoppingAlt.role})</span>
-        </div>
-      </div>
-    `;
+  if (aegisMode !== 'both') {
+    shoppingBannerHtml = renderShoppingBannerHtml(shoppingItem, shoppingAlt);
   }
 
   if (sheetArmor) {
@@ -506,10 +541,10 @@ export function showTooltip(
   // Parse PvP/PvE tags
   let tagsHtml = '';
   if (result.notes && aegisMode !== 'both') {
-    const isPvE = /\bpve\b/i.test(result.notes);
-    const isPvP = /\bpvp\b/i.test(result.notes);
+    const isPvE = result.notes.includes('[PvE]');
+    const isPvP = result.notes.includes('[PvP]');
     if (isPvE || isPvP) {
-      tagsHtml = '<div class="aegis-tooltip-tags-row">';
+      tagsHtml = '<div class="aegis-tooltip-tags">';
       if (isPvE) {
         tagsHtml += '<span class="aegis-tooltip-tag aegis-tag-pve">PvE</span>';
       }
@@ -525,18 +560,35 @@ export function showTooltip(
   let recMod: string | undefined = undefined;
 
   if (aegisMode === 'both' && options?.dualInfo) {
-    const { sheetWeaponPvE, sheetWeaponPvP, sheetPerksPvE, sheetPerksPvP, isBestInClassPvE, isBestInClassPvP, bestAlternativePvE, bestAlternativePvP } = options.dualInfo;
+    const { 
+      sheetWeaponPvE, 
+      sheetWeaponPvP, 
+      sheetPerksPvE, 
+      sheetPerksPvP, 
+      isBestInClassPvE, 
+      isBestInClassPvP, 
+      bestAlternativePvE, 
+      bestAlternativePvP,
+      shoppingItemPvE,
+      shoppingAltPvE,
+      shoppingItemPvP,
+      shoppingAltPvP
+    } = options.dualInfo;
+
+    const pveBannerHtml = renderShoppingBannerHtml(shoppingItemPvE, shoppingAltPvE, 'Aegis');
+    const pvpBannerHtml = renderShoppingBannerHtml(shoppingItemPvP, shoppingAltPvP, 'Finnald');
 
     let pveColHtml = '';
     let pvpColHtml = '';
 
     if (sheetWeaponPvE) {
-      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork, true, true, aegisPerkOrder || 'sheet');
+      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
       pveColHtml = `
         <div class="aegis-dual-col aegis-col-pve">
           <div class="aegis-dual-col-header">
-            <span class="aegis-dual-col-title">⚔️ ${t('modePve')}</span>
+            <span class="aegis-dual-col-title">${t('modePve')}</span>
           </div>
+          ${pveBannerHtml}
           ${pveSection.metaHtml}
           ${pveSection.bodyHtml}
         </div>
@@ -545,12 +597,13 @@ export function showTooltip(
     }
 
     if (sheetWeaponPvP) {
-      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork, true, true, aegisPerkOrder || 'sheet');
+      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
       pvpColHtml = `
         <div class="aegis-dual-col aegis-col-pvp">
           <div class="aegis-dual-col-header">
-            <span class="aegis-dual-col-title">🎯 ${t('modePvp')}</span>
+            <span class="aegis-dual-col-title">${t('modePvp')}</span>
           </div>
+          ${pvpBannerHtml}
           ${pvpSection.metaHtml}
           ${pvpSection.bodyHtml}
         </div>
@@ -565,7 +618,7 @@ export function showTooltip(
       </div>
     `;
   } else if (sheetWeapon) {
-    const singleSection = renderSheetWeaponSection(sheetWeapon, sheetPerks, (aegisMode === 'pvp' ? 'pvp' : 'pve'), isBestInClass, bestAlternative, equippedMasterwork, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+    const singleSection = renderSheetWeaponSection(sheetWeapon, sheetPerks || undefined, (aegisMode === 'pvp' ? 'pvp' : 'pve'), isBestInClass, bestAlternative, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
     sheetMetaHtml = singleSection.metaHtml;
     sheetBodyHtml = singleSection.bodyHtml;
     recMod = singleSection.recMod;

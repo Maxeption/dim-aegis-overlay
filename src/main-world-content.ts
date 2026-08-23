@@ -33,6 +33,7 @@ let manifestDbName: string | null = null;
 let itemStoreName: string | null = null;
 let plugSetStoreName: string | null = null;
 const weaponNameToHash: Record<string, number> = {};
+const itemSocketsCount: Record<number, number> = {};
 
 // Promise to handle startup race conditions between indexing and content requests
 let indexReadyResolve: (() => void) | null = null;
@@ -233,7 +234,14 @@ async function getWeaponPossiblePerksByName(weaponName: string): Promise<{
   }
 
   const normName = weaponName.toLowerCase().trim();
-  const hash = weaponNameToHash[normName];
+  let hash = weaponNameToHash[normName];
+  if (!hash) {
+    const cleanName = normName
+      .replace(/\s*\([^)]+\)\s*/g, ' ')
+      .replace(/\s+(pantheon version|adept|timelost|harrowed|brave|reprised|reissued|sunset)\b/gi, '')
+      .trim();
+    hash = weaponNameToHash[cleanName];
+  }
   if (!hash) {
     sendDiagnosticLog(`Error: Weapon "${weaponName}" not found in manifest index (Total weapons indexed: ${Object.keys(weaponNameToHash).length}).`);
     return null;
@@ -1209,7 +1217,13 @@ async function buildWeaponIndex() {
           const name = itemObj.displayProperties.name.trim();
 
           if (isWeapon) {
-            weaponNameToHash[name.toLowerCase()] = hash;
+            const key = name.toLowerCase();
+            const existingHash = weaponNameToHash[key];
+            const newSocketCount = itemObj.sockets?.socketEntries?.length || 0;
+            if (!existingHash || newSocketCount >= (itemSocketsCount[existingHash] || 0)) {
+              weaponNameToHash[key] = hash;
+              itemSocketsCount[hash] = newSocketCount;
+            }
             globalWeaponRegistry[hash] = name;
           } else if (itemObj.plug || itemObj.itemCategoryHashes?.includes(59) || itemObj.itemType === 19) {
             const icon = itemObj.displayProperties.icon || '';
@@ -1260,7 +1274,13 @@ async function buildWeaponIndex() {
                   const name = itemObj.displayProperties.name.trim();
 
                   if (isWeapon) {
-                    weaponNameToHash[name.toLowerCase()] = hash;
+                    const key = name.toLowerCase();
+                    const existingHash = weaponNameToHash[key];
+                    const newSocketCount = itemObj.sockets?.socketEntries?.length || 0;
+                    if (!existingHash || newSocketCount >= (itemSocketsCount[existingHash] || 0)) {
+                      weaponNameToHash[key] = hash;
+                      itemSocketsCount[hash] = newSocketCount;
+                    }
                     globalWeaponRegistry[hash] = name;
                   } else if (itemObj.plug || itemObj.itemCategoryHashes?.includes(59) || itemObj.itemType === 19) {
                     const icon = itemObj.displayProperties.icon || '';
@@ -1280,7 +1300,13 @@ async function buildWeaponIndex() {
               const name = val.displayProperties.name.trim();
 
               if (isWeapon) {
-                weaponNameToHash[name.toLowerCase()] = hash;
+                const key = name.toLowerCase();
+                const existingHash = weaponNameToHash[key];
+                const newSocketCount = val.sockets?.socketEntries?.length || 0;
+                if (!existingHash || newSocketCount >= (itemSocketsCount[existingHash] || 0)) {
+                  weaponNameToHash[key] = hash;
+                  itemSocketsCount[hash] = newSocketCount;
+                }
                 globalWeaponRegistry[hash] = name;
               } else if (val.plug || val.itemCategoryHashes?.includes(59) || val.itemType === 19) {
                 const icon = val.displayProperties.icon || '';
@@ -1313,13 +1339,324 @@ async function buildWeaponIndex() {
 function initRegistryEl() {
   let registryEl = document.getElementById('aegis-global-perk-registry');
   if (!registryEl) {
-    registryEl = document.createElement('div');
+registryEl = document.createElement('div');
     registryEl.id = 'aegis-global-perk-registry';
     registryEl.style.display = 'none';
     document.body.appendChild(registryEl);
   }
-  setupRegistryObserver(registryEl);
+  return registryEl;
 }
+
+// Attach window exporter function for 1-click manifest extraction
+(window as any).aegisExportManifest = async function() {
+  console.log('🚀 [DIM Aegis Overlay] Starting full Bungie manifest export from DIM...');
+  try {
+    const dbs = await indexedDB.databases();
+    let targetDbName = manifestDbName;
+    if (!targetDbName) {
+      for (const d of dbs) {
+        if (d.name && !d.name.includes('google') && !d.name.includes('chrome')) {
+          targetDbName = d.name;
+          break;
+        }
+      }
+    }
+    if (!targetDbName) {
+      console.error('❌ Could not find DIM manifest database in IndexedDB.');
+      return;
+    }
+
+    const db = await new Promise<IDBDatabase | null>((resolve) => {
+      const req = indexedDB.open(targetDbName!);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    if (!db) {
+      console.error('❌ Failed to open IndexedDB:', targetDbName);
+      return;
+    }
+
+    let itemsTable: Record<string, any> = {};
+    let plugSetsTable: Record<string, any> = {};
+    let damageTypesTable: Record<string, any> = {};
+
+    if (db.objectStoreNames.contains('keyval')) {
+      const tx = db.transaction('keyval', 'readonly');
+      const store = tx.objectStore('keyval');
+      const keys = await new Promise<any[]>((res) => {
+        const req = store.getAllKeys();
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => res([]);
+      });
+
+      for (const k of keys) {
+        const kStr = String(k);
+        if (kStr.includes('DestinyInventoryItemDefinition') || kStr.includes('InventoryItem')) {
+          const val = await new Promise<any>((res) => {
+            const req = store.get(k);
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => res(null);
+          });
+          if (val) Object.assign(itemsTable, val.DestinyInventoryItemDefinition || val.InventoryItem || val);
+        } else if (kStr.includes('DestinyPlugSetDefinition') || kStr.includes('PlugSet')) {
+          const val = await new Promise<any>((res) => {
+            const req = store.get(k);
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => res(null);
+          });
+          if (val) Object.assign(plugSetsTable, val.DestinyPlugSetDefinition || val.PlugSet || val);
+        } else if (kStr.includes('DestinyDamageTypeDefinition') || kStr.includes('DamageType')) {
+          const val = await new Promise<any>((res) => {
+            const req = store.get(k);
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => res(null);
+          });
+          if (val) Object.assign(damageTypesTable, val.DestinyDamageTypeDefinition || val.DamageType || val);
+        }
+      }
+    }
+    db.close();
+
+    console.log(`✓ Loaded ${Object.keys(itemsTable).length} item definitions and ${Object.keys(plugSetsTable).length} plug set definitions.`);
+
+    const DAMAGE_TYPE_NAMES: Record<number, string> = {
+      1: 'Kinetic',
+      2: 'Arc',
+      3: 'Solar',
+      4: 'Void',
+      5: 'Raid',
+      6: 'Stasis',
+      7: 'Strand',
+    };
+
+    const AMMO_TYPE_NAMES: Record<number, string> = {
+      1: 'Primary',
+      2: 'Special',
+      3: 'Heavy',
+      0: 'Unknown',
+    };
+
+    function getPlugNamesFromSet(plugSetHash: number): string[] {
+      const plugSet = plugSetsTable[plugSetHash] || plugSetsTable[String(plugSetHash)];
+      if (!plugSet || !Array.isArray(plugSet.reusablePlugItems)) return [];
+      const names: string[] = [];
+      for (const entry of plugSet.reusablePlugItems) {
+        if (!entry.plugItemHash) continue;
+        const plug = itemsTable[entry.plugItemHash] || itemsTable[String(entry.plugItemHash)];
+        if (plug && plug.displayProperties && plug.displayProperties.name) {
+          const pName = plug.displayProperties.name.trim();
+          const pLower = pName.toLowerCase();
+          if (
+            pName &&
+            !pLower.includes('unknown') &&
+            !pLower.startsWith('empty ') &&
+            !pLower.startsWith('default ') &&
+            !names.includes(pName)
+          ) {
+            names.push(pName);
+          }
+        }
+      }
+      return names;
+    }
+
+    const weapons: any[] = [];
+
+    for (const [hashStr, item] of Object.entries(itemsTable)) {
+      const itemObj = item as any;
+      if (!itemObj.displayProperties || !itemObj.displayProperties.name) continue;
+      const isWeapon =
+        itemObj.itemType === 3 ||
+        (itemObj.itemCategoryHashes && itemObj.itemCategoryHashes.includes(1)) ||
+        (itemObj.sockets && itemObj.itemTypeDisplayName && itemObj.itemTypeDisplayName.toLowerCase().includes('weapon'));
+
+      if (!isWeapon) continue;
+
+      const hash = itemObj.hash || Number(hashStr);
+      const name = itemObj.displayProperties.name.trim();
+      if (!name || name.startsWith('Dummy') || name.startsWith('Test ') || name.toLowerCase().includes('classified')) {
+        continue;
+      }
+
+      const icon = itemObj.displayProperties.icon ? `https://www.bungie.net${itemObj.displayProperties.icon}` : '';
+      const watermark = itemObj.iconWatermark ? `https://www.bungie.net${itemObj.iconWatermark}` : (itemObj.iconWatermarkShelved ? `https://www.bungie.net${itemObj.iconWatermarkShelved}` : '');
+      const typeName = itemObj.itemTypeDisplayName || 'Weapon';
+      const tierName = itemObj.inventory?.tierTypeName || 'Legendary';
+      const ammoType = AMMO_TYPE_NAMES[itemObj.equippingBlock?.ammoType] || 'Primary';
+
+      const defaultDamageType = itemObj.defaultDamageType || 1;
+      const damageTypeObj = damageTypesTable[itemObj.defaultDamageTypeId || defaultDamageType] || {};
+      const damageType = DAMAGE_TYPE_NAMES[defaultDamageType] || damageTypeObj.displayProperties?.name || 'Kinetic';
+      const damageIcon = damageTypeObj.displayProperties?.icon ? `https://www.bungie.net${damageTypeObj.displayProperties.icon}` : '';
+
+      let rpm = '';
+      if (itemObj.stats && itemObj.stats.stats) {
+        const rpmStat = itemObj.stats.stats['428488797'] || itemObj.stats.stats['2961396640'] || itemObj.stats.stats['3871231066'];
+        if (rpmStat && typeof rpmStat.value === 'number') {
+          rpm = String(rpmStat.value);
+        }
+      }
+
+      let archetype = '';
+      const socketEntries = itemObj.sockets?.socketEntries || [];
+      for (const socket of socketEntries) {
+        if (socket.singleInitialItemHash) {
+          const plug = itemsTable[socket.singleInitialItemHash] || itemsTable[String(socket.singleInitialItemHash)];
+          if (plug && plug.itemTypeDisplayName && (plug.itemTypeDisplayName.includes('Frame') || plug.itemTypeDisplayName.includes('Intrinsic') || plug.itemTypeDisplayName.includes('Glaive'))) {
+            archetype = plug.displayProperties?.name || plug.itemTypeDisplayName;
+            break;
+          }
+        }
+      }
+
+      let col1Barrels: string[] = [];
+      let col2Mags: string[] = [];
+      let col3Perks: string[] = [];
+      let col4Perks: string[] = [];
+      let col5Origins: string[] = [];
+
+      let traitColumnIndex = 0;
+
+      for (const socket of socketEntries) {
+        const plugSetHashes = [
+          socket.randomizedPlugSetHash,
+          socket.reusablePlugSetHash,
+        ].filter((h): h is number => typeof h === 'number' && h > 0);
+
+        let plugNames: string[] = [];
+        for (const psHash of plugSetHashes) {
+          plugNames.push(...getPlugNamesFromSet(psHash));
+        }
+
+        if (plugNames.length === 0 && Array.isArray(socket.reusablePlugItems)) {
+          for (const rpi of socket.reusablePlugItems) {
+            const plug = itemsTable[rpi.plugItemHash] || itemsTable[String(rpi.plugItemHash)];
+            if (plug?.displayProperties?.name) {
+              const pName = plug.displayProperties.name.trim();
+              const pLower = pName.toLowerCase();
+              if (
+                pName &&
+                !pLower.includes('unknown') &&
+                !pLower.startsWith('empty ') &&
+                !pLower.startsWith('default ') &&
+                !plugNames.includes(pName)
+              ) {
+                plugNames.push(pName);
+              }
+            }
+          }
+        }
+
+        if (plugNames.length === 0) continue;
+        plugNames = [...new Set(plugNames)];
+
+        const firstPlugHash = socket.randomizedPlugSetHash
+          ? plugSetsTable[socket.randomizedPlugSetHash]?.reusablePlugItems?.[0]?.plugItemHash
+          : (socket.reusablePlugItems?.[0]?.plugItemHash || socket.singleInitialItemHash);
+        const firstPlug = firstPlugHash ? (itemsTable[firstPlugHash] || itemsTable[String(firstPlugHash)]) : null;
+        const plugCat = (firstPlug?.plug?.plugCategoryIdentifier || '').toLowerCase();
+        const plugType = (firstPlug?.itemTypeDisplayName || '').toLowerCase();
+
+        if (plugCat.includes('barrel') || plugCat.includes('sight') || plugCat.includes('scope') || plugType.includes('barrel') || plugType.includes('sight') || plugType.includes('scope') || plugCat.includes('tube') || plugCat.includes('bowstring') || plugCat.includes('blade')) {
+          col1Barrels.push(...plugNames);
+        } else if (plugCat.includes('magazine') || plugCat.includes('battery') || plugCat.includes('mag') || plugType.includes('magazine') || plugType.includes('battery') || plugCat.includes('arrow') || plugCat.includes('guard')) {
+          col2Mags.push(...plugNames);
+        } else if (plugCat.includes('origin') || plugType.includes('origin') || plugCat.includes('trait.origin')) {
+          col5Origins.push(...plugNames);
+        } else if (plugCat.includes('v400.plugs.weapons.traits') || plugCat.includes('traits') || plugCat.includes('perk') || plugType.includes('trait') || plugCat.includes('frames')) {
+          traitColumnIndex++;
+          if (traitColumnIndex === 1) {
+            col3Perks.push(...plugNames);
+          } else if (traitColumnIndex === 2) {
+            col4Perks.push(...plugNames);
+          }
+        }
+      }
+
+      col1Barrels = [...new Set(col1Barrels)];
+      col2Mags = [...new Set(col2Mags)];
+      col3Perks = [...new Set(col3Perks)];
+      col4Perks = [...new Set(col4Perks)];
+      col5Origins = [...new Set(col5Origins)];
+
+      const allPerks = [...new Set([...col1Barrels, ...col2Mags, ...col3Perks, ...col4Perks, ...col5Origins])];
+      if (allPerks.length === 0) continue; // Skip empty dummy entries
+
+      const isCraftable = !!(itemObj.inventory?.recipeItemHash || itemObj.recipeItemHash);
+
+      weapons.push({
+        hash,
+        name,
+        icon,
+        typeName,
+        tierName,
+        damageType,
+        damageIcon,
+        ammoType,
+        watermark,
+        seasonName: itemObj.seasonHash ? `Season ${itemObj.seasonHash}` : null,
+        sourceName: null,
+        rpm: rpm ? Number(rpm) || rpm : undefined,
+        archetype: archetype || undefined,
+        perks: allPerks,
+        perkColumns: [col3Perks, col4Perks],
+        barrels: col1Barrels,
+        magazines: col2Mags,
+        origins: col5Origins,
+        isCraftable,
+        superseded: false,
+      });
+    }
+
+    // Deduplicate and mark superseded versions
+    const nameGroups: Record<string, any[]> = {};
+    for (const w of weapons) {
+      const norm = w.name.toLowerCase().trim();
+      if (!nameGroups[norm]) nameGroups[norm] = [];
+      nameGroups[norm].push(w);
+    }
+
+    for (const group of Object.values(nameGroups)) {
+      if (group.length > 1) {
+        group.sort((a, b) => {
+          // 1. Prefer weapons with real origin traits
+          const aHasOrigins = a.origins.length > 0 ? 1 : 0;
+          const bHasOrigins = b.origins.length > 0 ? 1 : 0;
+          if (aHasOrigins !== bHasOrigins) return bHasOrigins - aHasOrigins;
+
+          // 2. Prefer higher count of valid trait perks
+          const aPerks = (a.perkColumns[0]?.length || 0) + (a.perkColumns[1]?.length || 0);
+          const bPerks = (b.perkColumns[0]?.length || 0) + (b.perkColumns[1]?.length || 0);
+          if (bPerks !== aPerks) return bPerks - aPerks;
+
+          // 3. Fallback to newest hash
+          return b.hash - a.hash;
+        });
+
+        group[0].superseded = false;
+        for (let i = 1; i < group.length; i++) {
+          group[i].superseded = true;
+        }
+      }
+    }
+
+    weapons.sort((a, b) => a.name.localeCompare(b.name));
+
+    console.log(`✅ [DIM Aegis Overlay] Extracted ${weapons.length} weapons with complete perk matrices! Downloading JSON...`);
+    const blob = new Blob([JSON.stringify(weapons, null, 2)], { type: 'application/json' });
+    const blobUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = blobUrl;
+    downloadLink.download = 'manifest-weapons.json';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(blobUrl);
+    console.log('🎉 Download completed! Replace data/manifest-weapons.json with the downloaded file.');
+  } catch (err) {
+    console.error('❌ Manifest export failed:', err);
+  }
+};
 
 function startObserver() {
   if (!document.body) {

@@ -234,27 +234,28 @@
 }
 
 /* Split Badge (Both PvE + PvP Mode) - Authentic Aegis Dual Pill */
-.aegis-badge.aegis-badge-split {
+.aegis-badge.aegis-badge-split,
+.aegis-badge.aegis-badge-split.aegis-badge-wide,
+.aegis-badge.aegis-style-classic.aegis-badge-split,
+.aegis-badge.aegis-style-pill.aegis-badge-split,
+.aegis-badge.aegis-style-notch.aegis-badge-split {
   padding: 0 !important;
   display: inline-flex !important;
   align-items: stretch !important;
   justify-content: center !important;
   width: auto !important;
   max-width: calc(100% - 4px) !important;
-  overflow: hidden !important;
-  isolation: isolate !important;
-  -webkit-mask-image: -webkit-radial-gradient(white, black) !important;
-  border-radius: 9999px !important;
+  overflow: visible !important;
   background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.75) !important;
   box-sizing: border-box !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-classic {
-  height: 18px !important;
+  height: 16.5px !important;
   border-radius: 9999px !important;
-  font-size: calc(9.5px * var(--aegis-badge-scale, 1)) !important;
+  font-size: calc(9px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-pill {
@@ -271,6 +272,15 @@
   font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
 }
 
+.aegis-split-inner {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  overflow: hidden !important;
+  align-items: stretch !important;
+}
+
 .aegis-split-half {
   flex: 1 1 auto !important;
   display: inline-flex !important;
@@ -278,7 +288,7 @@
   justify-content: center !important;
   text-align: center !important;
   height: 100% !important;
-  padding: 0 4.5px !important;
+  padding: 0 3.5px !important;
   font-weight: 800 !important;
   color: #ffffff !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
@@ -290,45 +300,15 @@
   overflow: hidden !important;
 }
 
+.aegis-split-half.aegis-split-right {
+  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
+}
+
 /* Compact scaling for potential transition arrows */
 .aegis-badge-split .aegis-split-half.aegis-split-transition {
   font-size: calc(7.5px * var(--aegis-badge-scale, 1)) !important;
-  padding: 0 3px !important;
+  padding: 0 2px !important;
   letter-spacing: -0.35px !important;
-}
-
-/* Classic Round Capsule Halves */
-.aegis-badge.aegis-style-classic .aegis-split-half.aegis-split-left {
-  border-top-left-radius: 9999px !important;
-  border-bottom-left-radius: 9999px !important;
-}
-
-.aegis-badge.aegis-style-classic .aegis-split-half.aegis-split-right {
-  border-top-right-radius: 9999px !important;
-  border-bottom-right-radius: 9999px !important;
-  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
-}
-
-/* Slim Pill Halves */
-.aegis-badge.aegis-style-pill .aegis-split-half.aegis-split-left {
-  border-top-left-radius: 2px !important;
-  border-bottom-left-radius: 2px !important;
-}
-
-.aegis-badge.aegis-style-pill .aegis-split-half.aegis-split-right {
-  border-top-right-radius: 2px !important;
-  border-bottom-right-radius: 2px !important;
-  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
-}
-
-/* Top Notch Halves */
-.aegis-badge.aegis-style-notch .aegis-split-half.aegis-split-left {
-  border-radius: 0 0 0 3px !important;
-}
-
-.aegis-badge.aegis-badge-split.aegis-style-notch .aegis-split-half.aegis-split-right {
-  border-radius: 0 0 3px 0 !important;
-  border-left: 1px solid rgba(0, 0, 0, 0.35) !important;
 }
 
 .aegis-badge-none {
@@ -452,8 +432,10 @@
 }
 
 .aegis-popup-dual-col .aegis-details-chips-container {
-  gap: 3px !important;
-  justify-content: flex-end !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2.5px !important;
+  align-items: flex-end !important;
 }
 
 .aegis-popup-dual-col .aegis-perk-chip {
@@ -2069,11 +2051,16 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   line-height: 1.45 !important;
 }
 
+.aegis-details-row.aegis-perk-row {
+  align-items: flex-start !important;
+}
+
 .aegis-details-label {
   color: #8f8f94 !important;
   font-weight: 600 !important;
   width: 75px !important;
   flex-shrink: 0 !important;
+  padding-top: 2px !important;
 }
 
 .aegis-details-value {
@@ -2085,14 +2072,15 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 
 .aegis-details-chips-container {
   display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-  justify-content: flex-end !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  align-items: flex-end !important;
 }
 
 .aegis-perk-chip {
   display: inline-flex !important;
   align-items: center !important;
+  width: fit-content !important;
   padding: 2.5px 6.5px !important;
   border-radius: 4px !important;
   font-size: 10.5px !important;
@@ -2268,17 +2256,20 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 .aegis-perks-matrix-2col {
-  display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr);
-  gap: 8px;
-  margin-top: 4px;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  margin-top: 4px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .aegis-perks-matrix-col {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  width: 100% !important;
 }
 
 .aegis-perks-matrix-col .aegis-details-row {
@@ -2287,6 +2278,7 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   gap: 2px !important;
   margin-top: 2px !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .aegis-perks-matrix-col .aegis-details-label {
@@ -2296,6 +2288,9 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 .aegis-perks-matrix-col .aegis-details-chips-container {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 3px !important;
   justify-content: flex-start !important;
   width: 100% !important;
 }
@@ -2661,6 +2656,8 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 
 /* Result Row Card */
 .aegis-explorer-row {
+  content-visibility: auto !important;
+  contain-intrinsic-size: 0 95px !important;
   background: rgba(255, 255, 255, 0.02) !important;
   border: 1px solid rgba(255, 255, 255, 0.04) !important;
   border-radius: 8px !important;
@@ -3084,27 +3081,207 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   border-bottom-color: #ffd700 !important;
 }
 
-/* Pinned Chase Card Rows */
+/* Hide Explorer search group when on Chase tab */
+.aegis-explorer-panel.tab-chase .aegis-explorer-search-group {
+  display: none !important;
+}
+
+/* Pinned Chase Card Rows & Header Search Bar (Full Width) */
+.aegis-chase-header-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin-bottom: 14px !important;
+  position: relative !important;
+}
+
+.aegis-chase-search-wrapper {
+  width: 100% !important;
+  position: relative !important;
+}
+
+.aegis-chase-search-input {
+  width: 100% !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 215, 0, 0.4) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  padding: 10px 14px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s ease !important;
+}
+
+.aegis-chase-search-input:focus {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+}
+
+.aegis-chase-stats-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.aegis-chase-search-dropdown {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: #18181c !important;
+  border: 1px solid rgba(255, 215, 0, 0.4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8) !important;
+  max-height: 280px !important;
+  overflow-y: auto !important;
+  z-index: 10005 !important;
+}
+
+.aegis-chase-search-dropdown.hidden {
+  display: none !important;
+}
+
+.aegis-chase-search-empty {
+  padding: 16px !important;
+  text-align: center !important;
+  color: #888 !important;
+  font-size: 12px !important;
+}
+
+.aegis-chase-search-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 8px 12px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+}
+
+.aegis-chase-search-item:last-child {
+  border-bottom: none !important;
+}
+
+.aegis-chase-search-item:hover {
+  background: rgba(255, 215, 0, 0.08) !important;
+}
+
+.aegis-search-item-thumb {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-search-item-text {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.aegis-search-item-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+.aegis-search-item-elem {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.aegis-search-craftable-badge {
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  background: rgba(229, 62, 62, 0.2) !important;
+  color: #fc8181 !important;
+  border: 1px solid rgba(229, 62, 62, 0.4) !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  text-transform: uppercase !important;
+}
+
+.aegis-search-item-subtitle {
+  font-size: 11px !important;
+  color: #888 !important;
+  margin-top: 2px !important;
+}
+
+.aegis-search-add-btn {
+  background: rgba(255, 215, 0, 0.15) !important;
+  border: 1px solid rgba(255, 215, 0, 0.4) !important;
+  color: #ffd700 !important;
+  border-radius: 5px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.aegis-search-add-btn:hover {
+  background: #ffd700 !important;
+  color: #121212 !important;
+}
+
+.aegis-chase-search-item.already-tracked .aegis-search-add-btn {
+  background: rgba(30, 215, 96, 0.15) !important;
+  border-color: rgba(30, 215, 96, 0.4) !important;
+  color: #1ed760 !important;
+}
+
+.aegis-chase-stats-counter {
+  display: flex !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-chase-count-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
+  color: #e3e3e8 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 6px 10px !important;
+}
+
+.aegis-chase-count-badge.count-completed {
+  background: rgba(30, 215, 96, 0.12) !important;
+  border-color: rgba(30, 215, 96, 0.3) !important;
+  color: #1ed760 !important;
+}
+
 .aegis-chase-row {
   background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  border-radius: 6px !important;
-  padding: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
   margin-bottom: 12px !important;
   box-sizing: border-box !important;
   animation: aegis-fade-in 0.2s ease !important;
   cursor: pointer !important;
-  transition: background 0.15s ease, border-color 0.15s ease !important;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .aegis-chase-row:hover {
   background: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 179, 0, 0.25) !important;
+  border-color: rgba(255, 215, 0, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
 .aegis-chase-row.expanded {
   background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 179, 0, 0.2) !important;
+  border-color: rgba(255, 215, 0, 0.35) !important;
 }
 
 .aegis-chase-row.expanded .aegis-chase-chevron {
@@ -3112,17 +3289,83 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   color: #ffd700 !important;
 }
 
+.aegis-chase-chevron {
+  font-size: 10px !important;
+  color: #888 !important;
+  transition: transform 0.2s ease !important;
+  display: inline-block !important;
+  flex-shrink: 0 !important;
+}
+
 .aegis-chase-row-header {
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  margin-bottom: 4px !important;
+  gap: 10px !important;
+}
+
+.aegis-chase-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.aegis-chase-weapon-icon {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 5px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-chase-title-group {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.aegis-chase-title-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
 }
 
 .aegis-chase-name {
   font-size: 14px !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   color: #ffffff !important;
+}
+
+.aegis-chase-element-icon {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-chase-pill {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #cbd5e0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.aegis-chase-pill.pill-archetype {
+  background: rgba(99, 179, 237, 0.12) !important;
+  color: #90cdf4 !important;
+  border-color: rgba(99, 179, 237, 0.25) !important;
+}
+
+.aegis-chase-pill.pill-craftable {
+  background: rgba(229, 62, 62, 0.15) !important;
+  color: #feb2b2 !important;
+  border-color: rgba(229, 62, 62, 0.3) !important;
 }
 
 .aegis-chase-delete {
@@ -3143,7 +3386,7 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-chase-meta {
   font-size: 11px !important;
   color: #ffd700 !important;
-  margin-bottom: 4px !important;
+  margin-top: 2px !important;
 }
 
 .aegis-chase-selectors {
@@ -3159,7 +3402,7 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 .aegis-chase-row.expanded .aegis-chase-selectors {
-  max-height: 500px !important;
+  max-height: 550px !important;
   opacity: 1 !important;
   margin-bottom: 12px !important;
   margin-top: 10px !important;
@@ -3172,33 +3415,46 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 .aegis-chase-select-group label {
-  font-size: 9px !important;
-  color: #888 !important;
-  font-weight: 600 !important;
+  font-size: 9.5px !important;
+  color: #a0aec0 !important;
+  font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.2px !important;
+  letter-spacing: 0.3px !important;
 }
 
 .aegis-chase-select {
-  background: rgba(0, 0, 0, 0.3) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 4px !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
   color: #e3e3e8 !important;
-  font-size: 11px !important;
-  padding: 4px 6px !important;
+  font-size: 11.5px !important;
+  padding: 5px 8px !important;
   outline: none !important;
   cursor: pointer !important;
-  transition: border-color 0.15s ease !important;
+  transition: border-color 0.15s ease, background 0.15s ease !important;
 }
 
 .aegis-chase-select:focus {
   border-color: #ffd700 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+.aegis-chase-select optgroup {
+  background: #1a1a20 !important;
+  color: #ffd700 !important;
+  font-weight: 800 !important;
+}
+
+.aegis-chase-select option {
+  background: #18181c !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
 }
 
 .aegis-chase-status-row {
-  background: rgba(0, 0, 0, 0.2) !important;
-  border-radius: 4px !important;
-  padding: 6px 10px !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
   font-size: 11px !important;
   display: flex !important;
   align-items: center !important;
@@ -3206,20 +3462,26 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   margin-top: 8px !important;
 }
 
+.aegis-chase-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
 .aegis-chase-status {
-  font-weight: 600 !important;
+  font-weight: 700 !important;
 }
 
 .aegis-status-none {
-  color: #ff5c5c !important;
+  color: #fc8181 !important;
 }
 
 .aegis-status-match {
-  color: #1ed760 !important;
+  color: #48bb78 !important;
 }
 
 .aegis-status-have-weapon {
-  color: #ffb300 !important;
+  color: #ecc94b !important;
 }
 
 .aegis-chase-btn-highlight {

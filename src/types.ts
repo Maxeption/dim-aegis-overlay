@@ -50,6 +50,8 @@ export interface LocalStorageSchema {
   aegisSheetDbPvE?: AegisSheetDatabase;
   aegisSheetDbPvP?: AegisSheetDatabase;
   aegisShoppingDb?: AegisShoppingDatabase;
+  aegisShoppingDbPvE?: AegisShoppingDatabase;
+  aegisShoppingDbPvP?: AegisShoppingDatabase;
   aegisMode?: 'pve' | 'pvp' | 'both';
   aegisCompactPerksMatrix?: boolean;
   aegisInlineHeader?: boolean;
@@ -57,18 +59,60 @@ export interface LocalStorageSchema {
   aegisTooltipWidthMode?: 'auto' | 'fixed';
   aegisTooltipWidth?: number;
   aegisSheetLastSync?: number;
-  aegisChaseList?: Record<string, {
-    name: string;
-    barrel: string;
-    mag: string;
-    perk1: string;
-    perk1Alt1?: string;
-    perk1Alt2?: string;
-    perk2: string;
-    perk2Alt1?: string;
-    perk2Alt2?: string;
-    origin?: string;
-  }>;
+  aegisChaseList?: Record<string, AegisChaseItem>;
+}
+
+/**
+ * An entry in the user's custom Roll Chase List.
+ */
+export interface AegisChaseItem {
+  name: string;
+  barrel: string;
+  mag: string;
+  perk1: string;
+  perk1Alt1?: string;
+  perk1Alt2?: string;
+  perk2: string;
+  perk2Alt1?: string;
+  perk2Alt2?: string;
+  origin?: string;
+  itemHash?: number;
+  icon?: string;
+  damageType?: string;
+  damageIcon?: string;
+  archetype?: string;
+  typeName?: string;
+  source?: string;
+}
+
+/**
+ * Manifest weapon representation from Bungie API definitions.
+ */
+export interface ManifestWeapon {
+  hash: number;
+  name: string;
+  icon: string;
+  typeName: string;
+  tierName: string;
+  damageType: string;
+  damageIcon: string;
+  ammoType: string;
+  watermark?: string;
+  seasonName?: string;
+  releaseVersion?: number;
+  sourceName?: string | null;
+  rpm?: number;
+  archetype?: string;
+  perks: string[];
+  perkColumns: string[][];
+  barrels?: string[];
+  magazines?: string[];
+  origins?: string[];
+  isCraftable: boolean;
+  baseStats?: Record<string, number>;
+  maxStats?: Record<string, number>;
+  superseded?: boolean;
+  sourceCategories?: string[];
 }
 
 /**
@@ -164,6 +208,10 @@ export interface DualSheetInfo {
   bestAlternativePvP?: string;
   isBestInClassPvE?: boolean;
   isBestInClassPvP?: boolean;
+  shoppingItemPvE?: AegisShoppingItem | null;
+  shoppingAltPvE?: { primaryName: string; role: string } | null;
+  shoppingItemPvP?: AegisShoppingItem | null;
+  shoppingAltPvP?: { primaryName: string; role: string } | null;
 }
 
 /**
@@ -191,5 +239,39 @@ export interface AegisShoppingDatabase {
   byName: Record<string, AegisShoppingItem>;
   alternativesMap: Record<string, { primaryName: string; role: string; priority: string; priorityNum: number }>;
 }
+
+/**
+ * Universal, strongly-typed evaluation payload attached to a weapon/armor DOM tile via WeakMap.
+ */
+export interface WeaponEvaluationPayload {
+  result: ScoringResult;
+  name: string;
+  perksMap: Record<number, { name: string; icon: string }>;
+  activeHashes?: number[];
+  sheetWeapon?: AegisSheetWeapon | null;
+  sheetPerks?: SheetPerksGroup | null;
+  sheetArmor?: AegisArmorSet | null;
+  equippedMasterwork?: string | null;
+  shoppingItem?: AegisShoppingItem | null;
+  shoppingAlt?: { primaryName: string; role: string; priority: string; priorityNum: number } | null;
+  bestAlternative?: string;
+  isBestInClass?: boolean;
+  dualInfo?: DualSheetInfo;
+  shoppingItemPvE?: AegisShoppingItem | null;
+  shoppingAltPvE?: { primaryName: string; role: string } | null;
+  shoppingItemPvP?: AegisShoppingItem | null;
+  shoppingAltPvP?: { primaryName: string; role: string } | null;
+  sheetWeaponPvE?: AegisSheetWeapon | null;
+  sheetWeaponPvP?: AegisSheetWeapon | null;
+  sheetPerksPvE?: SheetPerksGroup | null;
+  sheetPerksPvP?: SheetPerksGroup | null;
+  pveResult?: ScoringResult | null;
+  pvpResult?: ScoringResult | null;
+  bestAlternativePvE?: string;
+  bestAlternativePvP?: string;
+  isBestInClassPvE?: boolean;
+  isBestInClassPvP?: boolean;
+}
+
 
 

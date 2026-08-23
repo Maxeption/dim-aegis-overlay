@@ -70,6 +70,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Aegis Database Explorer',
+    explorerTitlePvp: 'Finnald Database Explorer',
+    explorerTitleDual: 'Aegis & Finnald Database Explorer',
     chaseTitle: 'My Chase List',
     searchPlaceholder: 'Search weapon, notes, perks...',
     categoryPlaceholder: 'Category (e.g. Hand Cannons)...',
@@ -286,6 +288,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Explorador de Base de Datos Aegis',
+    explorerTitlePvp: 'Explorador de Base de Datos Finnald',
+    explorerTitleDual: 'Explorador de Base de Datos Aegis y Finnald',
     chaseTitle: 'Mi Lista de Deseos',
     searchPlaceholder: 'Buscar arma, notas, ventajas...',
     categoryPlaceholder: 'Categoría (ej. Cañones de mano)...',
@@ -503,6 +507,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Aegis 데이터베이스 탐색기',
+    explorerTitlePvp: 'Finnald 데이터베이스 탐색기',
+    explorerTitleDual: 'Aegis & Finnald 데이터베이스 탐색기',
     chaseTitle: '위시리스트 (Chase List)',
     searchPlaceholder: '무기, 메모, 퍽 검색...',
     categoryPlaceholder: '무기군 (예: 핸드캐논)...',
@@ -720,6 +726,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Aegis データベースエクスプローラー',
+    explorerTitlePvp: 'Finnald データベースエクスプローラー',
+    explorerTitleDual: 'Aegis & Finnald データベースエクスプローラー',
     chaseTitle: 'ウィッシュリスト (Chase List)',
     searchPlaceholder: '武器名、メモ、パークを検索...',
     categoryPlaceholder: '武器種 (例: ハンドキャノン)...',
@@ -937,6 +945,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Aegis 数据库浏览器',
+    explorerTitlePvp: 'Finnald 数据库浏览器',
+    explorerTitleDual: 'Aegis & Finnald 数据库浏览器',
     chaseTitle: '我的心愿单 (Chase List)',
     searchPlaceholder: '搜索武器、备注、词条...',
     categoryPlaceholder: '类别 (例如: 手炮)...',
@@ -1154,6 +1164,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     
     // Database Explorer
     explorerTitle: 'Aegis 資料庫瀏覽器',
+    explorerTitlePvp: 'Finnald 資料庫瀏覽器',
+    explorerTitleDual: 'Aegis & Finnald 資料庫瀏覽器',
     chaseTitle: '我的心願單 (Chase List)',
     searchPlaceholder: '搜尋武器、備註、詞條...',
     categoryPlaceholder: '類別 (例如: 手砲)...',
