@@ -10717,21 +10717,6 @@
       "tier": "A",
       "mw": "Impact"
     },
-    "sola's scar": {
-      "name": "Sola's Scar",
-      "energy": "Solar",
-      "frame": "Caster",
-      "barrel": "Jagged Edge\nEnduring Blade",
-      "mag": "Swordmaster's Guard\nHeavy Guard",
-      "perk1": "Relentless Strikes\nEager Edge\nSharp Harvest",
-      "perk2": "Redirection\nElemental Honing\nWhirlwind Blade",
-      "origin": "Fleet Footed",
-      "source": "Trials",
-      "notes": "Eager and Redirection on a caster, no AO, standard stuff otherwise",
-      "rank": "13",
-      "tier": "A",
-      "mw": "Impact"
-    },
     "night terror": {
       "name": "Night Terror",
       "energy": "Arc",
@@ -10743,6 +10728,21 @@
       "origin": "Loss",
       "source": "Moon",
       "notes": "basically Sola's Scar with slightly different perks and no Redirection",
+      "rank": "13",
+      "tier": "A",
+      "mw": "Impact"
+    },
+    "sola's scar": {
+      "name": "Sola's Scar",
+      "energy": "Solar",
+      "frame": "Caster",
+      "barrel": "Jagged Edge\nEnduring Blade",
+      "mag": "Swordmaster's Guard\nHeavy Guard",
+      "perk1": "Relentless Strikes\nEager Edge\nFlash Counter",
+      "perk2": "Elemental Honing\nWhirlwind Blade\nChain Reaction",
+      "origin": "Fleet Footed",
+      "source": "Trials",
+      "notes": "also has Redirection but heavy consumes stacks instantly, mostly just a caster roam sword",
       "rank": "14",
       "tier": "A",
       "mw": "Impact"
@@ -11143,7 +11143,7 @@
       "frame": "Disruption",
       "barrel": "Fluted Barrel",
       "mag": "Flared Magwell",
-      "perk1": "Lone Wolf\nBewildering Burst\nGutshot Straight",
+      "perk1": "Snapshot Sights\nLone Wolf\nGutshot Straight",
       "perk2": "Aggregate Charge\nEnvious Assassin",
       "origin": "Accelerated Assault",
       "source": "Renegades",
@@ -26571,23 +26571,6 @@
         "mw": "Impact"
       }
     ],
-    "sola's scar": [
-      {
-        "name": "Sola's Scar",
-        "energy": "Solar",
-        "frame": "Caster",
-        "barrel": "Jagged Edge\nEnduring Blade",
-        "mag": "Swordmaster's Guard\nHeavy Guard",
-        "perk1": "Relentless Strikes\nEager Edge\nSharp Harvest",
-        "perk2": "Redirection\nElemental Honing\nWhirlwind Blade",
-        "origin": "Fleet Footed",
-        "source": "Trials",
-        "notes": "Eager and Redirection on a caster, no AO, standard stuff otherwise",
-        "rank": "13",
-        "tier": "A",
-        "mw": "Impact"
-      }
-    ],
     "night terror": [
       {
         "name": "Night Terror",
@@ -26600,6 +26583,23 @@
         "origin": "Loss",
         "source": "Moon",
         "notes": "basically Sola's Scar with slightly different perks and no Redirection",
+        "rank": "13",
+        "tier": "A",
+        "mw": "Impact"
+      }
+    ],
+    "sola's scar": [
+      {
+        "name": "Sola's Scar",
+        "energy": "Solar",
+        "frame": "Caster",
+        "barrel": "Jagged Edge\nEnduring Blade",
+        "mag": "Swordmaster's Guard\nHeavy Guard",
+        "perk1": "Relentless Strikes\nEager Edge\nFlash Counter",
+        "perk2": "Elemental Honing\nWhirlwind Blade\nChain Reaction",
+        "origin": "Fleet Footed",
+        "source": "Trials",
+        "notes": "also has Redirection but heavy consumes stacks instantly, mostly just a caster roam sword",
         "rank": "14",
         "tier": "A",
         "mw": "Impact"
@@ -27054,7 +27054,7 @@
         "frame": "Disruption",
         "barrel": "Fluted Barrel",
         "mag": "Flared Magwell",
-        "perk1": "Lone Wolf\nBewildering Burst\nGutshot Straight",
+        "perk1": "Snapshot Sights\nLone Wolf\nGutshot Straight",
         "perk2": "Aggregate Charge\nEnvious Assassin",
         "origin": "Accelerated Assault",
         "source": "Renegades",
@@ -41433,21 +41433,6 @@
         "mw": "Impact"
       },
       {
-        "name": "Sola's Scar",
-        "energy": "Solar",
-        "frame": "Caster",
-        "barrel": "Jagged Edge\nEnduring Blade",
-        "mag": "Swordmaster's Guard\nHeavy Guard",
-        "perk1": "Relentless Strikes\nEager Edge\nSharp Harvest",
-        "perk2": "Redirection\nElemental Honing\nWhirlwind Blade",
-        "origin": "Fleet Footed",
-        "source": "Trials",
-        "notes": "Eager and Redirection on a caster, no AO, standard stuff otherwise",
-        "rank": "13",
-        "tier": "A",
-        "mw": "Impact"
-      },
-      {
         "name": "Night Terror",
         "energy": "Arc",
         "frame": "Caster",
@@ -41458,6 +41443,21 @@
         "origin": "Loss",
         "source": "Moon",
         "notes": "basically Sola's Scar with slightly different perks and no Redirection",
+        "rank": "13",
+        "tier": "A",
+        "mw": "Impact"
+      },
+      {
+        "name": "Sola's Scar",
+        "energy": "Solar",
+        "frame": "Caster",
+        "barrel": "Jagged Edge\nEnduring Blade",
+        "mag": "Swordmaster's Guard\nHeavy Guard",
+        "perk1": "Relentless Strikes\nEager Edge\nFlash Counter",
+        "perk2": "Elemental Honing\nWhirlwind Blade\nChain Reaction",
+        "origin": "Fleet Footed",
+        "source": "Trials",
+        "notes": "also has Redirection but heavy consumes stacks instantly, mostly just a caster roam sword",
         "rank": "14",
         "tier": "A",
         "mw": "Impact"
@@ -41875,7 +41875,7 @@
         "frame": "Disruption",
         "barrel": "Fluted Barrel",
         "mag": "Flared Magwell",
-        "perk1": "Lone Wolf\nBewildering Burst\nGutshot Straight",
+        "perk1": "Snapshot Sights\nLone Wolf\nGutshot Straight",
         "perk2": "Aggregate Charge\nEnvious Assassin",
         "origin": "Accelerated Assault",
         "source": "Renegades",
@@ -46792,7 +46792,7 @@
         "source": "Renegades",
         "priorityNum": 1,
         "priority": "high",
-        "column1": "Lone Wolf\nBewildering Burst\nGutshot Straight",
+        "column1": "Snapshot Sights\nLone Wolf\nGutshot Straight",
         "column2": "Aggregate Charge\nEnvious Assassin",
         "alternatives": [],
         "isArmor": false,
@@ -47824,7 +47824,7 @@
         "source": "Renegades",
         "priorityNum": 1,
         "priority": "high",
-        "column1": "Lone Wolf\nBewildering Burst\nGutshot Straight",
+        "column1": "Snapshot Sights\nLone Wolf\nGutshot Straight",
         "column2": "Aggregate Charge\nEnvious Assassin",
         "alternatives": [],
         "isArmor": false,
