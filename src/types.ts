@@ -58,7 +58,10 @@ export interface LocalStorageSchema {
   aegisAutoMaxHeight?: boolean;
   aegisTooltipWidthMode?: 'auto' | 'fixed';
   aegisTooltipWidth?: number;
-  aegisSheetLastSync?: number;
+  scoringSource?: 'aegis' | 'lightgg' | 'community';
+  communityPopularityDb?: CommunityPopularityDatabase;
+  communityPopularityLastSync?: number;
+  aegisShowCommunityPopularity?: boolean;
   aegisChaseList?: Record<string, AegisChaseItem>;
 }
 
@@ -271,6 +274,35 @@ export interface WeaponEvaluationPayload {
   bestAlternativePvP?: string;
   isBestInClassPvE?: boolean;
   isBestInClassPvP?: boolean;
+}
+
+/**
+ * Community-equipped perk popularity statistics for a single weapon.
+ */
+export interface CommunityWeaponPerkStats {
+  name?: string;
+  pve?: {
+    popularity?: number;
+    col3: Record<string, number>;
+    col4: Record<string, number>;
+    topRolls?: { perk1: string; perk2: string; pct: number }[];
+  };
+  pvp?: {
+    popularity?: number;
+    col3: Record<string, number>;
+    col4: Record<string, number>;
+    topRolls?: { perk1: string; perk2: string; pct: number }[];
+  };
+}
+
+/**
+ * Global database of community-equipped perk popularity across all weapons.
+ */
+export interface CommunityPopularityDatabase {
+  version: string;
+  generatedAt: string;
+  source?: string;
+  weapons: Record<string, CommunityWeaponPerkStats>;
 }
 
 

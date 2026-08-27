@@ -1,4 +1,4 @@
-import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo } from './types';
+import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo, CommunityWeaponPerkStats } from './types';
 import { t, getLocalizedElement } from './i18n';
 import { getOriginalEvaluationText } from './evaluation-i18n';
 
@@ -179,7 +179,9 @@ function renderSheetWeaponSection(
   equippedMasterwork: string | undefined,
   isCompactMatrix: boolean,
   isInlineHeader: boolean,
-  aegisPerkOrder: 'sheet' | 'owned'
+  aegisPerkOrder: 'sheet' | 'owned',
+  communityStats?: CommunityWeaponPerkStats | null,
+  showCommunityPopularity?: boolean
 ): { metaHtml: string; bodyHtml: string; recMod?: string } {
   // Extract recommended Masterworks & Mod
   const recMWs: string[] = [];
@@ -249,10 +251,30 @@ function renderSheetWeaponSection(
         const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
         const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
         const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
+
+        let popPct: number | undefined;
+        if (communityStats && showCommunityPopularity !== false) {
+          const modeData = mode === 'pvp' ? (communityStats.pvp || communityStats.pve) : (communityStats.pve || communityStats.pvp);
+          const cleanPerkName = (perk.name || '').replace(/\*+$/, '').trim().toLowerCase();
+          const targetCol = item.type === 'perk1' ? modeData?.col3 : (item.type === 'perk2' ? modeData?.col4 : undefined);
+          if (targetCol) {
+            for (const [pName, val] of Object.entries(targetCol)) {
+              if ((pName || '').replace(/\*+$/, '').trim().toLowerCase() === cleanPerkName) {
+                popPct = val;
+                break;
+              }
+            }
+          }
+        }
+        const popBadge = typeof popPct === 'number'
+          ? `<span class="aegis-chip-pop" style="font-size: 9.5px; opacity: 0.9; margin-left: 3px; color: #67e8f9; font-weight: 700;">(${Math.round(popPct)}%)</span>`
+          : '';
+
         chipsHtml += `
           <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
             ${iconHtml}
             <span class="aegis-chip-name">${perk.name}</span>
+            ${popBadge}
           </span>
         `;
       }
@@ -455,6 +477,8 @@ export function showTooltip(
     tooltipWidthMode?: 'auto' | 'fixed';
     tooltipWidth?: number;
     dualInfo?: DualSheetInfo;
+    communityPerkStats?: CommunityWeaponPerkStats | null;
+    showCommunityPopularity?: boolean;
   }
 ) {
   const tooltip = initTooltip();
@@ -585,7 +609,7 @@ export function showTooltip(
     let pvpColHtml = '';
 
     if (sheetWeaponPvE) {
-      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+      const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet', options?.communityPerkStats, options?.showCommunityPopularity);
       pveColHtml = `
         <div class="aegis-dual-col aegis-col-pve">
           <div class="aegis-dual-col-header">
@@ -600,7 +624,7 @@ export function showTooltip(
     }
 
     if (sheetWeaponPvP) {
-      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+      const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet', options?.communityPerkStats, options?.showCommunityPopularity);
       pvpColHtml = `
         <div class="aegis-dual-col aegis-col-pvp">
           <div class="aegis-dual-col-header">
@@ -621,7 +645,7 @@ export function showTooltip(
       </div>
     `;
   } else if (sheetWeapon) {
-    const singleSection = renderSheetWeaponSection(sheetWeapon, sheetPerks || undefined, (aegisMode === 'pvp' ? 'pvp' : 'pve'), isBestInClass, bestAlternative, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+    const singleSection = renderSheetWeaponSection(sheetWeapon, sheetPerks || undefined, (aegisMode === 'pvp' ? 'pvp' : 'pve'), isBestInClass, bestAlternative, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet', options?.communityPerkStats, options?.showCommunityPopularity);
     sheetMetaHtml = singleSection.metaHtml;
     sheetBodyHtml = singleSection.bodyHtml;
     recMod = singleSection.recMod;
@@ -888,6 +912,10 @@ export function showTooltip(
     `;
   }
 
+  if (options?.showCommunityPopularity !== false && options?.communityPerkStats) {
+    html += renderCommunityPopularityHtml(options.communityPerkStats, aegisMode);
+  }
+
   html += `
     </div>
   `;
@@ -906,6 +934,52 @@ export function hideTooltip() {
   if (tooltipEl) {
     tooltipEl.classList.add('hidden');
   }
+}
+
+function renderCommunityPopularityHtml(
+  stats?: CommunityWeaponPerkStats | null,
+  aegisMode?: 'pve' | 'pvp' | 'both'
+): string {
+  if (!stats) return '';
+  const modeData = aegisMode === 'pvp' ? (stats.pvp || stats.pve) : (stats.pve || stats.pvp);
+  if (!modeData || !modeData.topRolls || modeData.topRolls.length === 0) return '';
+
+  const rolls = modeData.topRolls;
+  const comboRowsHtml = rolls.map((roll, idx) => {
+    const perk1Clean = (roll.perk1 || '').replace(/\*+$/, '').trim();
+    const perk2Clean = (roll.perk2 || '').replace(/\*+$/, '').trim();
+    const isFirst = idx === 0;
+    const rankBadge = isFirst ? '★ #1' : `#${idx + 1}`;
+    const rankColor = isFirst ? '#ffd700' : '#94a3b8';
+    const isLast = idx === rolls.length - 1;
+    const borderStyle = isLast ? '' : 'border-bottom: 1px solid rgba(255, 255, 255, 0.04);';
+
+    return `
+      <div class="aegis-community-combo-row" style="font-size: 11px; padding: 3px 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; ${borderStyle}">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden;">
+          <span style="font-size: 9.5px; font-weight: 800; color: ${rankColor}; width: 26px; flex-shrink: 0; text-align: left;">${rankBadge}</span>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e2e8f0; font-size: 11px;">
+            <span style="font-weight: 600; color: #f8fafc;">${perk1Clean}</span>
+            <span style="color: #64748b; font-size: 9.5px; margin: 0 3px;">+</span>
+            <span style="font-weight: 600; color: #f8fafc;">${perk2Clean}</span>
+          </span>
+        </div>
+        <span style="font-size: 10px; color: #4ade80; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;">${roll.pct}%</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="aegis-community-analysis-block" style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #81a1c1; border-radius: 0 6px 6px 0; padding: 6px 8px;">
+      <div style="font-size: 9.5px; font-weight: 700; color: #81a1c1; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+        <span>${t('communityMetaStats')} (${modeData.topRolls.length} Popular Combos)</span>
+        <span style="color: #60a5fa; font-weight: 600; font-size: 8.5px; letter-spacing: 0.5px;">LIGHT.GG USAGE</span>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        ${comboRowsHtml}
+      </div>
+    </div>
+  `;
 }
 
 export function formatFormattedNotes(text: string): string {

@@ -30,6 +30,10 @@ const localesSource = path.join(root, 'data', 'locales');
 if (fs.existsSync(localesSource)) {
   fs.cpSync(localesSource, path.join(dataDir, 'locales'), { recursive: true });
 }
+const popularityJsonSource = path.join(root, 'data', 'community-popularity.json');
+if (fs.existsSync(popularityJsonSource)) {
+  fs.copyFileSync(popularityJsonSource, path.join(dataDir, 'community-popularity.json'));
+}
 
 const entries = {
   background: path.join(root, 'src/background.ts'),

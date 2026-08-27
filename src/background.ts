@@ -1,5 +1,5 @@
 import { parseWishlist } from './parser';
-import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet, AegisShoppingDatabase, AegisShoppingItem } from './types';
+import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet, AegisShoppingDatabase, AegisShoppingItem, CommunityPopularityDatabase } from './types';
 import { fetchEvaluationLocale } from './evaluation-i18n';
 
 const DEFAULT_URL =
@@ -787,6 +787,52 @@ function notifyDimTabsOfUpdate(updatedCount: number) {
   });
 }
 
+const COMMUNITY_DB_CDN_URL =
+  'https://raw.githubusercontent.com/Maxeption/dim-aegis-overlay/master/data/community-popularity.json';
+
+/**
+ * Fetches and caches the community perk popularity database from CDN or local extension bundle.
+ */
+export async function fetchAndCacheCommunityDb(_force = false): Promise<CommunityPopularityDatabase | null> {
+  // 1. Try local bundled JSON first (always loads the developer's / user's latest scraped DB)
+  try {
+    const localUrl = chrome.runtime.getURL('data/community-popularity.json');
+    const localRes = await fetch(localUrl);
+    if (localRes.ok) {
+      const localData = (await localRes.json()) as CommunityPopularityDatabase;
+      if (localData && localData.weapons && Object.keys(localData.weapons).length > 0) {
+        await chrome.storage.local.set({
+          communityPopularityDb: localData,
+          communityPopularityLastSync: Date.now()
+        });
+        return localData;
+      }
+    }
+  } catch (localErr) {
+    console.warn('[DIM Aegis Overlay] Bundled community DB load failed:', localErr);
+  }
+
+  // 2. Fallback to remote CDN if available
+  try {
+    const res = await fetchWithTimeout(COMMUNITY_DB_CDN_URL, 8000);
+    if (res.ok) {
+      const data = (await res.json()) as CommunityPopularityDatabase;
+      if (data && data.weapons && Object.keys(data.weapons).length > 0) {
+        await chrome.storage.local.set({
+          communityPopularityDb: data,
+          communityPopularityLastSync: Date.now()
+        });
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[DIM Aegis Overlay] Remote community DB fetch failed:', err);
+  }
+
+  const stored = await chrome.storage.local.get(['communityPopularityDb']);
+  return (stored.communityPopularityDb as CommunityPopularityDatabase) || null;
+}
+
 // Listen for messages from settings popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'dimLaunched') {
@@ -818,6 +864,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'getEvaluationLocale') {
     fetchEvaluationLocale(message.locale, message.force === true)
       .then((bundle) => sendResponse({ success: true, bundle }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === 'getCommunityPopularity' || message.action === 'syncCommunityPopularity') {
+    fetchAndCacheCommunityDb(message.force === true)
+      .then((data) => sendResponse({ success: true, data }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }

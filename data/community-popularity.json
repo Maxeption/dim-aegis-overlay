@@ -1,0 +1,605 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-08-24",
+  "source": "light.gg community meta",
+  "weapons": {
+    "406384293": {
+      "name": "Veillantif-D",
+      "pve": {
+        "col3": {
+          "Heal Clip": 40.9,
+          "Air Trigger": 29,
+          "Blast Distributor": 13.8,
+          "Perpetual Motion": 4.9,
+          "Light Touch": 4.8,
+          "Slideways": 3.9,
+          "Sleight of Hand": 2.2
+        },
+        "col4": {
+          "Incandescent": 36.8,
+          "Aggregate Charge": 18,
+          "Paracausal Affinity": 14.5,
+          "Burning Ambition": 13.9,
+          "Desperate Measures": 7.3,
+          "Sword Logic": 7.1,
+          "Desperado": 2.2
+        },
+        "topRolls": [
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Incandescent*",
+            "pct": 17.96
+          },
+          {
+            "perk1": "Air Trigger*",
+            "perk2": "Incandescent*",
+            "pct": 10.36
+          },
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Aggregate Charge*",
+            "pct": 6.29
+          },
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Burning Ambition*",
+            "pct": 5.81
+          },
+          {
+            "perk1": "Air Trigger*",
+            "perk2": "Aggregate Charge*",
+            "pct": 5.79
+          }
+        ]
+      }
+    },
+    "593808239": {
+      "name": "Refurbished A499",
+      "pve": {
+        "col3": {
+          "Snapshot Sights": 31.2,
+          "Bewildering Burst": 17.1,
+          "Gutshot Straight": 16,
+          "Lone Wolf": 10.3,
+          "Outlaw": 9.9,
+          "Moving Target": 9,
+          "No Distractions": 6.1
+        },
+        "col4": {
+          "Aggregate Charge": 51.3,
+          "Envious Assassin": 15.8,
+          "Auto-Loading Holster": 9.9,
+          "Mulligan": 7.9,
+          "Box Breathing": 6.9,
+          "Ancillary Ordinance": 5.4,
+          "Ambitious Assassin": 2.4
+        },
+        "topRolls": [
+          {
+            "perk1": "Snapshot Sights*",
+            "perk2": "Aggregate Charge*",
+            "pct": 20.45
+          },
+          {
+            "perk1": "Gutshot Straight*",
+            "perk2": "Aggregate Charge*",
+            "pct": 6.71
+          },
+          {
+            "perk1": "Lone Wolf*",
+            "perk2": "Aggregate Charge*",
+            "pct": 6.62
+          },
+          {
+            "perk1": "Moving Target*",
+            "perk2": "Aggregate Charge*",
+            "pct": 5.72
+          },
+          {
+            "perk1": "Bewildering Burst*",
+            "perk2": "Aggregate Charge*",
+            "pct": 5.01
+          }
+        ]
+      }
+    },
+    "602618796": {
+      "name": "Scathelocke",
+      "pve": {
+        "col3": {
+          "Subsistence": 33.1,
+          "Heating Up": 18.6,
+          "Surplus": 12.6,
+          "Tunnel Vision": 12.4,
+          "Threat Detector": 12,
+          "Under Pressure": 11
+        },
+        "col4": {
+          "Rampage": 37.9,
+          "Multikill Clip": 20.7,
+          "Osmosis": 13,
+          "Adrenaline Junkie": 11.5,
+          "Eye of the Storm": 9.5,
+          "Sympathetic Arsenal": 7.1
+        },
+        "topRolls": [
+          {
+            "perk1": "Subsistence",
+            "perk2": "Rampage",
+            "pct": 12.4
+          },
+          {
+            "perk1": "Heating Up",
+            "perk2": "Rampage",
+            "pct": 8.94
+          },
+          {
+            "perk1": "Subsistence",
+            "perk2": "Multikill Clip",
+            "pct": 7.45
+          },
+          {
+            "perk1": "Subsistence",
+            "perk2": "Osmosis",
+            "pct": 5.55
+          },
+          {
+            "perk1": "Threat Detector",
+            "perk2": "Rampage",
+            "pct": 5.34
+          }
+        ]
+      }
+    },
+    "1229624538": {
+      "name": "Vikala SMG4",
+      "pve": {
+        "col3": {
+          "Cooling Baubles": 25.7,
+          "Perpetual Motion": 21.2,
+          "Dimensional Shift": 17.3,
+          "Enlightened Action": 11.3,
+          "Slideways": 11.1,
+          "Delicate Tuning": 9.3,
+          "Moving Target": 3.7
+        },
+        "col4": {
+          "Destabilizing Rounds": 31.9,
+          "Attrition Orbs": 20.9,
+          "Chaos Reshaped": 20,
+          "Collective Action": 8.7,
+          "Thermal Atomization": 7.4,
+          "Firefly": 6.4,
+          "Rangefinder": 4.4
+        },
+        "topRolls": [
+          {
+            "perk1": "Dimensional Shift*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 8.62
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 8.33
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Attrition Orbs*",
+            "pct": 6.73
+          },
+          {
+            "perk1": "Perpetual Motion*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 5.96
+          },
+          {
+            "perk1": "Perpetual Motion*",
+            "perk2": "Attrition Orbs*",
+            "pct": 5.94
+          }
+        ]
+      }
+    },
+    "1361871430": {
+      "name": "Veillantif-D",
+      "pve": {
+        "col3": {
+          "Heal Clip": 40.9,
+          "Air Trigger": 29,
+          "Blast Distributor": 13.8,
+          "Perpetual Motion": 4.9,
+          "Light Touch": 4.8,
+          "Slideways": 3.9,
+          "Sleight of Hand": 2.2
+        },
+        "col4": {
+          "Incandescent": 36.8,
+          "Aggregate Charge": 18,
+          "Paracausal Affinity": 14.5,
+          "Burning Ambition": 13.9,
+          "Desperate Measures": 7.3,
+          "Sword Logic": 7.1,
+          "Desperado": 2.2
+        },
+        "topRolls": [
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Incandescent*",
+            "pct": 17.96
+          },
+          {
+            "perk1": "Air Trigger*",
+            "perk2": "Incandescent*",
+            "pct": 10.36
+          },
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Aggregate Charge*",
+            "pct": 6.29
+          },
+          {
+            "perk1": "Heal Clip*",
+            "perk2": "Burning Ambition*",
+            "pct": 5.81
+          },
+          {
+            "perk1": "Air Trigger*",
+            "perk2": "Aggregate Charge*",
+            "pct": 5.79
+          }
+        ]
+      }
+    },
+    "1419158093": {
+      "name": "M-17 \"Fast Talker\"",
+      "pve": {
+        "col3": {
+          "Attrition Orbs": 30.2,
+          "Dynamic Sway Reduction": 19.2,
+          "Demolitionist": 15.8,
+          "Delicate Tuning": 15,
+          "Cooling Baubles": 10.8,
+          "Killing Wind": 4.5,
+          "Stats for All": 4.1
+        },
+        "col4": {
+          "Target Lock": 34,
+          "Crystalline Corpsebloom": 18.4,
+          "Sword Logic": 14.5,
+          "Kill Clip": 9.5,
+          "Master of Arms": 9.1,
+          "Thermal Atomization": 7.1,
+          "Tap the Trigger": 7
+        },
+        "topRolls": [
+          {
+            "perk1": "Attrition Orbs",
+            "perk2": "Target Lock",
+            "pct": 11.84
+          },
+          {
+            "perk1": "Dynamic Sway Reduction",
+            "perk2": "Target Lock",
+            "pct": 7.29
+          },
+          {
+            "perk1": "Attrition Orbs",
+            "perk2": "Crystalline Corpsebloom",
+            "pct": 6.54
+          },
+          {
+            "perk1": "Delicate Tuning",
+            "perk2": "Target Lock",
+            "pct": 5.73
+          },
+          {
+            "perk1": "Attrition Orbs",
+            "perk2": "Sword Logic",
+            "pct": 4.69
+          }
+        ]
+      }
+    },
+    "1872906663": {
+      "name": "Modified B-7 Pistol",
+      "pve": {
+        "col3": {
+          "Firefly": 31.5,
+          "Cooling Baubles": 17.9,
+          "Rapid Hit": 14.6,
+          "Rimestealer": 13.7,
+          "Keep Away": 10.6,
+          "Delicate Tuning": 5.7,
+          "Demolitionist": 5.6
+        },
+        "col4": {
+          "Headstone": 42.2,
+          "Crystalline Corpsebloom": 16.3,
+          "Adagio": 15.9,
+          "Eye of the Storm": 9.3,
+          "Opening Shot": 8,
+          "Thermal Atomization": 6.2,
+          "Built to Blast": 1.6
+        },
+        "topRolls": [
+          {
+            "perk1": "Firefly*",
+            "perk2": "Headstone*",
+            "pct": 19.24
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Headstone*",
+            "pct": 6.97
+          },
+          {
+            "perk1": "Firefly*",
+            "perk2": "Crystalline Corpsebloom*",
+            "pct": 6.86
+          },
+          {
+            "perk1": "Rimestealer*",
+            "perk2": "Headstone*",
+            "pct": 6.14
+          },
+          {
+            "perk1": "Rapid Hit*",
+            "perk2": "Headstone*",
+            "pct": 4.98
+          }
+        ]
+      }
+    },
+    "2770035786": {
+      "name": "M-17 \"Fast Talker\"",
+      "pve": {
+        "col3": {
+          "Attrition Orbs": 35.6,
+          "Dynamic Sway Reduction": 17.5,
+          "Cooling Baubles": 14.8,
+          "Demolitionist": 14,
+          "Delicate Tuning": 12.3,
+          "Stats for All": 2.7,
+          "Killing Wind": 2.6
+        },
+        "col4": {
+          "Target Lock": 43.3,
+          "Crystalline Corpsebloom": 16.3,
+          "Sword Logic": 14,
+          "Master of Arms": 7.6,
+          "Kill Clip": 7.6,
+          "Thermal Atomization": 5.8,
+          "Tap the Trigger": 5.1
+        },
+        "topRolls": [
+          {
+            "perk1": "Attrition Orbs*",
+            "perk2": "Target Lock*",
+            "pct": 16.66
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Target Lock*",
+            "pct": 8
+          },
+          {
+            "perk1": "Dynamic Sway Reduction*",
+            "perk2": "Target Lock*",
+            "pct": 7.65
+          },
+          {
+            "perk1": "Attrition Orbs*",
+            "perk2": "Crystalline Corpsebloom*",
+            "pct": 6.39
+          },
+          {
+            "perk1": "Attrition Orbs*",
+            "perk2": "Sword Logic*",
+            "pct": 5.23
+          }
+        ]
+      }
+    },
+    "3146657388": {
+      "name": "Modified B-7 Pistol",
+      "pve": {
+        "col3": {
+          "Firefly": 34.4,
+          "Rimestealer": 14.1,
+          "Cooling Baubles": 13.3,
+          "Rapid Hit": 12.2,
+          "Keep Away": 10.8,
+          "Delicate Tuning": 7.5,
+          "Demolitionist": 7.4
+        },
+        "col4": {
+          "Headstone": 38.7,
+          "Crystalline Corpsebloom": 17.1,
+          "Adagio": 12.8,
+          "Opening Shot": 9.5,
+          "Eye of the Storm": 9.2,
+          "Thermal Atomization": 8.2,
+          "Built to Blast": 4.2
+        },
+        "topRolls": [
+          {
+            "perk1": "Firefly*",
+            "perk2": "Headstone*",
+            "pct": 20.36
+          },
+          {
+            "perk1": "Firefly*",
+            "perk2": "Crystalline Corpsebloom*",
+            "pct": 6.51
+          },
+          {
+            "perk1": "Rimestealer*",
+            "perk2": "Headstone*",
+            "pct": 5.67
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Headstone*",
+            "pct": 4.29
+          },
+          {
+            "perk1": "Rimestealer*",
+            "perk2": "Crystalline Corpsebloom*",
+            "pct": 4.2
+          }
+        ]
+      }
+    },
+    "3210792817": {
+      "name": "Vikala SMG4",
+      "pve": {
+        "col3": {
+          "Cooling Baubles": 25.7,
+          "Perpetual Motion": 21.2,
+          "Dimensional Shift": 17.3,
+          "Enlightened Action": 11.3,
+          "Slideways": 11.1,
+          "Delicate Tuning": 9.3,
+          "Moving Target": 3.7
+        },
+        "col4": {
+          "Destabilizing Rounds": 31.9,
+          "Attrition Orbs": 20.9,
+          "Chaos Reshaped": 20,
+          "Collective Action": 8.7,
+          "Thermal Atomization": 7.4,
+          "Firefly": 6.4,
+          "Rangefinder": 4.4
+        },
+        "topRolls": [
+          {
+            "perk1": "Dimensional Shift*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 8.62
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 8.33
+          },
+          {
+            "perk1": "Cooling Baubles*",
+            "perk2": "Attrition Orbs*",
+            "pct": 6.73
+          },
+          {
+            "perk1": "Perpetual Motion*",
+            "perk2": "Destabilizing Rounds*",
+            "pct": 5.96
+          },
+          {
+            "perk1": "Perpetual Motion*",
+            "perk2": "Attrition Orbs*",
+            "pct": 5.94
+          }
+        ]
+      }
+    },
+    "3332538050": {
+      "name": "Scathelocke",
+      "pve": {
+        "col3": {
+          "Attrition Orbs": 29.2,
+          "Subsistence": 19,
+          "Rewind Rounds": 14.4,
+          "Shoot to Loot": 11.9,
+          "Overflow": 10.3,
+          "Heating Up": 10.3,
+          "Keep Away": 4.7
+        },
+        "col4": {
+          "Kinetic Tremors": 50.6,
+          "Rampage": 17.7,
+          "One for All": 9.5,
+          "All-Star": 7.7,
+          "Ancillary Ordinance": 7.3,
+          "Rangefinder": 3.8,
+          "Kill Clip": 3
+        },
+        "topRolls": [
+          {
+            "perk1": "Attrition Orbs*",
+            "perk2": "Kinetic Tremors*",
+            "pct": 24.33
+          },
+          {
+            "perk1": "Rewind Rounds*",
+            "perk2": "Kinetic Tremors*",
+            "pct": 10.62
+          },
+          {
+            "perk1": "Shoot to Loot*",
+            "perk2": "Kinetic Tremors*",
+            "pct": 6.19
+          },
+          {
+            "perk1": "Subsistence*",
+            "perk2": "Rampage*",
+            "pct": 5.85
+          },
+          {
+            "perk1": "Subsistence*",
+            "perk2": "Kinetic Tremors*",
+            "pct": 4.65
+          }
+        ]
+      }
+    },
+    "3661051060": {
+      "name": "Refurbished A499",
+      "pve": {
+        "col3": {
+          "Snapshot Sights": 31.6,
+          "Bewildering Burst": 19.1,
+          "Gutshot Straight": 14.9,
+          "Outlaw": 11.1,
+          "Lone Wolf": 9,
+          "Moving Target": 7.8,
+          "No Distractions": 6.1
+        },
+        "col4": {
+          "Aggregate Charge": 40.6,
+          "Envious Assassin": 16.4,
+          "Auto-Loading Holster": 13,
+          "Mulligan": 9.6,
+          "Box Breathing": 9.2,
+          "Ancillary Ordinance": 7.3,
+          "Ambitious Assassin": 3.4
+        },
+        "topRolls": [
+          {
+            "perk1": "Snapshot Sights*",
+            "perk2": "Aggregate Charge*",
+            "pct": 18.69
+          },
+          {
+            "perk1": "Gutshot Straight*",
+            "perk2": "Aggregate Charge*",
+            "pct": 5
+          },
+          {
+            "perk1": "Bewildering Burst*",
+            "perk2": "Aggregate Charge*",
+            "pct": 4.9
+          },
+          {
+            "perk1": "Bewildering Burst*",
+            "perk2": "Envious Assassin*",
+            "pct": 4.59
+          },
+          {
+            "perk1": "Snapshot Sights*",
+            "perk2": "Auto-Loading Holster*",
+            "pct": 4.01
+          }
+        ]
+      }
+    }
+  }
+}

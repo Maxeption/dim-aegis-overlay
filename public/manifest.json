@@ -99,6 +99,7 @@
         "armor_set_bonus_example.png",
         "wishlist_configuration.png",
         "data/manifest-weapons.json",
+        "data/community-popularity.json",
         "data/locales/*.json"
       ],
       "matches": [

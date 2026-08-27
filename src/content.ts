@@ -1,5 +1,5 @@
-import { scoreWeapon } from './scorer';
-import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingDatabase, AegisShoppingItem, DualSheetInfo, ManifestWeapon, AegisChaseItem, WeaponEvaluationPayload } from './types';
+import { scoreWeapon, scoreCommunityPerksWithBreakdown } from './scorer';
+import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingDatabase, AegisShoppingItem, DualSheetInfo, ManifestWeapon, AegisChaseItem, WeaponEvaluationPayload, CommunityPopularityDatabase, CommunityWeaponPerkStats } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes, renderShoppingBannerHtml } from './tooltip';
 import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
 import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
@@ -229,8 +229,30 @@ let aegisSheetDbPvP: AegisSheetDatabase | null = null;
 let aegisShoppingDb: AegisShoppingDatabase | null = null;
 let aegisShoppingDbPvE: AegisShoppingDatabase | null = null;
 let aegisShoppingDbPvP: AegisShoppingDatabase | null = null;
+let communityPopularityDb: CommunityPopularityDatabase | null = null;
+let showCommunityPopularity = true;
 let evaluationLocaleRequestToken = 0;
 let evaluationLocaleApplyQueue: Promise<void> = Promise.resolve();
+
+function getCommunityStatsForWeapon(weaponName: string): CommunityWeaponPerkStats | null {
+  if (!communityPopularityDb || !showCommunityPopularity) return null;
+  const norm = normName(weaponName || '');
+  const baseName = norm.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  const hash = nameToHash[norm] || nameToHash[baseName] || manifestWeaponsMap[norm]?.hash;
+  if (hash && communityPopularityDb.weapons[String(hash)]) {
+    return communityPopularityDb.weapons[String(hash)];
+  }
+  if (communityPopularityDb.weapons[norm] || communityPopularityDb.weapons[baseName]) {
+    return communityPopularityDb.weapons[norm] || communityPopularityDb.weapons[baseName];
+  }
+  for (const entry of Object.values(communityPopularityDb.weapons)) {
+    const entryNorm = normName(entry.name || '');
+    if (entryNorm === norm || entryNorm === baseName) {
+      return entry;
+    }
+  }
+  return null;
+}
 
 async function refreshEvaluationLocale(force = false, reprocess = true): Promise<void> {
   const token = ++evaluationLocaleRequestToken;
@@ -636,6 +658,8 @@ function setupRegistryObserver() {
                 tooltipWidthMode: aegisTooltipWidthMode,
                 tooltipWidth: aegisTooltipWidth,
                 dualInfo: aegisMode === 'both' ? data.dualInfo : undefined,
+                communityPerkStats: getCommunityStatsForWeapon(data.name),
+                showCommunityPopularity,
               }
             );
           }
@@ -2285,7 +2309,9 @@ function renderResults() {
                   inlineHeader: aegisInlineHeader,
                   autoMaxHeight: aegisAutoMaxHeight,
                   tooltipWidthMode: aegisTooltipWidthMode,
-                  tooltipWidth: aegisTooltipWidth
+                  tooltipWidth: aegisTooltipWidth,
+                  communityPerkStats: getCommunityStatsForWeapon(sheetW.name || altName),
+                  showCommunityPopularity,
                 }
               );
             }
@@ -3712,6 +3738,15 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisShoppingDb = res.aegisShoppingDb || null;
   aegisShoppingDbPvE = res.aegisShoppingDbPvE || null;
   aegisShoppingDbPvP = res.aegisShoppingDbPvP || null;
+  communityPopularityDb = res.communityPopularityDb || null;
+  showCommunityPopularity = res.aegisShowCommunityPopularity !== false;
+  if (!communityPopularityDb) {
+    chrome.runtime.sendMessage({ action: 'getCommunityPopularity' }, (response) => {
+      if (response?.success && response?.data) {
+        communityPopularityDb = response.data;
+      }
+    });
+  }
   if (clearLegacyDefaultChaseFilters()) {
     chrome.storage.local.set({ aegisChaseList: chaseList });
   }
@@ -3901,6 +3936,12 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       chaseList = changes.aegisChaseList.newValue || {};
       renderResults();
     }
+    if (changes.communityPopularityDb) {
+      communityPopularityDb = changes.communityPopularityDb.newValue || null;
+    }
+    if (changes.aegisShowCommunityPopularity) {
+      showCommunityPopularity = changes.aegisShowCommunityPopularity.newValue !== false;
+    }
     if (changed) {
       reprocessAllElements();
     }
@@ -3996,7 +4037,9 @@ function showTooltipForElement(dataEl: HTMLElement, anchor: HTMLElement): boolea
         shoppingAltPvE: data.shoppingAltPvE,
         shoppingItemPvP: data.shoppingItemPvP,
         shoppingAltPvP: data.shoppingAltPvP,
-      } : undefined
+      } : undefined,
+      communityPerkStats: getCommunityStatsForWeapon(data.name),
+      showCommunityPopularity,
     }
   );
   return true;
@@ -4367,9 +4410,11 @@ function injectPopupSummary(
   } else {
     const baseGradeLetter = result.grade.charAt(0).toLowerCase();
     const gradeClass = `aegis-grade-${baseGradeLetter}`;
-    const matchLabel = isLightGG
-      ? 'Light.gg Roll Appraisal'
-      : `Wishlist Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`;
+    const matchLabel = scoringSource === 'community'
+      ? `Community Meta Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`
+      : (isLightGG
+        ? 'Light.gg Roll Appraisal'
+        : `Wishlist Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`);
 
     let sheetMetaHtml = '';
     if (sheetWeapon) {
@@ -5278,7 +5323,7 @@ function processElement(el: HTMLElement) {
     // A Winnower row's textContent is the whole row (verdict prose, perk
     // lists), so the variant-disambiguation text is scoped to the name cell.
     const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
-    const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
+    let sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
     let bestAlternative = undefined;
     let isBestInClass = false;
 
@@ -5293,7 +5338,32 @@ function processElement(el: HTMLElement) {
     let bestAlternativePvP: string | undefined = undefined;
     let isBestInClassPvP = false;
 
-    if (scoringSource === 'lightgg') {
+    if (scoringSource === 'community') {
+      const commStats = getCommunityStatsForWeapon(weaponName);
+      if (commStats) {
+        const mode = aegisMode === 'pvp' ? 'pvp' : 'pve';
+        const commEval = scoreCommunityPerksWithBreakdown(
+          weaponName,
+          commStats,
+          perksMap,
+          activeHashes,
+          mode,
+          (name: string) => getPerkIcon(name) || perkNameToIcon[normName(name)] || perkNameToIcon[name.toLowerCase().trim()] || undefined
+        );
+        result = commEval.result;
+        sheetPerks = commEval.sheetPerks;
+        sheetWeapon = commEval.pseudoSheetWeapon;
+      } else {
+        result = {
+          grade: null,
+          matchPercentage: 0,
+          matchedPerks: [],
+          missingPerks: [],
+          notes: '',
+          wishlistPerks: [],
+        };
+      }
+    } else if (scoringSource === 'lightgg') {
       const rawInstanceId = el.getAttribute('data-aegis-instance-id') || el.id.replace('item-', '');
       const instanceId = rawInstanceId.replace(/^[^0-9]+/, '');
       const grade = lightggDb[instanceId];
@@ -5600,8 +5670,12 @@ function processElement(el: HTMLElement) {
           displayRollGrade = potentialGrade;
         }
 
-        if (aegisTwoTier && sheetWeapon && sheetWeapon.tier && displayRollGrade) {
-          result.grade = `${sheetWeapon.tier.trim()}${displayRollGrade}`;
+        // In 2-tier mode, first letter is weapon archetype tier (from spreadsheet), second part is roll grade
+        const actualSpreadsheetW = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
+        const archetypeTier = actualSpreadsheetW?.tier?.trim() || (scoringSource !== 'community' && sheetWeapon?.tier?.trim() ? sheetWeapon.tier.trim() : '');
+
+        if (aegisTwoTier && archetypeTier && displayRollGrade) {
+          result.grade = `${archetypeTier}${displayRollGrade}`;
         } else {
           result.grade = displayRollGrade;
         }

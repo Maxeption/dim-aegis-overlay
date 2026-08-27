@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
         'aegisTooltipWidth',
+        'aegisShowCommunityPopularity',
         'aegisArmorSource',
         'aegisLanguage',
         'updateAvailableVersion',
@@ -178,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           const dbToggleGroup = document.getElementById('aegis-db-toggle-group');
           if (dbToggleGroup) {
-            if (sourceVal === 'lightgg') {
+            if (sourceVal === 'lightgg' || sourceVal === 'community') {
               dbToggleGroup.style.display = 'none';
             } else {
               dbToggleGroup.style.display = 'block';
@@ -199,7 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           const aegisModeGroup = document.getElementById('aegis-mode-toggle-group');
           if (aegisModeGroup) {
-            if (dbModeVal === 'wishlist' || sourceVal === 'lightgg') {
+            if (sourceVal === 'community') {
+              aegisModeGroup.style.display = 'block';
+            } else if (dbModeVal === 'wishlist' || sourceVal === 'lightgg') {
               aegisModeGroup.style.display = 'none';
             } else {
               aegisModeGroup.style.display = 'block';
@@ -239,6 +242,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (perkOrderSegmented) {
           perkOrderSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === perkOrderVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
+        // Set Community Popularity segmented control
+        const communityPopVal = res.aegisShowCommunityPopularity !== false ? 'true' : 'false';
+        const communityPopSegmented = document.getElementById('aegis-community-pop-segmented');
+        if (communityPopSegmented) {
+          communityPopSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === communityPopVal) {
               btn.classList.add('active');
             } else {
               btn.classList.remove('active');
@@ -598,6 +614,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (val) {
           chrome.storage.local.set({ aegisPerkOrder: val }, () => {
             console.log(`[DIM Aegis Overlay] Aegis perk order changed to: ${val}`);
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Community Perk Popularity segmented control click
+  const communityPopSegmented = document.getElementById('aegis-community-pop-segmented');
+  if (communityPopSegmented) {
+    communityPopSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisShowCommunityPopularity: val === 'true' }, () => {
+            console.log(`[DIM Aegis Overlay] Community Popularity display changed to: ${val === 'true'}`);
             updateUI();
           });
         }
