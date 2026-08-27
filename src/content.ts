@@ -2692,16 +2692,19 @@ function bindChaseSearchEvents() {
           source: w.sourceName || undefined,
           isCraftable: w.isCraftable,
         }));
-    } else if (aegisSheetDb?.weapons) {
-      matchedWeapons = Object.values(aegisSheetDb.weapons)
-        .filter(w => w.name.toLowerCase().includes(q))
-        .slice(0, 20)
-        .map(w => ({
-          name: w.name,
-          archetype: w.frame,
-          damageType: w.energy,
-          source: w.source,
-        }));
+    } else {
+      const activeSheetDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || aegisSheetDb;
+      if (activeSheetDb?.weapons) {
+        matchedWeapons = Object.values(activeSheetDb.weapons)
+          .filter(w => w.name.toLowerCase().includes(q))
+          .slice(0, 20)
+          .map(w => ({
+            name: w.name,
+            archetype: w.frame,
+            damageType: w.energy,
+            source: w.source,
+          }));
+      }
     }
 
     if (matchedWeapons.length === 0) {
@@ -2761,7 +2764,8 @@ function bindChaseSearchEvents() {
     if (!wName) return;
     const norm = normName(wName);
     const manifestW = manifestWeaponsMap[norm];
-    const sheetW = aegisSheetDb?.weapons?.[norm];
+    const activeSheetDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || aegisSheetDb;
+    const sheetW = activeSheetDb?.weapons?.[norm] || aegisSheetDbPvE?.weapons?.[norm] || aegisSheetDbPvP?.weapons?.[norm];
 
     const barrels = sheetW ? parseRecommendations(sheetW.barrel) : (manifestW?.barrels || []);
     const mags = sheetW ? parseRecommendations(sheetW.mag) : (manifestW?.magazines || []);
@@ -2879,6 +2883,7 @@ function bindChaseItemEvents() {
     // 2. EXPLORER DATABASE TAB RENDERER
     updateProgressIndicator();
 
+    const activeDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || db;
     const searchInput = document.querySelector('.aegis-explorer-search-input') as HTMLInputElement;
     const catInput = document.querySelector('.aegis-explorer-category-input') as HTMLInputElement;
     const frameInput = document.querySelector('.aegis-explorer-frame-input') as HTMLInputElement;
@@ -2897,7 +2902,8 @@ function bindChaseItemEvents() {
 
     const matches: { weapon: AegisSheetWeapon; category: string }[] = [];
 
-    for (const [cat, list] of Object.entries(db.categories)) {
+    if (activeDb?.categories) {
+      for (const [cat, list] of Object.entries(activeDb.categories)) {
       if (selectedCat && !cat.toLowerCase().includes(selectedCat)) continue;
       const weaponAmmo = AMMO_TYPE_MAP[cat] || 'Other';
       if (selectedAmmo && !weaponAmmo.toLowerCase().includes(selectedAmmo)) continue;
@@ -2920,6 +2926,7 @@ function bindChaseItemEvents() {
         matches.push({ weapon: w, category: cat });
       }
     }
+  }
 
     matches.sort((a, b) => {
       if (a.category !== b.category) {
@@ -6093,13 +6100,36 @@ function evaluateAegisFiltering() {
     return;
   }
 
-  const targetQuery = activeAegisFilter.replace(/^aegis:/i, '').toLowerCase();
+  const targetQuery = activeAegisFilter.replace(/^aegis:/i, '').toLowerCase().trim();
 
   items.forEach(item => {
-    const result = (item as any)._aegisResult as ScoringResult | undefined;
+    const data = weaponDataMap.get(item) || weaponDataMap.get(item.closest('[data-aegis-item-hash]') as HTMLElement) || weaponDataMap.get(item.querySelector('[data-aegis-item-hash]') as HTMLElement);
+    const result = data?.result;
     const grade = result?.grade?.toLowerCase() || '';
     let isMatch = false;
     const isArmor = grade.includes('/');
+
+    const shoppingItem = aegisMode === 'pvp'
+      ? data?.shoppingItemPvP
+      : (aegisMode === 'both'
+          ? (data?.shoppingItemPvE || data?.shoppingItemPvP || data?.shoppingItem)
+          : (data?.shoppingItemPvE || data?.shoppingItem));
+    const shoppingAlt = aegisMode === 'pvp'
+      ? data?.shoppingAltPvP
+      : (aegisMode === 'both'
+          ? (data?.shoppingAltPvE || data?.shoppingAltPvP || data?.shoppingAlt)
+          : (data?.shoppingAltPvE || data?.shoppingAlt));
+    const sheetW = aegisMode === 'pvp'
+      ? (data?.sheetWeaponPvP || data?.sheetWeapon)
+      : (aegisMode === 'both'
+          ? (data?.sheetWeaponPvE || data?.sheetWeaponPvP || data?.sheetWeapon)
+          : (data?.sheetWeaponPvE || data?.sheetWeapon));
+    const weaponName = (data?.name || '').toLowerCase().trim();
+    const isBestInClass = !!(aegisMode === 'pvp'
+      ? data?.isBestInClassPvP
+      : (aegisMode === 'both'
+          ? (data?.isBestInClassPvE || data?.isBestInClassPvP || data?.isBestInClass)
+          : (data?.isBestInClassPvE || data?.isBestInClass)));
 
     if (isArmor) {
       let cleanQuery = targetQuery;
@@ -6150,6 +6180,10 @@ function evaluateAegisFiltering() {
           isMatch = isSplit 
             ? (compareGrades(pvePart, '>=s') || compareGrades(pvpPart, '>=s'))
             : compareGrades(perkRank, '>=s');
+        } else if (targetQuery === 'bis' || targetQuery === 'bestinclass') {
+          isMatch = isBestInClass;
+        } else if (targetQuery === 'chase') {
+          isMatch = !!chaseList[normName(weaponName)];
         } else if (targetQuery.startsWith('pve:')) {
           const q = targetQuery.substring(4);
           isMatch = compareGrades(pvePart, q);
@@ -6157,20 +6191,18 @@ function evaluateAegisFiltering() {
           const q = targetQuery.substring(4);
           isMatch = compareGrades(pvpPart, q);
         } else if (targetQuery === 'shopping' || targetQuery === 'shop') {
-          isMatch = !!(item as any)._aegisShoppingItem;
+          isMatch = !!shoppingItem;
         } else if (targetQuery === 'shopping:high' || targetQuery === 'priority:1' || targetQuery === 'priority:high') {
-          isMatch = (item as any)._aegisShoppingItem?.priority === 'high';
+          isMatch = shoppingItem?.priority === 'high';
         } else if (targetQuery === 'shopping:ready') {
-          isMatch = !!(item as any)._aegisShoppingItem && (isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
+          isMatch = !!shoppingItem && (isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
         } else if (targetQuery === 'shopping:farm' || targetQuery === 'shopping:suboptimal') {
-          isMatch = !!(item as any)._aegisShoppingItem && !(isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
+          isMatch = !!shoppingItem && !(isSplit ? (compareGrades(pvePart, '>=a') || compareGrades(pvpPart, '>=a')) : compareGrades(perkRank, '>=a'));
         } else if (targetQuery === 'shopping:alt' || targetQuery === 'shopping:alternative') {
-          isMatch = !!(item as any)._aegisShoppingAlt;
+          isMatch = !!shoppingAlt;
         } else if (targetQuery.startsWith('s:') || targetQuery.startsWith('source:')) {
           const targetSource = targetQuery.startsWith('s:') ? targetQuery.substring(2) : targetQuery.substring(7);
-          const sheetW = (item as any)._aegisSheetWeapon as AegisSheetWeapon | undefined;
-          const weaponName = ((item as any)._aegisName || '').toLowerCase().trim();
-          const itemSource = sheetW?.source || (aegisSheetDb?.weapons[weaponName]?.source) || '';
+          const itemSource = sheetW?.source || (aegisSheetDb?.weapons[weaponName]?.source) || (aegisSheetDbPvE?.weapons[weaponName]?.source) || (aegisSheetDbPvP?.weapons[weaponName]?.source) || '';
           isMatch = itemSource.toLowerCase().includes(targetSource.toLowerCase());
         } else if (targetQuery.startsWith('w:') || targetQuery.startsWith('weapon:')) {
           const targetRank = targetQuery.startsWith('w:') ? targetQuery.substring(2) : targetQuery.substring(7);
@@ -6353,6 +6385,7 @@ function reprocessAllElements() {
   if (explorerPanel && !explorerPanel.classList.contains('hidden')) {
     renderResults();
   }
+  evaluateAegisFiltering();
 }
 
 // 1. Observe the DOM for additions or changes to 'data-aegis-item-hash' or 'data-aegis-perk-hashes'

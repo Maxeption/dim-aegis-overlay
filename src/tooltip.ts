@@ -480,7 +480,8 @@ export function showTooltip(
 
   let shoppingBannerHtml = '';
   if (aegisMode !== 'both') {
-    shoppingBannerHtml = renderShoppingBannerHtml(shoppingItem, shoppingAlt);
+    const author = aegisMode === 'pvp' ? 'Finnald' : 'Aegis';
+    shoppingBannerHtml = renderShoppingBannerHtml(shoppingItem, shoppingAlt, author);
   }
 
   if (sheetArmor) {
