@@ -1,13 +1,7 @@
 import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo } from './types';
 import { t, getLocalizedElement } from './i18n';
 import { getOriginalEvaluationText } from './evaluation-i18n';
-
-/** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
-function safeSetInnerHTML(element: HTMLElement, htmlString: string) {
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(htmlString, 'text/html');
-  element.replaceChildren(...Array.from(parsed.body.childNodes));
-}
+import { safeSetInnerHTML } from './dom-utils';
 
 
 
@@ -568,6 +562,8 @@ export function showTooltip(
       sheetWeaponPvP, 
       sheetPerksPvE, 
       sheetPerksPvP, 
+      pveResult,
+      pvpResult,
       isBestInClassPvE, 
       isBestInClassPvP, 
       bestAlternativePvE, 
@@ -586,12 +582,49 @@ export function showTooltip(
 
     if (sheetWeaponPvE) {
       const pveSection = renderSheetWeaponSection(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', isBestInClassPvE, bestAlternativePvE, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+      
+      let pvePerfectBanner = '';
+      if (pveResult?.isOmniRoll) {
+        pvePerfectBanner = `
+          <div class="aegis-tooltip-perfect-banner omni" style="margin: 4px 0 6px 0; padding: 4px 8px; font-size: 10px;">
+            <span style="font-size: 11px; color: #ffd700;">✦</span>
+            <span>${t('omniRollTitle')}</span>
+          </div>
+        `;
+      } else if (pveResult?.isPerfect5of5) {
+        pvePerfectBanner = `
+          <div class="aegis-tooltip-perfect-banner" style="margin: 4px 0 6px 0; padding: 4px 8px; font-size: 10px;">
+            <span style="font-size: 11px;">★</span>
+            <span>${t('perfectRollTitle')}</span>
+          </div>
+        `;
+      }
+
+      let pveUpgradeBanner = '';
+      if (pveResult?.upgradeAdvice) {
+        if (isInlineHeader) {
+          pveUpgradeBanner = `
+            <div class="aegis-tooltip-upgrade-pill" style="margin: 4px 0 6px 0;">
+              <span class="aegis-upgrade-pill-text">${pveResult.upgradeAdvice}</span>
+            </div>
+          `;
+        } else {
+          pveUpgradeBanner = `
+            <div class="aegis-tooltip-upgrade-banner" style="margin: 4px 0 6px 0;">
+              ${pveResult.upgradeAdvice}
+            </div>
+          `;
+        }
+      }
+
       pveColHtml = `
         <div class="aegis-dual-col aegis-col-pve">
           <div class="aegis-dual-col-header">
             <span class="aegis-dual-col-title">${t('modePve')}</span>
           </div>
           ${pveBannerHtml}
+          ${pvePerfectBanner}
+          ${pveUpgradeBanner}
           ${pveSection.metaHtml}
           ${pveSection.bodyHtml}
         </div>
@@ -601,12 +634,49 @@ export function showTooltip(
 
     if (sheetWeaponPvP) {
       const pvpSection = renderSheetWeaponSection(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', isBestInClassPvP, bestAlternativePvP, equippedMasterwork || undefined, isCompactMatrix, isInlineHeader, aegisPerkOrder || 'sheet');
+      
+      let pvpPerfectBanner = '';
+      if (pvpResult?.isOmniRoll) {
+        pvpPerfectBanner = `
+          <div class="aegis-tooltip-perfect-banner omni" style="margin: 4px 0 6px 0; padding: 4px 8px; font-size: 10px;">
+            <span style="font-size: 11px; color: #ffd700;">✦</span>
+            <span>${t('omniRollTitle')}</span>
+          </div>
+        `;
+      } else if (pvpResult?.isPerfect5of5) {
+        pvpPerfectBanner = `
+          <div class="aegis-tooltip-perfect-banner" style="margin: 4px 0 6px 0; padding: 4px 8px; font-size: 10px;">
+            <span style="font-size: 11px;">★</span>
+            <span>${t('perfectRollTitle')}</span>
+          </div>
+        `;
+      }
+
+      let pvpUpgradeBanner = '';
+      if (pvpResult?.upgradeAdvice) {
+        if (isInlineHeader) {
+          pvpUpgradeBanner = `
+            <div class="aegis-tooltip-upgrade-pill" style="margin: 4px 0 6px 0;">
+              <span class="aegis-upgrade-pill-text">${pvpResult.upgradeAdvice}</span>
+            </div>
+          `;
+        } else {
+          pvpUpgradeBanner = `
+            <div class="aegis-tooltip-upgrade-banner" style="margin: 4px 0 6px 0;">
+              ${pvpResult.upgradeAdvice}
+            </div>
+          `;
+        }
+      }
+
       pvpColHtml = `
         <div class="aegis-dual-col aegis-col-pvp">
           <div class="aegis-dual-col-header">
             <span class="aegis-dual-col-title">${t('modePvp')}</span>
           </div>
           ${pvpBannerHtml}
+          ${pvpPerfectBanner}
+          ${pvpUpgradeBanner}
           ${pvpSection.metaHtml}
           ${pvpSection.bodyHtml}
         </div>
@@ -736,24 +806,26 @@ export function showTooltip(
   */
 
   let perfectBannerHtml = '';
-  if (result.isOmniRoll) {
-    perfectBannerHtml = `
-      <div class="aegis-tooltip-perfect-banner omni" style="margin-bottom: 8px; padding: 6px 10px; background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,170,0,0.08)); border: 1px solid rgba(255,215,0,0.4); border-radius: 6px; color: #ffd700; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(255,215,0,0.15);">
-        <span style="font-size: 13px; color: #ffd700;">✦</span>
-        <span>${t('omniRollTitle')}</span>
-      </div>
-    `;
-  } else if (result.isPerfect5of5) {
-    perfectBannerHtml = `
-      <div class="aegis-tooltip-perfect-banner" style="margin-bottom: 8px; padding: 6px 10px; background: linear-gradient(135deg, rgba(76,175,80,0.18), rgba(56,142,60,0.08)); border: 1px solid rgba(76,175,80,0.4); border-radius: 6px; color: #a5d6a7; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 13px;">★</span>
-        <span>${t('perfectRollTitle')}</span>
-      </div>
-    `;
+  if (aegisMode !== 'both') {
+    if (result.isOmniRoll) {
+      perfectBannerHtml = `
+        <div class="aegis-tooltip-perfect-banner omni" style="margin-bottom: 8px; padding: 6px 10px; background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,170,0,0.08)); border: 1px solid rgba(255,215,0,0.4); border-radius: 6px; color: #ffd700; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(255,215,0,0.15);">
+          <span style="font-size: 13px; color: #ffd700;">✦</span>
+          <span>${t('omniRollTitle')}</span>
+        </div>
+      `;
+    } else if (result.isPerfect5of5) {
+      perfectBannerHtml = `
+        <div class="aegis-tooltip-perfect-banner" style="margin-bottom: 8px; padding: 6px 10px; background: linear-gradient(135deg, rgba(76,175,80,0.18), rgba(56,142,60,0.08)); border: 1px solid rgba(76,175,80,0.4); border-radius: 6px; color: #a5d6a7; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 13px;">★</span>
+          <span>${t('perfectRollTitle')}</span>
+        </div>
+      `;
+    }
   }
 
   let upgradeBannerHtml = '';
-  if (result.upgradeAdvice) {
+  if (aegisMode !== 'both' && result.upgradeAdvice) {
     if (isInlineHeader) {
       upgradeBannerHtml = `
         <div class="aegis-tooltip-upgrade-pill">

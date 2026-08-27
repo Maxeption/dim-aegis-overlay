@@ -811,14 +811,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'syncSpreadsheets') {
     fetchAndCacheAegisSheet()
       .then((res) => sendResponse(res))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch((err: unknown) => {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        sendResponse({ success: false, error: errorMsg });
+      });
     return true;
   }
 
   if (message.action === 'getEvaluationLocale') {
-    fetchEvaluationLocale(message.locale, message.force === true)
+    const locale = typeof message.locale === 'string' ? message.locale : 'en';
+    const force = message.force === true;
+    fetchEvaluationLocale(locale, force)
       .then((bundle) => sendResponse({ success: true, bundle }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch((err: unknown) => {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        sendResponse({ success: false, error: errorMsg });
+      });
     return true;
   }
 

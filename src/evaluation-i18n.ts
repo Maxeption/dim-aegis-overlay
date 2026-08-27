@@ -23,15 +23,23 @@ function isValidLocale(locale: string): boolean {
 }
 
 function isValidBundle(value: unknown, locale: string): value is EvaluationLocaleBundle {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const bundle = value as Partial<EvaluationLocaleBundle>;
-  return bundle.schemaVersion === 1
-    && bundle.locale === locale
-    && !!bundle.entries
-    && typeof bundle.entries === 'object'
-    && Object.entries(bundle.entries).every(([key, entry]) => (
-      /^[0-9a-f]{16}$/.test(key) && typeof entry === 'string' && entry.trim().length > 0
-    ));
+  if (
+    bundle.schemaVersion !== 1 ||
+    bundle.locale !== locale ||
+    !bundle.entries ||
+    typeof bundle.entries !== 'object' ||
+    Array.isArray(bundle.entries)
+  ) {
+    return false;
+  }
+  for (const [key, entry] of Object.entries(bundle.entries)) {
+    if (!/^[0-9a-f]{16}$/.test(key) || typeof entry !== 'string' || entry.trim().length === 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export async function fetchEvaluationLocale(
@@ -100,8 +108,8 @@ async function sourceTextHash(text: string): Promise<string> {
 function databaseWeapons(database: AegisSheetDatabase): AegisSheetWeapon[] {
   const seen = new Set<AegisSheetWeapon>();
   const weapons: AegisSheetWeapon[] = [];
-  const add = (weapon: AegisSheetWeapon) => {
-    if (!seen.has(weapon)) {
+  const add = (weapon?: AegisSheetWeapon | null) => {
+    if (weapon && typeof weapon === 'object' && !seen.has(weapon)) {
       seen.add(weapon);
       weapons.push(weapon);
     }
@@ -131,13 +139,20 @@ export async function applyEvaluationLocale(
     return bundle.entries[await sourceTextHash(source)] || source;
   };
 
-  await Promise.all(databaseWeapons(database).map(async (weapon) => {
-    let source = originalEvaluationText.get(weapon);
-    if (!source) {
-      source = { notes: weapon.notes, description: weapon.description };
-      originalEvaluationText.set(weapon, source);
-    }
+  const weapons = databaseWeapons(database);
 
+  // Synchronously record original source snapshot for all weapons BEFORE starting async operations
+  for (const weapon of weapons) {
+    if (!originalEvaluationText.has(weapon)) {
+      originalEvaluationText.set(weapon, {
+        notes: weapon.notes || '',
+        description: weapon.description,
+      });
+    }
+  }
+
+  await Promise.all(weapons.map(async (weapon) => {
+    const source = originalEvaluationText.get(weapon)!;
     const sourceNotes = source.notes || '';
     const sourceDescription = source.description || '';
     weapon.notes = await translate(sourceNotes);

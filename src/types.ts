@@ -35,6 +35,8 @@ export interface ScoringResult {
   pvpGrade?: string;
 }
 
+export type AegisMode = 'pve' | 'pvp' | 'both';
+
 /**
  * Storage schema for chrome.storage.local
  */
@@ -52,7 +54,7 @@ export interface LocalStorageSchema {
   aegisShoppingDb?: AegisShoppingDatabase;
   aegisShoppingDbPvE?: AegisShoppingDatabase;
   aegisShoppingDbPvP?: AegisShoppingDatabase;
-  aegisMode?: 'pve' | 'pvp' | 'both';
+  aegisMode?: AegisMode;
   aegisCompactPerksMatrix?: boolean;
   aegisInlineHeader?: boolean;
   aegisAutoMaxHeight?: boolean;

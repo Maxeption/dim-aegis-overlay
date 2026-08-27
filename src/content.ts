@@ -4,6 +4,7 @@ import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViability
 import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
 import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
 import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText } from './evaluation-i18n';
+import { safeSetInnerHTML } from './dom-utils';
 
 /** Strongly typed, GC-safe storage for weapon/armor evaluation data attached to DOM tiles */
 export const weaponDataMap = new WeakMap<HTMLElement, WeaponEvaluationPayload>();
@@ -20,13 +21,6 @@ const IS_WINNOWER_HOST =
 /** The name cell hosting a Winnower row's badge slot. */
 function winnowerNameCell(row: HTMLElement): HTMLElement | null {
   return (row.querySelector('[data-aegis-badge-slot]')?.closest('td') as HTMLElement | null) ?? null;
-}
-
-/** Safely sets element HTML using DOMParser (avoids innerHTML linter warning). */
-function safeSetInnerHTML(element: HTMLElement, htmlString: string) {
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(htmlString, 'text/html');
-  element.replaceChildren(...Array.from(parsed.body.childNodes));
 }
 
 function getGradeValue(grade: string): number {
@@ -252,11 +246,12 @@ async function refreshEvaluationLocale(force = false, reprocess = true): Promise
   if (token !== evaluationLocaleRequestToken) return;
   evaluationLocaleApplyQueue = evaluationLocaleApplyQueue.catch(() => {}).then(async () => {
     if (token !== evaluationLocaleRequestToken) return;
-    await Promise.all([
-      applyEvaluationLocale(aegisSheetDb, bundle),
-      applyEvaluationLocale(aegisSheetDbPvE, bundle),
-      applyEvaluationLocale(aegisSheetDbPvP, bundle),
-    ]);
+    const uniqueDbs = Array.from(
+      new Set([aegisSheetDb, aegisSheetDbPvE, aegisSheetDbPvP].filter((db): db is AegisSheetDatabase => db !== null && db !== undefined))
+    );
+    for (const db of uniqueDbs) {
+      await applyEvaluationLocale(db, bundle);
+    }
     if (token === evaluationLocaleRequestToken && reprocess) reprocessAllElements();
   });
   await evaluationLocaleApplyQueue;
@@ -323,95 +318,99 @@ const MANIFEST_WEAPONS_FALLBACK_URL =
 let manifestWeaponsMap: Record<string, ManifestWeapon> = {};
 let manifestWeaponsByHash: Record<number, ManifestWeapon> = {};
 let manifestWeaponList: ManifestWeapon[] = [];
-let isManifestLoading = false;
+let manifestLoadingPromise: Promise<boolean> | null = null;
 let manifestLoaded = false;
 
 let currentChaseSearchQuery = '';
 
 async function loadManifestWeapons(): Promise<boolean> {
   if (manifestLoaded && manifestWeaponList.length > 0) return true;
-  if (isManifestLoading) return false;
-  isManifestLoading = true;
+  if (manifestLoadingPromise) return manifestLoadingPromise;
 
-  try {
-    let list: ManifestWeapon[] | null = null;
-
-    // 1. Try local extension runtime asset (instant developer & local load)
+  manifestLoadingPromise = (async () => {
     try {
-      const localUrl = chrome.runtime.getURL('data/manifest-weapons.json');
-      const localRes = await fetch(localUrl);
-      if (localRes.ok) {
-        list = await localRes.json();
-      }
-    } catch (e) {}
+      let list: ManifestWeapon[] | null = null;
 
-    // 2. Try chrome.storage.local cache
-    if (!list || list.length === 0) {
+      // 1. Try local extension runtime asset (instant developer & local load)
       try {
-        const stored = await chrome.storage.local.get(['aegisManifestWeapons']);
-        if (stored.aegisManifestWeapons && Array.isArray(stored.aegisManifestWeapons) && stored.aegisManifestWeapons.length > 0) {
-          list = stored.aegisManifestWeapons;
-        }
-      } catch (e) {}
-    }
-
-    // 3. Fetch from CDN mirror if not cached
-    if (!list || list.length === 0) {
-      try {
-        const res = await fetch(MANIFEST_WEAPONS_CDN_URL, { cache: 'no-cache' });
-        if (res.ok) {
-          list = await res.json();
+        const localUrl = chrome.runtime.getURL('data/manifest-weapons.json');
+        const localRes = await fetch(localUrl);
+        if (localRes.ok) {
+          list = await localRes.json();
         }
       } catch (e) {}
 
+      // 2. Try chrome.storage.local cache
       if (!list || list.length === 0) {
         try {
-          const res = await fetch(MANIFEST_WEAPONS_FALLBACK_URL, { cache: 'no-cache' });
+          const stored = await chrome.storage.local.get(['aegisManifestWeapons']);
+          if (stored.aegisManifestWeapons && Array.isArray(stored.aegisManifestWeapons) && stored.aegisManifestWeapons.length > 0) {
+            list = stored.aegisManifestWeapons;
+          }
+        } catch (e) {}
+      }
+
+      // 3. Fetch from CDN mirror if not cached
+      if (!list || list.length === 0) {
+        try {
+          const res = await fetch(MANIFEST_WEAPONS_CDN_URL, { cache: 'no-cache' });
           if (res.ok) {
             list = await res.json();
           }
         } catch (e) {}
+
+        if (!list || list.length === 0) {
+          try {
+            const res = await fetch(MANIFEST_WEAPONS_FALLBACK_URL, { cache: 'no-cache' });
+            if (res.ok) {
+              list = await res.json();
+            }
+          } catch (e) {}
+        }
+
+        if (list && Array.isArray(list) && list.length > 0) {
+          try {
+            await chrome.storage.local.set({ aegisManifestWeapons: list });
+          } catch (e) {}
+        }
       }
 
       if (list && Array.isArray(list) && list.length > 0) {
-        try {
-          await chrome.storage.local.set({ aegisManifestWeapons: list });
-        } catch (e) {}
-      }
-    }
-
-    if (list && Array.isArray(list) && list.length > 0) {
-      manifestWeaponList = list;
-      manifestWeaponsMap = {};
-      manifestWeaponsByHash = {};
-      for (const w of list) {
-        if (w.name) {
-          const norm = w.name.toLowerCase().trim();
-          if (!manifestWeaponsMap[norm] || (!w.superseded && manifestWeaponsMap[norm].superseded)) {
-            manifestWeaponsMap[norm] = w;
+        manifestWeaponList = list;
+        manifestWeaponsMap = {};
+        manifestWeaponsByHash = {};
+        for (const w of list) {
+          if (w.name) {
+            const norm = w.name.toLowerCase().trim();
+            if (!manifestWeaponsMap[norm] || (!w.superseded && manifestWeaponsMap[norm].superseded)) {
+              manifestWeaponsMap[norm] = w;
+            }
+          }
+          if (w.hash) {
+            manifestWeaponsByHash[w.hash] = w;
           }
         }
-        if (w.hash) {
-          manifestWeaponsByHash[w.hash] = w;
-        }
+        manifestLoaded = true;
+        return true;
       }
-      manifestLoaded = true;
-      isManifestLoading = false;
-      return true;
+    } catch (err) {
+      console.warn('Failed to load manifest weapons database:', err);
+    } finally {
+      manifestLoadingPromise = null;
     }
-  } catch (err) {
-    console.warn('Failed to load manifest weapons database:', err);
-  }
 
-  isManifestLoading = false;
-  return false;
+    return false;
+  })();
+
+  return manifestLoadingPromise;
 }
 
 function isShoppingItemArmor(item: AegisShoppingItem): boolean {
   if (item.isArmor) return true;
   const n = normName(item.name);
-  if (aegisSheetDb?.armorAegis && aegisSheetDb.armorAegis[n]) return true;
-  if (aegisSheetDb?.armor && aegisSheetDb.armor[n]) return true;
+  const activeDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || aegisSheetDb;
+  if (activeDb?.armorAegis && activeDb.armorAegis[n]) return true;
+  if (activeDb?.armor && activeDb.armor[n]) return true;
   const r = item.role.toLowerCase();
   if (r.includes('pcs') || r.includes('dr') || r.includes('armor') || r.includes('regen') || r.includes('augmentation')) return true;
   const c1 = item.column1.toLowerCase();
@@ -422,7 +421,8 @@ function isShoppingItemArmor(item: AegisShoppingItem): boolean {
 function isShoppingItemExotic(item: AegisShoppingItem): boolean {
   if (item.isExotic) return true;
   const n = normName(item.name);
-  const w = aegisSheetDb?.weapons[n];
+  const activeDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || aegisSheetDb;
+  const w = activeDb?.weapons[n];
   if (w && (w.tier?.toLowerCase() === 'exotic' || w.rank?.toLowerCase() === 'exotic')) return true;
   if (item.role.toLowerCase().includes('exotic')) return true;
   if (item.source.toLowerCase().includes('monument') || item.source.toLowerCase().includes('kiosk') || item.source.toLowerCase().includes('rahool')) return true;
@@ -918,15 +918,29 @@ function findWeaponCategory(weaponName: string, itemHash?: number, targetDb?: Ae
   return '';
 }
 
-function findSuperiors(categoryTab: string, currentEnergy: string, currentFrame: string, targetDb?: AegisSheetDatabase | null) {
+interface SuperiorsResult {
+  byEnergy: AegisSheetWeapon | null;
+  byFrame: AegisSheetWeapon | null;
+  byBoth: AegisSheetWeapon | null;
+}
+
+const superiorsCache = new Map<string, SuperiorsResult>();
+
+function findSuperiors(categoryTab: string, currentEnergy: string, currentFrame: string, targetDb?: AegisSheetDatabase | null): SuperiorsResult {
   const db = targetDb || aegisSheetDb;
   if (!db || !db.categories || !categoryTab) {
     return { byEnergy: null, byFrame: null, byBoth: null };
   }
-  const list = db.categories[categoryTab] || [];
+
   const normEnergy = currentEnergy.toLowerCase().trim();
   const normFrame = currentFrame.toLowerCase().replace(/ frame$/, '').trim();
+  const dbTag = db === aegisSheetDb ? 'active' : (db === aegisSheetDbPvP ? 'pvp' : 'pve');
+  const cacheKey = `${categoryTab}:${normEnergy}:${normFrame}:${dbTag}`;
 
+  const cached = superiorsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const list = db.categories[categoryTab] || [];
   const byEnergy = list.find(w => w.energy.toLowerCase().trim() === normEnergy) || null;
   const byFrame = list.find(w => w.frame.toLowerCase().replace(/ frame$/, '').trim() === normFrame) || null;
   const byBoth = list.find(w => 
@@ -934,7 +948,10 @@ function findSuperiors(categoryTab: string, currentEnergy: string, currentFrame:
     w.frame.toLowerCase().replace(/ frame$/, '').trim() === normFrame
   ) || null;
 
-  return { byEnergy, byFrame, byBoth };
+  const result: SuperiorsResult = { byEnergy, byFrame, byBoth };
+  if (superiorsCache.size > 1000) superiorsCache.clear();
+  superiorsCache.set(cacheKey, result);
+  return result;
 }
 
 function isWordSubsequence(subWords: string[], mainWords: string[]): boolean {
@@ -1749,17 +1766,20 @@ function renderResults() {
   try {
     // 1. SHOPPING LIST AUDIT TAB RENDERER
     if (activeTab === 'shopping') {
-      if (!aegisShoppingDb || !aegisShoppingDb.items || aegisShoppingDb.items.length === 0) {
+      const activeShoppingDb = (aegisMode === 'pvp' ? aegisShoppingDbPvP : aegisShoppingDbPvE) || aegisShoppingDb;
+      if (!activeShoppingDb || !activeShoppingDb.items || activeShoppingDb.items.length === 0) {
+        const author = aegisMode === 'pvp' ? 'Finnald' : 'Aegis';
         resultsContainer.innerHTML = `
           <div class="aegis-explorer-empty" style="padding: 30px 15px; text-align: center; line-height: 1.5; color: #aaa;">
-            Shopping list is loading or syncing from Aegis's spreadsheet...<br/><br/>
+            Shopping list is loading or syncing from ${author}'s spreadsheet...<br/><br/>
             Check your internet connection or reload the extension.
           </div>
         `;
         return;
       }
 
-      const allItems = aegisShoppingDb.items;
+      const allItems = activeShoppingDb.items;
+      const activeSheetDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || db;
       const filterText = (document.querySelector('.aegis-explorer-search-input') as HTMLInputElement)?.value.toLowerCase().trim() || '';
 
       // Compute readiness statistics
@@ -1820,7 +1840,7 @@ function renderResults() {
               bestGrade = '';
             }
           } else {
-            const sheetW = db.weapons[normItemName] || db.weapons[normName(item.name.replace(/\s*\([^)]+\)\s*$/, '').trim())];
+            const sheetW = activeSheetDb.weapons[normItemName] || activeSheetDb.weapons[normName(item.name.replace(/\s*\([^)]+\)\s*$/, '').trim())];
             let highestVal = -1;
             let bestOwnedEval: ReturnType<typeof getLiveEvaluatedCopyInfo> | null = null;
             for (const owned of ownedList) {
@@ -1863,7 +1883,7 @@ function renderResults() {
             for (const alt of item.alternatives) {
               const normAlt = normName(alt);
               const altOwned = playerVaultInventory.get(normAlt) || [];
-              const altSheetW = db.weapons[normAlt] || db.weapons[normName(alt.replace(/\s*\([^)]+\)\s*$/, '').trim())];
+              const altSheetW = activeSheetDb.weapons[normAlt] || activeSheetDb.weapons[normName(alt.replace(/\s*\([^)]+\)\s*$/, '').trim())];
               if (altOwned.length > 0) {
                 for (const o of altOwned) {
                   const lEval = getLiveEvaluatedCopyInfo(o, altSheetW);
@@ -2338,7 +2358,7 @@ function renderResults() {
       const completedCount = items.filter(i => completedWeapons[normName(i.name)]).length;
 
       // Trigger background manifest preload if not loaded yet
-      if (!manifestLoaded && !isManifestLoading) {
+      if (!manifestLoaded && !manifestLoadingPromise) {
         loadManifestWeapons().then(() => {
           const activeSearch = document.querySelector('.aegis-chase-search-input') as HTMLInputElement | null;
           if (activeSearch && activeSearch.value.trim().length >= 2) {
@@ -2685,19 +2705,23 @@ function bindChaseSearchEvents() {
     }
 
     if (matchedWeapons.length === 0) {
-      dropdown.innerHTML = `<div class="aegis-chase-search-empty">No matching weapons found for "${q}"</div>`;
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'aegis-chase-search-empty';
+      emptyEl.textContent = `No matching weapons found for "${searchInput.value.trim()}"`;
+      dropdown.replaceChildren(emptyEl);
       dropdown.classList.remove('hidden');
       return;
     }
 
-    dropdown.innerHTML = matchedWeapons.map(w => {
+    const itemsHtml = matchedWeapons.map(w => {
       const isAlreadyTracked = !!chaseList[normName(w.name)];
+      const escapedName = w.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return `
-        <div class="aegis-chase-search-item ${isAlreadyTracked ? 'already-tracked' : ''}" data-weapon-name="${w.name.replace(/"/g, '&quot;')}">
+        <div class="aegis-chase-search-item ${isAlreadyTracked ? 'already-tracked' : ''}" data-weapon-name="${escapedName}">
           ${w.icon ? `<img src="${w.icon}" class="aegis-search-item-thumb" />` : ''}
           <div class="aegis-search-item-text">
             <div class="aegis-search-item-title">
-              <span>${w.name}</span>
+              <span>${escapedName}</span>
               ${w.damageIcon ? `<img src="${w.damageIcon}" class="aegis-search-item-elem" />` : ''}
               ${w.isCraftable ? `<span class="aegis-search-craftable-badge">Craftable</span>` : ''}
             </div>
@@ -2705,13 +2729,14 @@ function bindChaseSearchEvents() {
               ${w.damageType || ''} ${w.archetype || w.typeName || ''} ${w.source ? `• ${w.source}` : ''}
             </div>
           </div>
-          <button class="aegis-search-add-btn" type="button" data-weapon-name="${w.name.replace(/"/g, '&quot;')}">
+          <button class="aegis-search-add-btn" type="button" data-weapon-name="${escapedName}">
             ${isAlreadyTracked ? '✓ In List' : '+ Add Roll'}
           </button>
         </div>
       `;
     }).join('');
 
+    safeSetInnerHTML(dropdown, itemsHtml);
     dropdown.classList.remove('hidden');
   };
 
@@ -3793,18 +3818,32 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisSheetDbPvE) {
       aegisSheetDbPvE = changes.aegisSheetDbPvE.newValue || null;
+      superiorsCache.clear();
       evaluationLocaleRefreshNeeded = true;
       forceEvaluationLocaleRefresh = true;
       changed = true;
     }
     if (changes.aegisSheetDbPvP) {
       aegisSheetDbPvP = changes.aegisSheetDbPvP.newValue || null;
+      superiorsCache.clear();
       evaluationLocaleRefreshNeeded = true;
       forceEvaluationLocaleRefresh = true;
       changed = true;
     }
     if (changes.aegisMode) {
       aegisMode = changes.aegisMode.newValue || 'pve';
+      const activeShopping = aegisMode === 'pvp'
+        ? (aegisShoppingDbPvP || aegisShoppingDbPvE)
+        : (aegisShoppingDbPvE || aegisShoppingDbPvP);
+      if (activeShopping) {
+        aegisShoppingDb = activeShopping;
+      }
+      const activeDb = aegisMode === 'pvp'
+        ? (aegisSheetDbPvP || aegisSheetDbPvE)
+        : (aegisSheetDbPvE || aegisSheetDbPvP);
+      if (activeDb && aegisMode !== 'both') {
+        aegisSheetDb = activeDb;
+      }
       if (aegisMode === 'both') {
         aegisTooltipWidthMode = 'auto';
       } else if (aegisMode === 'pve' || aegisMode === 'pvp') {
@@ -3878,6 +3917,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisSheetDb) {
       aegisSheetDb = changes.aegisSheetDb.newValue || null;
+      superiorsCache.clear();
       if (clearLegacyDefaultChaseFilters()) {
         chrome.storage.local.set({ aegisChaseList: chaseList });
       }
@@ -5141,6 +5181,7 @@ function processElement(el: HTMLElement) {
           try { armorStats = JSON.parse(armorStatsStr); } catch (e) {}
         }
 
+        const rawInstanceId = el.getAttribute('data-aegis-instance-id') || el.getAttribute('data-aegis-item-id') || undefined;
         const itemInfo: PlayerOwnedItemInfo = {
           name: weaponName,
           grade: bestRating,
@@ -5148,18 +5189,19 @@ function processElement(el: HTMLElement) {
           isPerfect: false,
           hash: 0,
           armorPerks,
-          armorStats
+          armorStats,
+          instanceId: rawInstanceId,
         };
 
         const existing = playerVaultInventory.get(normAName) || [];
-        const idx = existing.findIndex(item => item.element === el);
+        const idx = existing.findIndex(item => (rawInstanceId && item.instanceId === rawInstanceId) || item.element === el);
         if (idx >= 0) existing[idx] = itemInfo;
         else existing.push(itemInfo);
         playerVaultInventory.set(normAName, existing);
 
         if (armorSetName && armorSetName !== normAName) {
           const existingSet = playerVaultInventory.get(armorSetName) || [];
-          const sIdx = existingSet.findIndex(item => item.element === el);
+          const sIdx = existingSet.findIndex(item => (rawInstanceId && item.instanceId === rawInstanceId) || item.element === el);
           if (sIdx >= 0) existingSet[sIdx] = itemInfo;
           else existingSet.push(itemInfo);
           playerVaultInventory.set(armorSetName, existingSet);
@@ -5523,6 +5565,23 @@ function processElement(el: HTMLElement) {
     const { item: shoppingItemPvE, alt: shoppingAltPvE } = resolveShoppingItem(aegisShoppingDbPvE, aegisShoppingDb, normWName);
     const { item: shoppingItemPvP, alt: shoppingAltPvP } = resolveShoppingItem(aegisShoppingDbPvP, null, normWName);
 
+    const dualInfo: DualSheetInfo | undefined = aegisMode === 'both' ? {
+      sheetWeaponPvE,
+      sheetWeaponPvP,
+      sheetPerksPvE,
+      sheetPerksPvP,
+      pveResult,
+      pvpResult,
+      bestAlternativePvE,
+      bestAlternativePvP,
+      isBestInClassPvE,
+      isBestInClassPvP,
+      shoppingItemPvE,
+      shoppingAltPvE,
+      shoppingItemPvP,
+      shoppingAltPvP,
+    } : undefined;
+
     // Store evaluation payload in GC-safe, strongly typed WeakMap
     weaponDataMap.set(el, {
       result,
@@ -5536,6 +5595,7 @@ function processElement(el: HTMLElement) {
       equippedMasterwork: equippedMasterwork || null,
       shoppingItem,
       shoppingAlt,
+      dualInfo,
       shoppingItemPvE,
       shoppingAltPvE,
       shoppingItemPvP,
@@ -5556,7 +5616,8 @@ function processElement(el: HTMLElement) {
     if (result.grade) {
       const lookupKey = normWName;
       const existing = playerVaultInventory.get(lookupKey) || [];
-      const idx = existing.findIndex(item => item.element === el);
+      const instanceId = el.getAttribute('data-aegis-instance-id') || el.getAttribute('data-aegis-item-id') || undefined;
+      const idx = existing.findIndex(item => (instanceId && item.instanceId === instanceId) || item.element === el);
       const itemInfo: PlayerOwnedItemInfo = {
         name: weaponName,
         grade: result.grade,
@@ -5566,7 +5627,7 @@ function processElement(el: HTMLElement) {
         matchedPerks: sheetPerks ? sheetPerks.matched : undefined,
         perkHashes: result.matchedPerks,
         equippedMasterwork: equippedMasterwork || undefined,
-        instanceId: el.getAttribute('data-aegis-instance-id') || undefined,
+        instanceId,
         potentialGrade: result.potentialGrade,
         upgradeAvailable: result.upgradeAvailable,
         isOmniRoll: result.isOmniRoll,
@@ -6273,6 +6334,17 @@ function setupSearchFilterObserver() {
 function reprocessAllElements() {
   setupRegistryObserver();
   setupSearchFilterObserver();
+
+  // Prune uninstanced detached items to prevent memory leaks across route changes
+  for (const [key, items] of playerVaultInventory.entries()) {
+    const valid = items.filter(item => item.instanceId || item.element.isConnected);
+    if (valid.length === 0) {
+      playerVaultInventory.delete(key);
+    } else {
+      playerVaultInventory.set(key, valid);
+    }
+  }
+
   const elements = document.querySelectorAll<HTMLElement>('[data-aegis-item-hash]');
   for (let i = 0; i < elements.length; i++) {
     processElement(elements[i]);

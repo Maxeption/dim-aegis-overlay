@@ -1,4 +1,5 @@
 import { initLanguage, t } from './i18n';
+import { LocalStorageSchema, AegisMode } from './types';
 
 function localizePopup(storedLang?: string) {
   initLanguage(storedLang);
@@ -546,26 +547,33 @@ document.addEventListener('DOMContentLoaded', () => {
     aegisModeSegmented.addEventListener('click', (e) => {
       const target = e.target as HTMLButtonElement;
       if (target && target.tagName === 'BUTTON') {
-        const val = target.getAttribute('data-value');
+        const val = target.getAttribute('data-value') as AegisMode | null;
         if (val) {
-          chrome.storage.local.get(['aegisSheetDbPvE', 'aegisSheetDbPvP'], (res: any) => {
-            const activeDb = val === 'pvp' ? res.aegisSheetDbPvP : res.aegisSheetDbPvE;
-            const updateObj: any = { aegisMode: val };
-            if (activeDb) {
-              updateObj.aegisSheetDb = activeDb;
-            }
+          chrome.storage.local.get(
+            ['aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP'],
+            (res: Pick<LocalStorageSchema, 'aegisSheetDbPvE' | 'aegisSheetDbPvP' | 'aegisShoppingDbPvE' | 'aegisShoppingDbPvP'>) => {
+              const activeDb = val === 'pvp' ? (res.aegisSheetDbPvP || res.aegisSheetDbPvE) : (res.aegisSheetDbPvE || res.aegisSheetDbPvP);
+              const activeShoppingDb = val === 'pvp' ? (res.aegisShoppingDbPvP || res.aegisShoppingDbPvE) : (res.aegisShoppingDbPvE || res.aegisShoppingDbPvP);
+              const updateObj: Partial<LocalStorageSchema> = { aegisMode: val };
+              if (activeDb) {
+                updateObj.aegisSheetDb = activeDb;
+              }
+              if (activeShoppingDb) {
+                updateObj.aegisShoppingDb = activeShoppingDb;
+              }
 
-            // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
-            if (val === 'both') {
-              updateObj.aegisTooltipWidthMode = 'auto';
-            } else {
-              updateObj.aegisTooltipWidthMode = 'fixed';
-            }
+              // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
+              if (val === 'both') {
+                updateObj.aegisTooltipWidthMode = 'auto';
+              } else {
+                updateObj.aegisTooltipWidthMode = 'fixed';
+              }
 
-            chrome.storage.local.set(updateObj, () => {
-              updateUI();
-            });
-          });
+              chrome.storage.local.set(updateObj, () => {
+                updateUI();
+              });
+            }
+          );
         }
       }
     });

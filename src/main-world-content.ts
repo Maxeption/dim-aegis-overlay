@@ -174,11 +174,7 @@ async function getDefinitionByHash(hash: number, storeName: string): Promise<any
 
   // Otherwise, query IndexedDB directly (for separate-store databases)
   if (!manifestDbName) return null;
-  const db = await new Promise<IDBDatabase | null>((resolve) => {
-    const req = indexedDB.open(manifestDbName!);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => resolve(null);
-  });
+  const db = await getSharedManifestDb(manifestDbName);
   if (!db) return null;
 
   try {
@@ -208,11 +204,50 @@ async function getDefinitionByHash(hash: number, storeName: string): Promise<any
       }
     }
   } catch (e) {
-    // Ignore
-  } finally {
-    db.close();
+    // If transaction failed due to closed or aborted connection, invalidate pool
+    sharedManifestDb = null;
+    sharedManifestDbName = null;
   }
   return null;
+}
+
+let sharedManifestDb: IDBDatabase | null = null;
+let sharedManifestDbName: string | null = null;
+
+async function getSharedManifestDb(dbName: string): Promise<IDBDatabase | null> {
+  if (sharedManifestDb && sharedManifestDbName === dbName) {
+    return sharedManifestDb;
+  }
+  if (sharedManifestDb) {
+    try { sharedManifestDb.close(); } catch (_) {}
+    sharedManifestDb = null;
+  }
+
+  const db = await new Promise<IDBDatabase | null>((resolve) => {
+    const req = indexedDB.open(dbName);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+
+  if (db) {
+    db.onversionchange = () => {
+      try { db.close(); } catch (_) {}
+      if (sharedManifestDb === db) {
+        sharedManifestDb = null;
+        sharedManifestDbName = null;
+      }
+    };
+    db.onclose = () => {
+      if (sharedManifestDb === db) {
+        sharedManifestDb = null;
+        sharedManifestDbName = null;
+      }
+    };
+    sharedManifestDb = db;
+    sharedManifestDbName = dbName;
+  }
+
+  return db;
 }
 
 /**

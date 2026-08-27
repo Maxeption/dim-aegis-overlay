@@ -183,21 +183,21 @@
 
 .aegis-badge-upgrade-arrow {
   position: absolute !important;
-  top: -3px !important;
-  right: -3px !important;
-  font-size: 5px !important;
+  top: -6px !important;
+  right: -6px !important;
+  font-size: 5.5px !important;
   background: linear-gradient(135deg, #4ade80, #16a34a) !important;
   color: #ffffff !important;
-  width: 9px !important;
-  height: 9px !important;
+  width: 10px !important;
+  height: 10px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   border: 1px solid #ffffff !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.75) !important;
   font-family: sans-serif !important;
-  z-index: 105 !important;
+  z-index: 110 !important;
   line-height: 1 !important;
   pointer-events: none !important;
 }
@@ -253,23 +253,23 @@
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-classic {
-  height: 16.5px !important;
+  height: 18.5px !important;
   border-radius: 9999px !important;
-  font-size: calc(9px * var(--aegis-badge-scale, 1)) !important;
+  font-size: calc(10px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-pill {
-  height: 13.5px !important;
-  border-radius: 3px !important;
-  font-size: calc(8px * var(--aegis-badge-scale, 1)) !important;
+  height: 15px !important;
+  border-radius: 3.5px !important;
+  font-size: calc(9.5px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-badge.aegis-badge-split.aegis-style-notch {
-  height: 12px !important;
+  height: 13.5px !important;
   width: 100% !important;
   max-width: 100% !important;
-  border-radius: 0 0 3px 3px !important;
-  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
+  border-radius: 0 0 3.5px 3.5px !important;
+  font-size: calc(9.5px * var(--aegis-badge-scale, 1)) !important;
 }
 
 .aegis-split-inner {
@@ -288,14 +288,14 @@
   justify-content: center !important;
   text-align: center !important;
   height: 100% !important;
-  padding: 0 3.5px !important;
-  font-weight: 800 !important;
+  padding: 0 4.5px !important;
+  font-weight: 850 !important;
   color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
   font-size: inherit !important;
   box-sizing: border-box !important;
   line-height: 1 !important;
-  letter-spacing: -0.2px !important;
+  letter-spacing: -0.3px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
 }
@@ -306,9 +306,9 @@
 
 /* Compact scaling for potential transition arrows */
 .aegis-badge-split .aegis-split-half.aegis-split-transition {
-  font-size: calc(7.5px * var(--aegis-badge-scale, 1)) !important;
-  padding: 0 2px !important;
-  letter-spacing: -0.35px !important;
+  font-size: calc(8.5px * var(--aegis-badge-scale, 1)) !important;
+  padding: 0 2.5px !important;
+  letter-spacing: -0.4px !important;
 }
 
 .aegis-badge-none {
