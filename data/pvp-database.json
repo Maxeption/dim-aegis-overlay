@@ -48654,8 +48654,8 @@
         "role": "Kinetic Slot Precision Slug Shotgun",
         "name": "Heritage",
         "source": "Deep Stone Crypt Raid",
-        "priorityNum": 2,
-        "priority": "medium",
+        "priorityNum": 1,
+        "priority": "high",
         "column1": "Threat Detector\nSlideshot\nHip-Fire Grip",
         "column2": "Moving Target\nSnapshot Sights\nOffhand Strike",
         "alternatives": [
@@ -48669,8 +48669,8 @@
         "role": "Energy Slot Precision Slug Shotgun",
         "name": "The Inquisitor (Monument of Triumph Variant)",
         "source": "Trials of Osiris / Saint-14 Vendor",
-        "priorityNum": 2,
-        "priority": "medium",
+        "priorityNum": 1,
+        "priority": "high",
         "column1": "Threat Detector\nLone Wolf\nPerpetual Motion",
         "column2": "Opening Shot\nSnapshot Sights\nClosing Time\n Vorpal Weapon",
         "alternatives": [
@@ -48747,7 +48747,7 @@
         "alternatives": [
           "NOTE: Voltaic Shade REQUIRES Overclocked Heatsink.",
           "Non-Heat Weapon options: Unworthy, Fang of Ir-Yut, Randy's Throwing Knife, and Aisha's Embrace.",
-          "These require Gear Shift OR Precision Instrument + Weapons Stat"
+          "These require Gear Shift OR Precision Instrument + 108? Weapons Stat"
         ],
         "isArmor": false,
         "isExotic": false
@@ -49790,8 +49790,8 @@
         "role": "Kinetic Slot Precision Slug Shotgun",
         "name": "Heritage",
         "source": "Deep Stone Crypt Raid",
-        "priorityNum": 2,
-        "priority": "medium",
+        "priorityNum": 1,
+        "priority": "high",
         "column1": "Threat Detector\nSlideshot\nHip-Fire Grip",
         "column2": "Moving Target\nSnapshot Sights\nOffhand Strike",
         "alternatives": [
@@ -49805,8 +49805,8 @@
         "role": "Energy Slot Precision Slug Shotgun",
         "name": "The Inquisitor (Monument of Triumph Variant)",
         "source": "Trials of Osiris / Saint-14 Vendor",
-        "priorityNum": 2,
-        "priority": "medium",
+        "priorityNum": 1,
+        "priority": "high",
         "column1": "Threat Detector\nLone Wolf\nPerpetual Motion",
         "column2": "Opening Shot\nSnapshot Sights\nClosing Time\n Vorpal Weapon",
         "alternatives": [
@@ -49883,7 +49883,7 @@
         "alternatives": [
           "NOTE: Voltaic Shade REQUIRES Overclocked Heatsink.",
           "Non-Heat Weapon options: Unworthy, Fang of Ir-Yut, Randy's Throwing Knife, and Aisha's Embrace.",
-          "These require Gear Shift OR Precision Instrument + Weapons Stat"
+          "These require Gear Shift OR Precision Instrument + 108? Weapons Stat"
         ],
         "isArmor": false,
         "isExotic": false
@@ -50776,26 +50776,26 @@
       "exotic: the chaperone": {
         "primaryName": "Heritage",
         "role": "Kinetic Slot Precision Slug Shotgun",
-        "priority": "medium",
-        "priorityNum": 2
+        "priority": "high",
+        "priorityNum": 1
       },
       "legendary: blasphemer, fortissimo-11, or supercluster": {
         "primaryName": "Heritage",
         "role": "Kinetic Slot Precision Slug Shotgun",
-        "priority": "medium",
-        "priorityNum": 2
+        "priority": "high",
+        "priorityNum": 1
       },
       "exotic: duality": {
         "primaryName": "The Inquisitor (Monument of Triumph Variant)",
         "role": "Energy Slot Precision Slug Shotgun",
-        "priority": "medium",
-        "priorityNum": 2
+        "priority": "high",
+        "priorityNum": 1
       },
       "legendary: gunnora's axe, bonechiller, unvoiced, legato-11, or sojourner's tale": {
         "primaryName": "The Inquisitor (Monument of Triumph Variant)",
         "role": "Energy Slot Precision Slug Shotgun",
-        "priority": "medium",
-        "priorityNum": 2
+        "priority": "high",
+        "priorityNum": 1
       },
       "none for specific use of melee filler.": {
         "primaryName": "Winterbite",
@@ -50833,7 +50833,7 @@
         "priority": "medium",
         "priorityNum": 2
       },
-      "these require gear shift or precision instrument + weapons stat": {
+      "these require gear shift or precision instrument + 108? weapons stat": {
         "primaryName": "Voltaic Shade",
         "role": "0.69 TTK Rapid Fire Scout / The Jade Rabbit Counter",
         "priority": "medium",
