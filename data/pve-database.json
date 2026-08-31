@@ -7912,7 +7912,7 @@
       "energy": "Void",
       "frame": "Adaptive",
       "barrel": "Fluted Barrel",
-      "mag": "Appended Mag",
+      "mag": "Tactical Mag",
       "perk1": "Withering Gaze\nVorpal Weapon\nReconstruction",
       "perk2": "Redirection\nAggregate Charge\nHigh Ground",
       "origin": "Dealer's Choice",
@@ -23417,7 +23417,7 @@
         "energy": "Void",
         "frame": "Adaptive",
         "barrel": "Fluted Barrel",
-        "mag": "Appended Mag",
+        "mag": "Tactical Mag",
         "perk1": "Withering Gaze\nVorpal Weapon\nReconstruction",
         "perk2": "Redirection\nAggregate Charge\nHigh Ground",
         "origin": "Dealer's Choice",
@@ -38629,7 +38629,7 @@
         "energy": "Void",
         "frame": "Adaptive",
         "barrel": "Fluted Barrel",
-        "mag": "Appended Mag",
+        "mag": "Tactical Mag",
         "perk1": "Withering Gaze\nVorpal Weapon\nReconstruction",
         "perk2": "Redirection\nAggregate Charge\nHigh Ground",
         "origin": "Dealer's Choice",
@@ -45993,18 +45993,18 @@
     }
   },
   "armorAegis": {
-    "tm custom": {
-      "setName": "TM Custom",
-      "piece2Name": "Old Martian Diplomacy",
-      "piece2Desc": "worse Duality 4pc. effect, pretty large disorient pulse radius, uptime isn't amazing but infinite stow",
-      "piece2Numbers": "Trigger: weapon stow after elite+ kill | Effect: 40? HP and 12m disorient pulse, <2s ICD",
-      "piece2Rating": "B",
-      "piece4Name": "High Noon",
-      "piece4Desc": "best-in-class damage booster set bonus, irreplaceable effect",
-      "piece4Numbers": "Trigger: precision damage within ?s of weapon ready | Effect: 7% damage for 3s (doubled for Tex weapons)",
+    "atheon's memory": {
+      "setName": "Atheon's Memory",
+      "piece2Name": "Radiolaria Breach",
+      "piece2Desc": "survivability effect is very weak, pools barely stagger enemies, not very effective overall",
+      "piece2Numbers": "Trigger: orb pickup, then critical health, once per full heal | Effect: 50 Health for 7.5s, drops 4 radiolaria pools around player in a clover pattern, ~5m radius",
+      "piece2Rating": "D",
+      "piece4Name": "Collective Power",
+      "piece4Desc": "exclusive effect, great for extra super, Still Hunt, Argent mod facilitation, essentially Attrition Orbs without any setup",
+      "piece4Numbers": "Trigger: 5 damage instances with subclass buff active | Effect: Orb of Power at feet (effective 5s ICD)",
       "piece4Rating": "S",
-      "source": "Spire of the Watcher",
-      "sourceType": "Dungeon"
+      "source": "Vault of Glass",
+      "sourceType": "Raid"
     },
     "exodus down": {
       "setName": "Exodus Down",
@@ -46032,18 +46032,18 @@
       "source": "Salvation's Edge",
       "sourceType": "Raid"
     },
-    "atheon's memory": {
-      "setName": "Atheon's Memory",
-      "piece2Name": "Radiolaria Breach",
-      "piece2Desc": "survivability effect is very weak, pools barely stagger enemies, not very effective overall",
-      "piece2Numbers": "Trigger: orb pickup, then critical health, once per full heal | Effect: 50 Health for 7.5s, drops 4 radiolaria pools around player in a clover pattern, ~5m radius",
-      "piece2Rating": "D",
-      "piece4Name": "Collective Power",
-      "piece4Desc": "exclusive effect, great for extra super, Still Hunt, Argent mod facilitation, essentially Attrition Orbs without any setup",
-      "piece4Numbers": "Trigger: 5 damage instances with subclass buff active | Effect: Orb of Power at feet (effective 5s ICD)",
+    "tm custom": {
+      "setName": "TM Custom",
+      "piece2Name": "Old Martian Diplomacy",
+      "piece2Desc": "worse Duality 4pc. effect, pretty large disorient pulse radius, uptime isn't amazing but infinite stow",
+      "piece2Numbers": "Trigger: weapon stow after elite+ kill | Effect: 40? HP and 12m disorient pulse, <2s ICD",
+      "piece2Rating": "B",
+      "piece4Name": "High Noon",
+      "piece4Desc": "best-in-class damage booster set bonus, irreplaceable effect",
+      "piece4Numbers": "Trigger: precision damage within ?s of weapon ready | Effect: 7% damage for 3s (doubled for Tex weapons)",
       "piece4Rating": "S",
-      "source": "Vault of Glass",
-      "sourceType": "Raid"
+      "source": "Spire of the Watcher",
+      "sourceType": "Dungeon"
     },
     "coda": {
       "setName": "CODA",
