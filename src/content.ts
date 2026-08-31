@@ -44,14 +44,23 @@ function findAegisArmorSet(itemName: string): AegisArmorSet | null {
   if (!activeDb) return null;
 
   let db: Record<string, AegisArmorSet> | undefined;
-  if (aegisMode === 'pvp') {
-    db = (activeDb.armorAegis && Object.keys(activeDb.armorAegis).length > 0)
-      ? activeDb.armorAegis
-      : (aegisSheetDbPvP?.armorAegis || activeDb.armor);
+  if (aegisArmorSource === 'lowco') {
+    // User explicitly chose LowCo: check PvE database's LowCo armor data first
+    const lowcoDb = (aegisSheetDbPvE?.armor && Object.keys(aegisSheetDbPvE.armor).length > 0)
+      ? aegisSheetDbPvE.armor
+      : (aegisSheetDb?.armor && Object.keys(aegisSheetDb.armor).length > 0 ? aegisSheetDb.armor : undefined);
+    db = lowcoDb || activeDb.armor || activeDb.armorAegis || aegisSheetDbPvP?.armorAegis;
   } else {
-    db = (aegisArmorSource === 'aegis' && activeDb.armorAegis && Object.keys(activeDb.armorAegis).length > 0)
-      ? activeDb.armorAegis
-      : (activeDb.armor && Object.keys(activeDb.armor).length > 0 ? activeDb.armor : activeDb.armorAegis);
+    // User chose Spreadsheet / Set Bonuses: use active mode's Set Bonuses (Finnald in PvP, Aegis in PvE)
+    if (aegisMode === 'pvp') {
+      db = (aegisSheetDbPvP?.armorAegis && Object.keys(aegisSheetDbPvP.armorAegis).length > 0)
+        ? aegisSheetDbPvP.armorAegis
+        : (activeDb.armorAegis || activeDb.armor);
+    } else {
+      db = (activeDb.armorAegis && Object.keys(activeDb.armorAegis).length > 0)
+        ? activeDb.armorAegis
+        : (activeDb.armor || activeDb.armorAegis);
+    }
   }
 
   if (!db) return null;
@@ -205,6 +214,7 @@ let aegisArmorSource = 'lowco';
 let aegisMode: 'pve' | 'pvp' | 'both' = 'pve';
 let aegisCompactPerksMatrix = false;
 let aegisInlineHeader = true;
+let aegisPopupSummaryMode: 'full' | 'badge' | 'hidden' = 'full';
 let aegisAutoMaxHeight = true;
 let aegisTooltipWidthMode: 'auto' | 'fixed' = 'fixed';
 let aegisTooltipWidth = 280;
@@ -3719,7 +3729,7 @@ function showWinnowerWelcomeModal() {
   closeBtn?.addEventListener('click', dismissModal);
 }
 
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDb', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisInlineHeader', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDb', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisBadgeScale', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisInlineHeader', 'aegisPopupSummaryMode', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage'], (res) => {
   initLanguage(res.aegisLanguage);
   wishlistDb = res.wishlistData || {};
   enhancedToNormalMap = res.enhancedToNormal || {};
@@ -3740,6 +3750,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisHoverEnabled = res.aegisHoverEnabled !== false;
   aegisCompactPerksMatrix = res.aegisCompactPerksMatrix === true;
   aegisInlineHeader = res.aegisInlineHeader !== false;
+  aegisPopupSummaryMode = res.aegisPopupSummaryMode || 'full';
   aegisAutoMaxHeight = res.aegisAutoMaxHeight !== false;
   aegisTooltipWidthMode = res.aegisTooltipWidthMode || 'fixed';
   aegisTooltipWidth = typeof res.aegisTooltipWidth === 'number' ? res.aegisTooltipWidth : 280;
@@ -3899,6 +3910,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
     if (changes.aegisInlineHeader) {
       aegisInlineHeader = changes.aegisInlineHeader.newValue !== false;
+    }
+    if (changes.aegisPopupSummaryMode) {
+      aegisPopupSummaryMode = changes.aegisPopupSummaryMode.newValue || 'full';
+      changed = true;
     }
     if (changes.aegisAutoMaxHeight) {
       aegisAutoMaxHeight = changes.aegisAutoMaxHeight.newValue !== false;
@@ -4209,11 +4224,18 @@ function injectPopupSummary(
   equippedMasterwork?: string,
   dualInfo?: DualSheetInfo
 ) {
-  const titleEl = popupContainer.querySelector('h1, [class*="title"]');
-  if (!titleEl) return;
+  const titleEl = (popupContainer.querySelector('h1, h2, [class*="title" i], [class*="header" i], [class*="name" i]')
+    || popupContainer.parentElement?.querySelector('h1, h2, [class*="title" i], [class*="header" i], [class*="name" i]')
+    || popupContainer.firstElementChild) as HTMLElement | null;
 
-  const header = titleEl.parentElement;
-  if (!header) return;
+  if (titleEl && !titleEl.hasAttribute('data-aegis-title-listener')) {
+    titleEl.setAttribute('data-aegis-title-listener', 'true');
+    titleEl.addEventListener('click', () => {
+      hideTooltip();
+      document.querySelectorAll('.aegis-side-panel').forEach((el) => el.remove());
+      document.querySelectorAll('.aegis-popup-details-card').forEach((el) => el.remove());
+    });
+  }
 
   // Cancel any pending details card injection timeouts
   if (activeDetailsTimeout) {
@@ -4224,16 +4246,23 @@ function injectPopupSummary(
   // Clean up any previously injected details card
   popupContainer.querySelectorAll('[data-aegis-details="true"]').forEach((el) => el.remove());
 
+  popupContainer.querySelectorAll('.aegis-title-badge').forEach((el) => el.remove());
+
   let summaryEl = popupContainer.querySelector('.aegis-popup-summary') as HTMLDivElement | null;
-  if (!result.grade) {
-    if (summaryEl) summaryEl.remove();
-    return;
+  if (!result.grade || aegisPopupSummaryMode === 'hidden' || aegisPopupSummaryMode === 'badge') {
+    if (summaryEl) {
+      summaryEl.remove();
+      summaryEl = null;
+    }
+    if (!result.grade) return;
   }
 
-  if (!summaryEl) {
-    summaryEl = document.createElement('div');
-    summaryEl.className = 'aegis-popup-summary';
-    titleEl.insertAdjacentElement('afterend', summaryEl);
+  if (aegisPopupSummaryMode === 'full' && titleEl) {
+    if (!summaryEl) {
+      summaryEl = document.createElement('div');
+      summaryEl.className = 'aegis-popup-summary';
+      titleEl.insertAdjacentElement('afterend', summaryEl);
+    }
   }
 
   if (sheetArmor) {
@@ -4247,17 +4276,26 @@ function injectPopupSummary(
     const gradeClass = `aegis-badge-${baseGradeLetter}`;
     const wideClass = 'aegis-popup-grade-badge-wide';
 
-    safeSetInnerHTML(
-      summaryEl,
-      `
-      <div class="aegis-popup-summary-content">
-        <div class="aegis-popup-row">
-          <span class="aegis-popup-grade-badge ${gradeClass} ${wideClass}">${result.grade}</span>
-          <span class="aegis-popup-label">Armor Set Bonus Ratings</span>
+    if (aegisPopupSummaryMode === 'badge') {
+      if (titleEl) {
+        const titleBadge = document.createElement('span');
+        titleBadge.className = `aegis-title-badge ${gradeClass}`;
+        titleBadge.textContent = result.grade;
+        titleEl.appendChild(titleBadge);
+      }
+    } else if (summaryEl) {
+      safeSetInnerHTML(
+        summaryEl,
+        `
+        <div class="aegis-popup-summary-content">
+          <div class="aegis-popup-row">
+            <span class="aegis-popup-grade-badge ${gradeClass} ${wideClass}">${result.grade}</span>
+            <span class="aegis-popup-label">Armor Set Bonus Ratings</span>
+          </div>
         </div>
-      </div>
-    `
-    );
+      `
+      );
+    }
 
     // Inject armor detail card as a side panel next to DIM details modal
     const insertArmorCard = () => {
@@ -4266,12 +4304,22 @@ function injectPopupSummary(
 
       const insertTarget = popupContainer.querySelector(
         '[class*="sockets" i], [class*="Sockets" i], [class*="item-details" i], [class*="ItemDetails" i], [class*="main-content" i], [class*="body" i], [class*="content" i]'
-      ) || summaryEl;
+      ) || summaryEl || titleEl;
 
       if (insertTarget) {
         const detailsCard = document.createElement('div');
         detailsCard.className = 'aegis-popup-details-card';
         detailsCard.setAttribute('data-aegis-details', 'true');
+
+        const stopDismiss = (e: Event) => {
+          e.stopPropagation();
+        };
+        detailsCard.addEventListener('pointerdown', stopDismiss);
+        detailsCard.addEventListener('mousedown', stopDismiss);
+        detailsCard.addEventListener('mouseup', stopDismiss);
+        detailsCard.addEventListener('click', stopDismiss);
+        detailsCard.addEventListener('touchstart', stopDismiss);
+        detailsCard.addEventListener('touchend', stopDismiss);
 
         safeSetInnerHTML(
           detailsCard,
@@ -4322,45 +4370,65 @@ function injectPopupSummary(
         `
         );
 
-        const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
-        const rect = popupContainer.getBoundingClientRect();
-        const spaceLeft = rect.left;
-        const spaceRight = window.innerWidth - rect.right;
+        const attachArmorCard = () => {
+          if (!popupContainer.isConnected) return;
+          const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
+          const rect = popupContainer.getBoundingClientRect();
+          const spaceLeft = rect.left;
+          const spaceRight = window.innerWidth - rect.right;
 
-        const panelWidth = (aegisTooltipWidthMode === 'fixed' && aegisTooltipWidth) ? aegisTooltipWidth : 320;
-        const panelMargin = panelWidth + 12;
-        const requiredSpace = panelWidth + 10;
+          const panelWidth = (aegisTooltipWidthMode === 'fixed' && aegisTooltipWidth) ? aegisTooltipWidth : 320;
+          const panelMargin = panelWidth + 12;
+          const requiredSpace = panelWidth + 10;
+          const availableHeight = Math.max(200, window.innerHeight - rect.top - 16);
 
-        if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (isSheet || spaceLeft >= requiredSpace || spaceRight >= requiredSpace)) {
-          detailsCard.classList.add('aegis-side-panel');
-          popupContainer.appendChild(detailsCard);
+          if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (isSheet || spaceLeft >= requiredSpace || spaceRight >= requiredSpace)) {
+            detailsCard.classList.add('aegis-side-panel');
+            popupContainer.appendChild(detailsCard);
 
-          detailsCard.style.setProperty('position', 'absolute', 'important');
-          detailsCard.style.setProperty('top', '55px', 'important');
-          detailsCard.style.setProperty('width', `${panelWidth}px`, 'important');
+            detailsCard.style.setProperty('position', 'absolute', 'important');
+            detailsCard.style.setProperty('top', '0px', 'important');
+            detailsCard.style.setProperty('width', `${panelWidth}px`, 'important');
+            detailsCard.style.setProperty('max-height', `${availableHeight}px`, 'important');
+            detailsCard.style.setProperty('overflow-y', 'auto', 'important');
+            detailsCard.style.setProperty('overflow-x', 'hidden', 'important');
+            detailsCard.style.setProperty('z-index', '1000', 'important');
+            detailsCard.style.setProperty('pointer-events', 'auto', 'important');
+            detailsCard.style.setProperty('user-select', 'text', 'important');
 
-          if (isSheet || (spaceLeft >= spaceRight && spaceLeft >= requiredSpace)) {
-            detailsCard.style.setProperty('left', `-${panelMargin}px`, 'important');
-            detailsCard.style.setProperty('right', 'auto', 'important');
-          } else if (spaceRight >= requiredSpace) {
-            detailsCard.style.setProperty('left', 'auto', 'important');
-            detailsCard.style.setProperty('right', `-${panelMargin}px`, 'important');
+            if (isSheet || (spaceLeft >= spaceRight && spaceLeft >= requiredSpace)) {
+              detailsCard.style.setProperty('left', `-${panelMargin}px`, 'important');
+              detailsCard.style.setProperty('right', 'auto', 'important');
+            } else if (spaceRight >= requiredSpace) {
+              detailsCard.style.setProperty('left', 'auto', 'important');
+              detailsCard.style.setProperty('right', `-${panelMargin}px`, 'important');
+            } else {
+              detailsCard.classList.remove('aegis-side-panel');
+              detailsCard.style.removeProperty('position');
+              detailsCard.style.removeProperty('top');
+              detailsCard.style.removeProperty('left');
+              detailsCard.style.removeProperty('right');
+              detailsCard.style.removeProperty('max-height');
+              detailsCard.style.removeProperty('overflow-y');
+              detailsCard.style.removeProperty('overflow-x');
+              insertTarget.after(detailsCard);
+            }
           } else {
             detailsCard.classList.remove('aegis-side-panel');
             detailsCard.style.removeProperty('position');
             detailsCard.style.removeProperty('top');
             detailsCard.style.removeProperty('left');
             detailsCard.style.removeProperty('right');
+            detailsCard.style.removeProperty('max-height');
+            detailsCard.style.removeProperty('overflow-y');
+            detailsCard.style.removeProperty('overflow-x');
             insertTarget.after(detailsCard);
           }
-        } else {
-          detailsCard.classList.remove('aegis-side-panel');
-          detailsCard.style.removeProperty('position');
-          detailsCard.style.removeProperty('top');
-          detailsCard.style.removeProperty('left');
-          detailsCard.style.removeProperty('right');
-          insertTarget.after(detailsCard);
-        }
+        };
+
+        attachArmorCard();
+        setTimeout(attachArmorCard, 100);
+        setTimeout(attachArmorCard, 250);
       }
     };
 
@@ -4397,73 +4465,98 @@ function injectPopupSummary(
 
   const gradeStr = result.grade || '';
   const isSplit = gradeStr.includes('|');
+  const baseGradeLetter = result.grade.charAt(0).toLowerCase();
+  const gradeClass = `aegis-grade-${baseGradeLetter}`;
 
-  if (dualInfo && isSplit) {
-    const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
-    const pveLetter = getGradeLetterFromDisplay(pveStr);
-    const pvpLetter = getGradeLetterFromDisplay(pvpStr);
-    const splitBadgeHtml = `<span class="aegis-popup-grade-badge aegis-badge-split"><span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span></span>`;
-
-    safeSetInnerHTML(
-      summaryEl,
-      `
-      <div class="aegis-popup-summary-content">
-        <div class="aegis-popup-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            ${splitBadgeHtml}
-            <span class="aegis-popup-label">${t('modeBoth')}</span>
-          </div>
-        </div>
-        ${upgradeAdviceHtml}
-        ${notesHtml}
-      </div>
-    `
-    );
-  } else {
-    const baseGradeLetter = result.grade.charAt(0).toLowerCase();
-    const gradeClass = `aegis-grade-${baseGradeLetter}`;
-    const matchLabel = isLightGG
-      ? 'Light.gg Roll Appraisal'
-      : `Wishlist Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`;
-
-    let sheetMetaHtml = '';
-    if (sheetWeapon) {
-      const tierLetter = sheetWeapon.tier ? sheetWeapon.tier.charAt(0).toLowerCase() : '';
-      const tierClass = `aegis-tier-${tierLetter}`;
-      const rankLabel = sheetWeapon.rank ? `Rank #${sheetWeapon.rank} in Category` : '';
-
-      sheetMetaHtml = `
-        <div class="aegis-popup-meta-divider"></div>
-        <div class="aegis-popup-meta-content">
-          <div class="aegis-popup-row">
-            <span class="aegis-popup-meta-badge ${tierClass}">${t('weaponTier', { tier: sheetWeapon.tier })}</span>
-            ${rankLabel ? `<span class="aegis-popup-meta-rank">${t('rankInCategory', { rank: sheetWeapon.rank })}</span>` : ''}
-          </div>
-          ${sheetWeapon.notes ? `<div class="aegis-popup-notes-text aegis-meta-notes"><strong>${t('aegisMeta')}:</strong> ${sheetWeapon.notes}</div>` : ''}
-        </div>
-      `;
+  if (aegisPopupSummaryMode === 'badge') {
+    const titleBadge = document.createElement('span');
+    titleBadge.className = 'aegis-title-badge';
+    if (dualInfo && isSplit) {
+      const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
+      const pveLetter = getGradeLetterFromDisplay(pveStr);
+      const pvpLetter = getGradeLetterFromDisplay(pvpStr);
+      titleBadge.classList.add('aegis-badge-split');
+      safeSetInnerHTML(
+        titleBadge,
+        `<span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span>`
+      );
+    } else {
+      const isTwoTier = gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-'));
+      const popupBaseGradeLetter = isTwoTier 
+        ? gradeStr.substring(1).charAt(0).toLowerCase() 
+        : baseGradeLetter;
+      titleBadge.classList.add(`aegis-badge-${popupBaseGradeLetter}`);
+      titleBadge.textContent = result.grade;
     }
+    if (titleEl) {
+      titleEl.appendChild(titleBadge);
+    }
+  } else if (summaryEl) {
+    if (dualInfo && isSplit) {
+      const [pveStr, pvpStr] = gradeStr.split('|').map(s => s.trim());
+      const pveLetter = getGradeLetterFromDisplay(pveStr);
+      const pvpLetter = getGradeLetterFromDisplay(pvpStr);
+      const splitBadgeHtml = `<span class="aegis-popup-grade-badge aegis-badge-split"><span class="aegis-split-half aegis-split-left aegis-badge-${pveLetter}">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-${pvpLetter}">${pvpStr}</span></span>`;
 
-    const isTwoTier = gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-'));
-    const popupBaseGradeLetter = isTwoTier 
-      ? gradeStr.substring(1).charAt(0).toLowerCase() 
-      : baseGradeLetter;
-    const wideClass = isTwoTier ? 'aegis-popup-grade-badge-wide' : '';
-
-    safeSetInnerHTML(
-      summaryEl,
-      `
-      <div class="aegis-popup-summary-content">
-        <div class="aegis-popup-row">
-          <span class="aegis-popup-grade-badge aegis-badge-${popupBaseGradeLetter} ${wideClass}">${result.grade}</span>
-          <span class="aegis-popup-label">${matchLabel}</span>
+      safeSetInnerHTML(
+        summaryEl,
+        `
+        <div class="aegis-popup-summary-content">
+          <div class="aegis-popup-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${splitBadgeHtml}
+              <span class="aegis-popup-label">${t('modeBoth')}</span>
+            </div>
+          </div>
+          ${upgradeAdviceHtml}
+          ${notesHtml}
         </div>
-        ${upgradeAdviceHtml}
-        ${notesHtml}
-      </div>
-      ${sheetMetaHtml}
-    `
-    );
+      `
+      );
+    } else {
+      const isTwoTier = gradeStr.length > 2 || (gradeStr.length === 2 && !gradeStr.endsWith('+') && !gradeStr.endsWith('-'));
+      const popupBaseGradeLetter = isTwoTier 
+        ? gradeStr.substring(1).charAt(0).toLowerCase() 
+        : baseGradeLetter;
+      const wideClass = isTwoTier ? 'aegis-popup-grade-badge-wide' : '';
+
+      const matchLabel = isLightGG
+        ? 'Light.gg Roll Appraisal'
+        : `Wishlist Match: <strong class="${gradeClass}">${result.matchPercentage}%</strong>`;
+
+      let sheetMetaHtml = '';
+      if (sheetWeapon) {
+        const tierLetter = sheetWeapon.tier ? sheetWeapon.tier.charAt(0).toLowerCase() : '';
+        const tierClass = `aegis-tier-${tierLetter}`;
+        const rankLabel = sheetWeapon.rank ? `Rank #${sheetWeapon.rank} in Category` : '';
+
+        sheetMetaHtml = `
+          <div class="aegis-popup-meta-divider"></div>
+          <div class="aegis-popup-meta-content">
+            <div class="aegis-popup-row">
+              <span class="aegis-popup-meta-badge ${tierClass}">${t('weaponTier', { tier: sheetWeapon.tier })}</span>
+              ${rankLabel ? `<span class="aegis-popup-meta-rank">${t('rankInCategory', { rank: sheetWeapon.rank })}</span>` : ''}
+            </div>
+            ${sheetWeapon.notes ? `<div class="aegis-popup-notes-text aegis-meta-notes"><strong>${t('aegisMeta')}:</strong> ${sheetWeapon.notes}</div>` : ''}
+          </div>
+        `;
+      }
+
+      safeSetInnerHTML(
+        summaryEl,
+        `
+        <div class="aegis-popup-summary-content">
+          <div class="aegis-popup-row">
+            <span class="aegis-popup-grade-badge aegis-badge-${popupBaseGradeLetter} ${wideClass}">${result.grade}</span>
+            <span class="aegis-popup-label">${matchLabel}</span>
+          </div>
+          ${upgradeAdviceHtml}
+          ${notesHtml}
+        </div>
+        ${sheetMetaHtml}
+      `
+      );
+    }
   }
 
   // Helper function to render a weapon details section (perks, MW, superiors, analysis)
@@ -4782,6 +4875,16 @@ function injectPopupSummary(
       detailsCard.className = 'aegis-popup-details-card';
       detailsCard.setAttribute('data-aegis-details', 'true');
 
+      const stopDismiss = (e: Event) => {
+        e.stopPropagation();
+      };
+      detailsCard.addEventListener('pointerdown', stopDismiss);
+      detailsCard.addEventListener('mousedown', stopDismiss);
+      detailsCard.addEventListener('mouseup', stopDismiss);
+      detailsCard.addEventListener('click', stopDismiss);
+      detailsCard.addEventListener('touchstart', stopDismiss);
+      detailsCard.addEventListener('touchend', stopDismiss);
+
       if (hasDualData) {
         const { 
           sheetWeaponPvE, 
@@ -4860,7 +4963,6 @@ function injectPopupSummary(
 
       const attachDetailsCard = () => {
         if (!popupContainer.isConnected) return;
-        const isSheet = popupContainer.matches('[class*="Sheet"], [class*="sheet"]');
         const rect = popupContainer.getBoundingClientRect();
         const spaceLeft = rect.left;
         const spaceRight = window.innerWidth - rect.right;
@@ -4868,18 +4970,25 @@ function injectPopupSummary(
         const panelWidth = hasDualData ? 560 : ((aegisTooltipWidthMode === 'fixed' && aegisTooltipWidth) ? aegisTooltipWidth : 320);
         const panelMargin = panelWidth + 12;
         const requiredSpace = panelWidth + 10;
+        const availableHeight = Math.max(200, window.innerHeight - rect.top - 16);
 
-        if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (isSheet || spaceLeft >= requiredSpace || spaceRight >= requiredSpace)) {
+        if (aegisLayoutSide === 'side' && window.innerWidth >= 1000 && (spaceLeft >= requiredSpace || spaceRight >= requiredSpace)) {
           detailsCard.classList.add('aegis-side-panel');
           popupContainer.appendChild(detailsCard);
 
           detailsCard.style.setProperty('position', 'absolute', 'important');
-          detailsCard.style.setProperty('top', '55px', 'important');
+          detailsCard.style.setProperty('top', '0px', 'important');
           detailsCard.style.setProperty('width', `${panelWidth}px`, 'important');
           detailsCard.style.setProperty('min-width', `${panelWidth}px`, 'important');
+          detailsCard.style.setProperty('max-height', `${availableHeight}px`, 'important');
+          detailsCard.style.setProperty('overflow-y', 'auto', 'important');
+          detailsCard.style.setProperty('overflow-x', 'hidden', 'important');
+          detailsCard.style.setProperty('z-index', '1000', 'important');
+          detailsCard.style.setProperty('pointer-events', 'auto', 'important');
+          detailsCard.style.setProperty('user-select', 'text', 'important');
           detailsCard.style.setProperty('--aegis-side-panel-width', `${panelWidth}px`);
 
-          if (isSheet || (spaceLeft >= spaceRight && spaceLeft >= requiredSpace)) {
+          if (spaceLeft >= spaceRight && spaceLeft >= requiredSpace) {
             detailsCard.style.setProperty('left', `-${panelMargin}px`, 'important');
             detailsCard.style.setProperty('right', 'auto', 'important');
           } else if (spaceRight >= requiredSpace) {
@@ -4891,6 +5000,9 @@ function injectPopupSummary(
             detailsCard.style.removeProperty('top');
             detailsCard.style.removeProperty('left');
             detailsCard.style.removeProperty('right');
+            detailsCard.style.removeProperty('max-height');
+            detailsCard.style.removeProperty('overflow-y');
+            detailsCard.style.removeProperty('overflow-x');
             if (insertTarget.parentElement) {
               insertTarget.after(detailsCard);
             } else {
@@ -4903,6 +5015,9 @@ function injectPopupSummary(
           detailsCard.style.removeProperty('top');
           detailsCard.style.removeProperty('left');
           detailsCard.style.removeProperty('right');
+          detailsCard.style.removeProperty('max-height');
+          detailsCard.style.removeProperty('overflow-y');
+          detailsCard.style.removeProperty('overflow-x');
           if (insertTarget.parentElement) {
             insertTarget.after(detailsCard);
           } else {
@@ -5685,7 +5800,7 @@ function processElement(el: HTMLElement) {
     }
 
     if (result.grade) {
-      const isPopup = !IS_WINNOWER_HOST && el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+      const isPopup = !IS_WINNOWER_HOST && el.matches('.item-popup, [class*="item-popup"], [class*="ItemPopup"]');
       const isItemTile = IS_WINNOWER_HOST
         ? el.hasAttribute('data-aegis-item-hash')
         : el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item');
@@ -5710,7 +5825,7 @@ function processElement(el: HTMLElement) {
       // Inject popup summary card if inside a details popup. DIM-only: Winnower
       // has no item popups (and [class*="Sheet"] could false-positive there).
       if (!IS_WINNOWER_HOST) {
-        const popupContainer = isPopup ? el : el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+        const popupContainer = isPopup ? el : el.closest('.item-popup, [class*="item-popup"], [class*="ItemPopup"]');
         if (popupContainer) {
           injectPopupSummary(
             popupContainer as HTMLElement,

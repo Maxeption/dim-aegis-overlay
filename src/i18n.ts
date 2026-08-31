@@ -185,6 +185,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: 'Armor Set Bonus Source',
     armorLowco: 'Low-co\'s PvE Breakdown',
     armorAegis: 'Aegis Tier Ratings',
+    armorFinnald: 'Finnald Tier Ratings',
+    armorDual: 'Spreadsheet Tier Ratings',
     badgeOpacity: 'Badge Overlay Opacity',
     shoppingList: 'Shopping List',
     shoppingAudit: 'Shopping List Completion',
@@ -230,7 +232,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: 'Tooltip Width Mode',
     widthModeAuto: 'Auto (Fit Content)',
     widthModeFixed: 'Fixed (Slider)',
-    tooltipWidthSlider: 'Custom Tooltip Width'
+    tooltipWidthSlider: 'Custom Tooltip Width',
+    popupSummaryTitle: 'DIM Item Popup Summary',
+    summaryFull: 'Full Details',
+    summaryBadge: 'Badge Only',
+    summaryHidden: 'Hidden',
+    clearWishlist: 'Clear / Reset',
+    wishlistCleared: 'Wishlist cleared and reset to default.'
   },
 
   es: {
@@ -404,6 +412,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: 'Fuente de Bonificación de Armadura',
     armorLowco: 'Análisis PvE de Low-co',
     armorAegis: 'Calificaciones de Aegis',
+    armorFinnald: 'Calificaciones de Finnald',
+    armorDual: 'Calificaciones de Hojas de Cálculo',
     badgeOpacity: 'Opacidad de la Placa',
     shoppingList: 'Lista de Compras',
     shoppingAudit: 'Progreso de Lista de Compras',
@@ -449,7 +459,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: 'Modo de Ancho de Tooltip',
     widthModeAuto: 'Automático (Ajustar Contenido)',
     widthModeFixed: 'Fijo (Deslizador)',
-    tooltipWidthSlider: 'Ancho Personalizado'
+    tooltipWidthSlider: 'Ancho Personalizado',
+    popupSummaryTitle: 'Resumen en Ventana Emergente de DIM',
+    summaryFull: 'Detalles Completos',
+    summaryBadge: 'Solo Placa',
+    summaryHidden: 'Oculto',
+    clearWishlist: 'Limpiar / Restablecer',
+    wishlistCleared: 'Lista de deseos restablecida por defecto.'
   },
 
   ko: {
@@ -623,6 +639,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: '방어구 세트 보너스 데이터',
     armorLowco: 'Low-co의 PvE 분석',
     armorAegis: 'Aegis 등급 평가',
+    armorFinnald: 'Finnald 등급 평가',
+    armorDual: '스프레드시트 등급 평가',
     badgeOpacity: '배지 투명도',
     shoppingList: '쇼핑 리스트 (파밍 목록)',
     shoppingAudit: '쇼핑 리스트 완료율',
@@ -668,7 +686,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: '툴팁 너비 모드',
     widthModeAuto: '자동 (내용 맞춤)',
     widthModeFixed: '고정 (슬라이더)',
-    tooltipWidthSlider: '사용자 지정 툴팁 너비'
+    tooltipWidthSlider: '사용자 지정 툴팁 너비',
+    popupSummaryTitle: 'DIM 아이템 팝업 요약',
+    summaryFull: '상세 정보',
+    summaryBadge: '배지만 표시',
+    summaryHidden: '숨김',
+    clearWishlist: '초기화 / 리셋',
+    wishlistCleared: '위시리스트가 초기화되었습니다.'
   },
 
   ja: {
@@ -842,6 +866,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: '防具セットボーナスデータ',
     armorLowco: 'Low-co PvE 解説',
     armorAegis: 'Aegis ティア評価',
+    armorFinnald: 'Finnald ティア評価',
+    armorDual: 'スプレッドシート ティア評価',
     badgeOpacity: 'バッジの不透明度',
     shoppingList: 'ショッピングリスト',
     shoppingAudit: 'ショッピングリスト達成度',
@@ -887,7 +913,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: 'ツールチップ幅モード',
     widthModeAuto: '自動 (コンテンツに合わせる)',
     widthModeFixed: '固定 (スライダー)',
-    tooltipWidthSlider: 'カスタム幅'
+    tooltipWidthSlider: 'カスタム幅',
+    popupSummaryTitle: 'DIM アイテムポップアップ概要',
+    summaryFull: '詳細表示',
+    summaryBadge: 'バッジのみ',
+    summaryHidden: '非表示',
+    clearWishlist: 'クリア / リセット',
+    wishlistCleared: 'ウィッシュリストがリセットされました。'
   },
 
   'zh-CHS': {
@@ -1061,6 +1093,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: '护甲套装效果数据源',
     armorLowco: 'Low-co PvE 详评',
     armorAegis: 'Aegis 评级',
+    armorFinnald: 'Finnald 评级',
+    armorDual: '表格评级',
     badgeOpacity: '角标不透明度',
     shoppingList: '必刷清单 (Shopping List)',
     shoppingAudit: '必刷清单毕业进度',
@@ -1106,7 +1140,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: '工具提示宽度模式',
     widthModeAuto: '自适应 (匹配内容)',
     widthModeFixed: '固定宽度 (滑块调节)',
-    tooltipWidthSlider: '自定义宽度'
+    tooltipWidthSlider: '自定义宽度',
+    popupSummaryTitle: 'DIM 物品弹窗摘要',
+    summaryFull: '完整详情',
+    summaryBadge: '仅显示角标',
+    summaryHidden: '隐藏',
+    clearWishlist: '清除 / 重置',
+    wishlistCleared: '心愿单已清除并恢复默认。'
   },
 
   'zh-CHT': {
@@ -1280,6 +1320,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     armorSource: '護甲套裝效果資料來源',
     armorLowco: 'Low-co PvE 詳評',
     armorAegis: 'Aegis 評級',
+    armorFinnald: 'Finnald 評級',
+    armorDual: '表格評級',
     badgeOpacity: '角標不透明度',
     shoppingList: '必刷清單 (Shopping List)',
     shoppingAudit: '必刷清單畢業進度',
@@ -1325,7 +1367,13 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     tooltipWidthMode: '工具提示寬度模式',
     widthModeAuto: '自適應 (匹配內容)',
     widthModeFixed: '固定寬度 (滑桿調節)',
-    tooltipWidthSlider: '自定義寬度'
+    tooltipWidthSlider: '自定義寬度',
+    popupSummaryTitle: 'DIM 物品彈窗摘要',
+    summaryFull: '完整詳情',
+    summaryBadge: '僅顯示徽章',
+    summaryHidden: '隱藏',
+    clearWishlist: '清除 / 重設',
+    wishlistCleared: '心願單已清除並恢復預設。'
   }
 };
 

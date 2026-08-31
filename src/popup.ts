@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisHoverEnabled',
         'aegisCompactPerksMatrix',
         'aegisInlineHeader',
+        'aegisPopupSummaryMode',
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
         'aegisTooltipWidth',
@@ -382,6 +383,19 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
+        // Set Aegis Popup Summary Mode segmented control
+        const popupSummaryVal = res.aegisPopupSummaryMode || 'full';
+        const popupSummarySegmented = document.getElementById('aegis-popup-summary-segmented');
+        if (popupSummarySegmented) {
+          popupSummarySegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === popupSummaryVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
         // Set Aegis Inline Header segmented control
         const inlineHeaderVal = res.aegisInlineHeader !== false ? 'true' : 'false';
         const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
@@ -436,6 +450,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const armorSourceVal = res.aegisArmorSource || 'lowco';
         const armorSourceSegmented = document.getElementById('aegis-armor-source-segmented');
         if (armorSourceSegmented) {
+          const armorAegisBtn = armorSourceSegmented.querySelector('button[data-value="aegis"]');
+          if (armorAegisBtn) {
+            if (aegisModeVal === 'pvp') {
+              armorAegisBtn.textContent = t('armorFinnald');
+            } else if (aegisModeVal === 'both') {
+              armorAegisBtn.textContent = t('armorDual');
+            } else {
+              armorAegisBtn.textContent = t('armorAegis');
+            }
+          }
           armorSourceSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === armorSourceVal) {
               btn.classList.add('active');
@@ -622,6 +646,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisCompactPerksMatrix: val === 'true' }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Aegis Popup Summary Mode segmented control click
+  const popupSummarySegmented = document.getElementById('aegis-popup-summary-segmented');
+  if (popupSummarySegmented) {
+    popupSummarySegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisPopupSummaryMode: val }, () => {
             updateUI();
           });
         }
@@ -1011,6 +1051,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 300);
     });
   });
+
+  // Clear/Reset Wishlist button event listener
+  const wishlistClearBtn = document.getElementById('wishlist-clear-button') as HTMLButtonElement;
+  if (wishlistClearBtn) {
+    wishlistClearBtn.addEventListener('click', () => {
+      urlInput.value = DEFAULT_URL;
+      chrome.storage.local.set(
+        {
+          wishlistUrl: DEFAULT_URL,
+          wishlistData: {},
+          syncStatus: 'success',
+          syncError: ''
+        },
+        () => {
+          updateUI();
+          const syncStatusBox = document.getElementById('sync-status');
+          const syncStatusTextEl = document.getElementById('sync-status-text');
+          if (syncStatusBox) syncStatusBox.classList.remove('hidden');
+          if (syncStatusTextEl) {
+            syncStatusTextEl.textContent = `✅ ${t('wishlistCleared') || 'Wishlist cleared and reset to default.'}`;
+            syncStatusTextEl.style.color = '#4caf50';
+          }
+        }
+      );
+    });
+  }
 
   // ── Light.gg background sync button ──────────────────────────────────────
   function setLightGGLoading(loading: boolean) {

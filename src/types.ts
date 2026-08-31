@@ -57,6 +57,7 @@ export interface LocalStorageSchema {
   aegisMode?: AegisMode;
   aegisCompactPerksMatrix?: boolean;
   aegisInlineHeader?: boolean;
+  aegisPopupSummaryMode?: 'full' | 'badge' | 'hidden';
   aegisAutoMaxHeight?: boolean;
   aegisTooltipWidthMode?: 'auto' | 'fixed';
   aegisTooltipWidth?: number;

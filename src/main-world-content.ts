@@ -686,7 +686,7 @@ const detectPlugCategory = (def: any): string => {
 function processElement(el: HTMLElement) {
   try {
     // Exclude sub-elements inside popups, controls, or toolbars (e.g. tag selectors, stat rows, socket plugs, action buttons)
-    const isPopupContainer = el.matches('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup');
+    const isPopupContainer = el.matches('[class*="ItemPopup"], [class*="item-popup"], .item-popup');
     if (!isPopupContainer) {
       const isSubElement = el.matches(`
         [class*="tag"], [class*="Tag"],

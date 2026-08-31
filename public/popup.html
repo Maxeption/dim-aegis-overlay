@@ -294,6 +294,14 @@
           </div>
         </div>
         <div class="input-group">
+          <label data-i18n="popupSummaryTitle">DIM Item Popup Summary</label>
+          <div class="segmented-control" id="aegis-popup-summary-segmented">
+            <button type="button" data-value="full" class="active" data-i18n="summaryFull">Full Details</button>
+            <button type="button" data-value="badge" data-i18n="summaryBadge">Badge Only</button>
+            <button type="button" data-value="hidden" data-i18n="summaryHidden">Hidden</button>
+          </div>
+        </div>
+        <div class="input-group">
           <label data-i18n="inlineHeaderTitle">Inline Tooltip Header</label>
           <div class="segmented-control" id="aegis-inline-header-segmented">
             <button type="button" data-value="true" class="active" data-i18n="inlineHeaderEnabled">Compact Inline</button>
@@ -378,10 +386,13 @@
           <label for="wishlist-url">Custom Wishlist URL</label>
           <input type="text" id="wishlist-url" placeholder="https://..." />
         </div>
-        <button id="sync-button" class="btn btn-primary" style="margin-top: 4px;">
-          <span class="btn-text" data-i18n="syncWishlist">Sync Wishlist txt</span>
-          <span class="spinner hidden"></span>
-        </button>
+        <div style="display: flex; gap: 8px; margin-top: 6px;">
+          <button id="sync-button" class="btn btn-primary" style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px;">
+            <span class="btn-text" data-i18n="syncWishlist">Sync Wishlist txt</span>
+            <span class="spinner hidden"></span>
+          </button>
+          <button id="wishlist-clear-button" class="btn btn-danger" style="flex: 1;" data-i18n="clearWishlist">Clear / Reset</button>
+        </div>
         <div id="sync-status" class="sync-status hidden">
           <span id="sync-status-text"></span>
         </div>

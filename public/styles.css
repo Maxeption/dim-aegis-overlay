@@ -1766,6 +1766,43 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   justify-content: center !important;
 }
 
+/* Inline Title Rank Badge (Badge Only Mode - Clean with NO nested cards) */
+.aegis-title-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  margin-left: 8px !important;
+  padding: 1px 7px !important;
+  min-width: 22px !important;
+  height: 20px !important;
+  border-radius: 10px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  flex-shrink: 0 !important;
+}
+
+.aegis-title-badge.aegis-badge-split {
+  padding: 0 !important;
+  min-width: 52px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.aegis-title-badge.aegis-badge-split .aegis-split-half {
+  padding: 0 6px !important;
+  font-size: 10.5px !important;
+  height: 100% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 .aegis-shopping-item-badge,
 .aegis-shopping-copy-row .aegis-badge,
 .aegis-shopping-alt-row-item .aegis-badge {
@@ -1976,14 +2013,6 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 /* Allow elements to overflow the popup container/sheet boundaries only when they contain an Aegis details card */
-[class*="ItemPopup"], 
-[class*="item-popup"], 
-[class*="Sheet"], 
-[class*="sheet"], 
-.item-popup {
-  z-index: 10000 !important;
-}
-
 [class*="ItemPopup"]:has(.aegis-popup-details-card), 
 [class*="item-popup"]:has(.aegis-popup-details-card), 
 [class*="Sheet"]:has(.aegis-popup-details-card), 
@@ -1995,12 +2024,41 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 /* Side panel layout positioning for details card */
 .aegis-popup-details-card.aegis-side-panel {
   position: absolute !important;
-  top: 55px !important;
+  top: 0 !important;
   margin: 0 !important;
-  z-index: 10001 !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
   box-sizing: border-box !important;
   background: #18181c !important;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.15) inset !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.35) rgba(0, 0, 0, 0.25);
+}
+
+.aegis-popup-details-card.aegis-side-panel * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto;
+}
+
+.aegis-popup-details-card.aegis-side-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.aegis-popup-details-card.aegis-side-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+.aegis-popup-details-card.aegis-side-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.35);
+  border-radius: 4px;
+}
+
+.aegis-popup-details-card.aegis-side-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.6);
 }
 
 .aegis-details-header {
