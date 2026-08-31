@@ -388,21 +388,39 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
       const csvText = await aegisArmorRes.text();
       const rows = parseCSV(csvText);
       if (rows.length >= 2) {
-        for (let r = 1; r < rows.length; r++) {
+        let setHeaderIdx = 0;
+        for (let r = 0; r < Math.min(rows.length, 5); r++) {
+          if (rows[r].some(c => {
+            const low = c.toLowerCase().trim();
+            return low === 'set name' || low === 'set';
+          })) {
+            setHeaderIdx = r;
+            break;
+          }
+        }
+        const sHeader = rows[setHeaderIdx].map(h => h.trim().toLowerCase());
+        const sNameIdx = sHeader.findIndex(h => h === 'set' || h === 'set name' || h.includes('set'));
+        const sBonusIdx = sHeader.findIndex(h => h === 'bonus' || h === 'bonus name' || h.includes('bonus'));
+        const sPcsIdx = sHeader.findIndex(h => h === 'pcs' || h.includes('pcs'));
+        const sDescIdx = sHeader.findIndex(h => h === 'description' || h.includes('description'));
+        const sTrigIdx = sHeader.findIndex(h => h === 'trigger' || h.includes('trigger'));
+        const sEffIdx = sHeader.findIndex(h => h === 'effect' || h.includes('effect'));
+        const sTierIdx = sHeader.findIndex(h => h === 'tier' || h.includes('tier'));
+
+        for (let r = setHeaderIdx + 1; r < rows.length; r++) {
           const row = rows[r];
-          if (row.length < 12) continue;
-          const rawSet = row[2] || '';
-          if (!rawSet.trim()) continue;
+          const rawSetName = sNameIdx >= 0 ? (row[sNameIdx] || '').trim() : '';
+          if (!rawSetName || rawSetName.toLowerCase() === 'set' || rawSetName.toLowerCase() === 'set name') continue;
           
-          const parts = rawSet.split('\n');
-          const setName = parts[0].trim();
+          const parts = rawSetName.split('\n');
+          const setName = parts[0].replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
           const source = parts[1] ? parts[1].trim() : '';
-          const pcs = (row[5] || '').trim();
-          const bonusName = (row[4] || '').trim();
-          const trigger = (row[7] || '').trim();
-          const effect = (row[8] || '').trim();
-          const desc = (row[9] || '').trim();
-          const tier = (row[11] || '').trim();
+          const pcs = sPcsIdx >= 0 ? (row[sPcsIdx] || '').trim() : '';
+          const bonusName = sBonusIdx >= 0 ? (row[sBonusIdx] || '').trim() : '';
+          const trigger = sTrigIdx >= 0 ? (row[sTrigIdx] || '').trim() : '';
+          const effect = sEffIdx >= 0 ? (row[sEffIdx] || '').trim() : '';
+          const desc = sDescIdx >= 0 ? (row[sDescIdx] || '').trim() : '';
+          const tier = sTierIdx >= 0 ? (row[sTierIdx] || '').trim() : '';
 
           const normalized = setName.toLowerCase().trim();
           if (!armorAegis[normalized]) {
@@ -422,6 +440,7 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
           }
 
           const setObj = armorAegis[normalized];
+          if (source && !setObj.source) setObj.source = source;
           if (pcs === '2') {
             setObj.piece2Name = bonusName;
             setObj.piece2Desc = desc;

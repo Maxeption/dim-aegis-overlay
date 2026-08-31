@@ -40,11 +40,19 @@ function getGradeValue(grade: string): number {
 }
 
 function findAegisArmorSet(itemName: string): AegisArmorSet | null {
-  if (!aegisSheetDb) return null;
+  const activeDb = (aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE) || aegisSheetDb;
+  if (!activeDb) return null;
 
-  const db = (aegisArmorSource === 'aegis' && aegisSheetDb.armorAegis)
-    ? aegisSheetDb.armorAegis
-    : aegisSheetDb.armor;
+  let db: Record<string, AegisArmorSet> | undefined;
+  if (aegisMode === 'pvp') {
+    db = (activeDb.armorAegis && Object.keys(activeDb.armorAegis).length > 0)
+      ? activeDb.armorAegis
+      : (aegisSheetDbPvP?.armorAegis || activeDb.armor);
+  } else {
+    db = (aegisArmorSource === 'aegis' && activeDb.armorAegis && Object.keys(activeDb.armorAegis).length > 0)
+      ? activeDb.armorAegis
+      : (activeDb.armor && Object.keys(activeDb.armor).length > 0 ? activeDb.armor : activeDb.armorAegis);
+  }
 
   if (!db) return null;
 
