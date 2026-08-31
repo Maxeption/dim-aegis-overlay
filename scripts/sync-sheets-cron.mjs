@@ -532,26 +532,31 @@ async function buildPvPDatabase() {
     if (setBonusRows.length >= 2) {
       let setHeaderIdx = 0;
       for (let r = 0; r < Math.min(setBonusRows.length, 5); r++) {
-        if (setBonusRows[r].some(c => c.toLowerCase() === 'set name')) {
+        if (setBonusRows[r].some(c => {
+          const low = c.toLowerCase().trim();
+          return low === 'set name' || low === 'set';
+        })) {
           setHeaderIdx = r;
           break;
         }
       }
       const sHeader = setBonusRows[setHeaderIdx].map(h => h.trim().toLowerCase());
-      const sNameIdx = sHeader.indexOf('set name');
-      const sBonusIdx = sHeader.indexOf('bonus name');
-      const sPcsIdx = sHeader.indexOf('pcs');
-      const sDescIdx = sHeader.indexOf('description');
-      const sTrigIdx = sHeader.indexOf('trigger');
-      const sEffIdx = sHeader.indexOf('effect');
-      const sTierIdx = sHeader.indexOf('tier');
+      const sNameIdx = sHeader.findIndex(h => h === 'set' || h === 'set name' || h.includes('set'));
+      const sBonusIdx = sHeader.findIndex(h => h === 'bonus' || h === 'bonus name' || h.includes('bonus'));
+      const sPcsIdx = sHeader.findIndex(h => h === 'pcs' || h.includes('pcs'));
+      const sDescIdx = sHeader.findIndex(h => h === 'description' || h.includes('description'));
+      const sTrigIdx = sHeader.findIndex(h => h === 'trigger' || h.includes('trigger'));
+      const sEffIdx = sHeader.findIndex(h => h === 'effect' || h.includes('effect'));
+      const sTierIdx = sHeader.findIndex(h => h === 'tier' || h.includes('tier'));
 
       for (let r = setHeaderIdx + 1; r < setBonusRows.length; r++) {
         const row = setBonusRows[r];
         const rawSetName = (row[sNameIdx] ?? '').trim();
-        if (!rawSetName || rawSetName.toLowerCase() === 'set name') continue;
+        if (!rawSetName || rawSetName.toLowerCase() === 'set' || rawSetName.toLowerCase() === 'set name') continue;
 
-        const cleanSetName = rawSetName.replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
+        const setParts = rawSetName.split('\n');
+        const cleanSetName = setParts[0].replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
+        const source = setParts[1] ? setParts[1].trim() : '';
         const setKey = cleanSetName.toLowerCase();
 
         if (!armorAegis[setKey]) {
@@ -565,18 +570,19 @@ async function buildPvPDatabase() {
             piece4Desc: '',
             piece4Numbers: '',
             piece4Rating: '',
-            source: '',
-            sourceType: '',
+            source: source,
+            sourceType: 'Activity',
           };
         }
 
         const setObj = armorAegis[setKey];
-        const bonusName = (row[sBonusIdx] ?? '').trim();
-        const pcs = (row[sPcsIdx] ?? '').trim();
-        const desc = (row[sDescIdx] ?? '').trim();
-        const trigger = (row[sTrigIdx] ?? '').trim();
-        const effect = (row[sEffIdx] ?? '').trim();
-        const tier = (row[sTierIdx] ?? '').trim();
+        if (source && !setObj.source) setObj.source = source;
+        const bonusName = sBonusIdx >= 0 ? (row[sBonusIdx] ?? '').trim() : '';
+        const pcs = sPcsIdx >= 0 ? (row[sPcsIdx] ?? '').trim() : '';
+        const desc = sDescIdx >= 0 ? (row[sDescIdx] ?? '').trim() : '';
+        const trigger = sTrigIdx >= 0 ? (row[sTrigIdx] ?? '').trim() : '';
+        const effect = sEffIdx >= 0 ? (row[sEffIdx] ?? '').trim() : '';
+        const tier = sTierIdx >= 0 ? (row[sTierIdx] ?? '').trim() : '';
 
         if (pcs === '2') {
           setObj.piece2Name = bonusName;
