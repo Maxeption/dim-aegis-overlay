@@ -1,4 +1,5 @@
 import { initLanguage, t } from './i18n';
+import { LocalStorageSchema, AegisMode } from './types';
 
 function localizePopup(storedLang?: string) {
   initLanguage(storedLang);
@@ -64,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisHoverEnabled',
         'aegisCompactPerksMatrix',
         'aegisInlineHeader',
+        'aegisPopupSummaryMode',
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
         'aegisTooltipWidth',
@@ -307,6 +309,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const posKey = badgePosVal.replace('bottom-left', 'bl').replace('top-left', 'tl').replace('top-right', 'tr').replace('bottom-right', 'br');
           mockBadge.classList.add(`aegis-pos-${posKey}`);
           mockBadge.classList.add(`aegis-style-${badgeStyleVal}`);
+
+          const isTwoTier = res.aegisTwoTier === true;
+          if (aegisModeVal === 'both') {
+            mockBadge.classList.add('aegis-badge-split', 'aegis-badge-wide');
+            const pveStr = isTwoTier ? 'SS+' : 'S+';
+            const pvpStr = isTwoTier ? 'AA' : 'A';
+            mockBadge.innerHTML = `<span class="aegis-split-half aegis-split-left aegis-badge-s">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-a">${pvpStr}</span>`;
+          } else {
+            mockBadge.classList.remove('aegis-badge-split');
+            mockBadge.textContent = isTwoTier ? 'SS+' : 'S+';
+          }
         }
 
         const cornerTargets = document.querySelectorAll('.interactive-weapon-tile .corner-target');
@@ -370,6 +383,19 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
+        // Set Aegis Popup Summary Mode segmented control
+        const popupSummaryVal = res.aegisPopupSummaryMode || 'full';
+        const popupSummarySegmented = document.getElementById('aegis-popup-summary-segmented');
+        if (popupSummarySegmented) {
+          popupSummarySegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === popupSummaryVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
         // Set Aegis Inline Header segmented control
         const inlineHeaderVal = res.aegisInlineHeader !== false ? 'true' : 'false';
         const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
@@ -424,6 +450,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const armorSourceVal = res.aegisArmorSource || 'lowco';
         const armorSourceSegmented = document.getElementById('aegis-armor-source-segmented');
         if (armorSourceSegmented) {
+          const armorAegisBtn = armorSourceSegmented.querySelector('button[data-value="aegis"]');
+          if (armorAegisBtn) {
+            if (aegisModeVal === 'pvp') {
+              armorAegisBtn.textContent = t('armorFinnald');
+            } else if (aegisModeVal === 'both') {
+              armorAegisBtn.textContent = t('armorDual');
+            } else {
+              armorAegisBtn.textContent = t('armorAegis');
+            }
+          }
           armorSourceSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === armorSourceVal) {
               btn.classList.add('active');
@@ -529,24 +565,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Aegis Mode (PvE vs PvP) segmented control click
+  // Handle Aegis Mode (PvE vs PvP vs Both) segmented control click
   const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
   if (aegisModeSegmented) {
     aegisModeSegmented.addEventListener('click', (e) => {
       const target = e.target as HTMLButtonElement;
       if (target && target.tagName === 'BUTTON') {
-        const val = target.getAttribute('data-value');
+        const val = target.getAttribute('data-value') as AegisMode | null;
         if (val) {
-          chrome.storage.local.get(['aegisSheetDbPvE', 'aegisSheetDbPvP'], (res: any) => {
-            const activeDb = val === 'pvp' ? res.aegisSheetDbPvP : res.aegisSheetDbPvE;
-            const updateObj: any = { aegisMode: val };
-            if (activeDb) {
-              updateObj.aegisSheetDb = activeDb;
+          chrome.storage.local.get(
+            ['aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP'],
+            (res: Pick<LocalStorageSchema, 'aegisSheetDbPvE' | 'aegisSheetDbPvP' | 'aegisShoppingDbPvE' | 'aegisShoppingDbPvP'>) => {
+              const activeDb = val === 'pvp' ? (res.aegisSheetDbPvP || res.aegisSheetDbPvE) : (res.aegisSheetDbPvE || res.aegisSheetDbPvP);
+              const activeShoppingDb = val === 'pvp' ? (res.aegisShoppingDbPvP || res.aegisShoppingDbPvE) : (res.aegisShoppingDbPvE || res.aegisShoppingDbPvP);
+              const updateObj: Partial<LocalStorageSchema> = { aegisMode: val };
+              if (activeDb) {
+                updateObj.aegisSheetDb = activeDb;
+              }
+              if (activeShoppingDb) {
+                updateObj.aegisShoppingDb = activeShoppingDb;
+              }
+
+              // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
+              if (val === 'both') {
+                updateObj.aegisTooltipWidthMode = 'auto';
+              } else {
+                updateObj.aegisTooltipWidthMode = 'fixed';
+              }
+
+              chrome.storage.local.set(updateObj, () => {
+                updateUI();
+              });
             }
-            chrome.storage.local.set(updateObj, () => {
-              updateUI();
-            });
-          });
+          );
         }
       }
     });
@@ -595,6 +646,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisCompactPerksMatrix: val === 'true' }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Aegis Popup Summary Mode segmented control click
+  const popupSummarySegmented = document.getElementById('aegis-popup-summary-segmented');
+  if (popupSummarySegmented) {
+    popupSummarySegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisPopupSummaryMode: val }, () => {
             updateUI();
           });
         }
@@ -984,6 +1051,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 300);
     });
   });
+
+  // Clear/Reset Wishlist button event listener
+  const wishlistClearBtn = document.getElementById('wishlist-clear-button') as HTMLButtonElement;
+  if (wishlistClearBtn) {
+    wishlistClearBtn.addEventListener('click', () => {
+      urlInput.value = DEFAULT_URL;
+      chrome.storage.local.set(
+        {
+          wishlistUrl: DEFAULT_URL,
+          wishlistData: {},
+          syncStatus: 'success',
+          syncError: ''
+        },
+        () => {
+          updateUI();
+          const syncStatusBox = document.getElementById('sync-status');
+          const syncStatusTextEl = document.getElementById('sync-status-text');
+          if (syncStatusBox) syncStatusBox.classList.remove('hidden');
+          if (syncStatusTextEl) {
+            syncStatusTextEl.textContent = `✅ ${t('wishlistCleared') || 'Wishlist cleared and reset to default.'}`;
+            syncStatusTextEl.style.color = '#4caf50';
+          }
+        }
+      );
+    });
+  }
 
   // ── Light.gg background sync button ──────────────────────────────────────
   function setLightGGLoading(loading: boolean) {

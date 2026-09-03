@@ -1,5 +1,6 @@
 import { parseWishlist } from './parser';
 import { AegisSheetDatabase, AegisSheetWeapon, AegisArmorSet, AegisShoppingDatabase, AegisShoppingItem } from './types';
+import { fetchEvaluationLocale } from './evaluation-i18n';
 
 const DEFAULT_URL =
   'https://raw.githubusercontent.com/charlesxcaliber/DIMAegisWeaponWishlist/main/MrCharlesWishlist_MRB_PPC2.txt';
@@ -347,24 +348,28 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
         if (armorRows.length >= 3) {
           for (let r = 2; r < armorRows.length; r++) {
             const row = armorRows[r];
-            const setName = (row[0] ?? '').trim();
+            let offset = 0;
+            if (/^\d+$/.test((row[0] || '').trim()) && row.length >= 12) {
+              offset = 1;
+            }
+            const setName = (row[offset + 0] ?? '').trim();
             if (!setName || setName === 'Set Name' || setName === 'Set Pick List' || setName.toLowerCase().includes('notes:')) {
               continue;
             }
-            if ((row[1] ?? '').trim() === 'Name') continue;
+            if ((row[offset + 1] ?? '').trim() === 'Name') continue;
 
             const armorData: AegisArmorSet = {
               setName,
-              piece2Name: (row[1] ?? '').trim(),
-              piece2Desc: (row[2] ?? '').trim(),
-              piece2Numbers: (row[3] ?? '').trim(),
-              piece2Rating: (row[4] ?? '').trim(),
-              piece4Name: (row[5] ?? '').trim(),
-              piece4Desc: (row[6] ?? '').trim(),
-              piece4Numbers: (row[7] ?? '').trim(),
-              piece4Rating: (row[8] ?? '').trim(),
-              source: (row[9] ?? '').trim(),
-              sourceType: (row[10] ?? '').trim(),
+              piece2Name: (row[offset + 1] ?? '').trim(),
+              piece2Desc: (row[offset + 2] ?? '').trim(),
+              piece2Numbers: (row[offset + 3] ?? '').trim(),
+              piece2Rating: (row[offset + 4] ?? '').trim(),
+              piece4Name: (row[offset + 5] ?? '').trim(),
+              piece4Desc: (row[offset + 6] ?? '').trim(),
+              piece4Numbers: (row[offset + 7] ?? '').trim(),
+              piece4Rating: (row[offset + 8] ?? '').trim(),
+              source: (row[offset + 9] ?? '').trim(),
+              sourceType: (row[offset + 10] ?? '').trim(),
             };
 
             armor[setName.toLowerCase().trim()] = armorData;
@@ -383,21 +388,39 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
       const csvText = await aegisArmorRes.text();
       const rows = parseCSV(csvText);
       if (rows.length >= 2) {
-        for (let r = 1; r < rows.length; r++) {
+        let setHeaderIdx = 0;
+        for (let r = 0; r < Math.min(rows.length, 5); r++) {
+          if (rows[r].some(c => {
+            const low = c.toLowerCase().trim();
+            return low === 'set name' || low === 'set';
+          })) {
+            setHeaderIdx = r;
+            break;
+          }
+        }
+        const sHeader = rows[setHeaderIdx].map(h => h.trim().toLowerCase());
+        const sNameIdx = sHeader.findIndex(h => h === 'set' || h === 'set name' || h.includes('set'));
+        const sBonusIdx = sHeader.findIndex(h => h === 'bonus' || h === 'bonus name' || h.includes('bonus'));
+        const sPcsIdx = sHeader.findIndex(h => h === 'pcs' || h.includes('pcs'));
+        const sDescIdx = sHeader.findIndex(h => h === 'description' || h.includes('description'));
+        const sTrigIdx = sHeader.findIndex(h => h === 'trigger' || h.includes('trigger'));
+        const sEffIdx = sHeader.findIndex(h => h === 'effect' || h.includes('effect'));
+        const sTierIdx = sHeader.findIndex(h => h === 'tier' || h.includes('tier'));
+
+        for (let r = setHeaderIdx + 1; r < rows.length; r++) {
           const row = rows[r];
-          if (row.length < 12) continue;
-          const rawSet = row[2] || '';
-          if (!rawSet.trim()) continue;
+          const rawSetName = sNameIdx >= 0 ? (row[sNameIdx] || '').trim() : '';
+          if (!rawSetName || rawSetName.toLowerCase() === 'set' || rawSetName.toLowerCase() === 'set name') continue;
           
-          const parts = rawSet.split('\n');
-          const setName = parts[0].trim();
+          const parts = rawSetName.split('\n');
+          const setName = parts[0].replace(/\s+(2|4)\s*pcs\.?$/i, '').trim();
           const source = parts[1] ? parts[1].trim() : '';
-          const pcs = (row[5] || '').trim();
-          const bonusName = (row[4] || '').trim();
-          const trigger = (row[7] || '').trim();
-          const effect = (row[8] || '').trim();
-          const desc = (row[9] || '').trim();
-          const tier = (row[11] || '').trim();
+          const pcs = sPcsIdx >= 0 ? (row[sPcsIdx] || '').trim() : '';
+          const bonusName = sBonusIdx >= 0 ? (row[sBonusIdx] || '').trim() : '';
+          const trigger = sTrigIdx >= 0 ? (row[sTrigIdx] || '').trim() : '';
+          const effect = sEffIdx >= 0 ? (row[sEffIdx] || '').trim() : '';
+          const desc = sDescIdx >= 0 ? (row[sDescIdx] || '').trim() : '';
+          const tier = sTierIdx >= 0 ? (row[sTierIdx] || '').trim() : '';
 
           const normalized = setName.toLowerCase().trim();
           if (!armorAegis[normalized]) {
@@ -417,6 +440,7 @@ async function fetchSpreadsheetDatabase(sheetId: string, tabs: string[]): Promis
           }
 
           const setObj = armorAegis[normalized];
+          if (source && !setObj.source) setObj.source = source;
           if (pcs === '2') {
             setObj.piece2Name = bonusName;
             setObj.piece2Desc = desc;
@@ -560,6 +584,19 @@ async function fetchShoppingListDatabase(sheetId: string): Promise<AegisShopping
     }
 
 /**
+ * Safe fetch wrapper with timeout signal to prevent hanging requests on spotty networks.
+ */
+async function fetchWithTimeout(url: string, ms = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { cache: 'no-cache', signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Fetches Aegis (PvE) and Finnald (PvP) spreadsheet databases, prioritizing the fast GitHub CDN mirror,
  * with graceful fallback to live spreadsheet extraction if CDN is unavailable.
  */
@@ -567,30 +604,34 @@ async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: st
   try {
     let aegisSheetDbPvE: AegisSheetDatabase | null = null;
     let aegisSheetDbPvP: AegisSheetDatabase | null = null;
+    let aegisShoppingDbPvE: AegisShoppingDatabase | null = null;
+    let aegisShoppingDbPvP: AegisShoppingDatabase | null = null;
     let aegisShoppingDb: AegisShoppingDatabase | null = null;
 
-    // 1. Fast path: Fetch pre-compiled databases from GitHub CDN mirror
+    // 1. Fast path: Fetch pre-compiled databases from GitHub CDN mirror using concurrent allSettled
     try {
-      const [pveRes, pvpRes] = await Promise.all([
-        fetch(PVE_DB_CDN_URL, { cache: 'no-cache' }),
-        fetch(PVP_DB_CDN_URL, { cache: 'no-cache' }),
+      const [pveResult, pvpResult] = await Promise.allSettled([
+        fetchWithTimeout(PVE_DB_CDN_URL),
+        fetchWithTimeout(PVP_DB_CDN_URL),
       ]);
 
-      if (pveRes.ok && pvpRes.ok) {
-        const pveJson = (await pveRes.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
-        const pvpJson = (await pvpRes.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
-
+      if (pveResult.status === 'fulfilled' && pveResult.value.ok) {
+        const pveJson = (await pveResult.value.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
         if (pveJson && pveJson.weapons && Object.keys(pveJson.weapons).length > 0) {
           aegisSheetDbPvE = pveJson;
           if (pveJson.shopping && pveJson.shopping.items && pveJson.shopping.items.length > 0) {
+            aegisShoppingDbPvE = pveJson.shopping;
             aegisShoppingDb = pveJson.shopping;
           }
         }
+      }
 
+      if (pvpResult.status === 'fulfilled' && pvpResult.value.ok) {
+        const pvpJson = (await pvpResult.value.json()) as AegisSheetDatabase & { shopping?: AegisShoppingDatabase };
         if (pvpJson && pvpJson.weapons && Object.keys(pvpJson.weapons).length > 0) {
           aegisSheetDbPvP = pvpJson;
-          if (!aegisShoppingDb && pvpJson.shopping && pvpJson.shopping.items && pvpJson.shopping.items.length > 0) {
-            aegisShoppingDb = pvpJson.shopping;
+          if (pvpJson.shopping && pvpJson.shopping.items && pvpJson.shopping.items.length > 0) {
+            aegisShoppingDbPvP = pvpJson.shopping;
           }
         }
       }
@@ -603,18 +644,22 @@ async function fetchAndCacheAegisSheet(): Promise<{ success: boolean; error?: st
       aegisSheetDbPvE = aegisSheetDbPvE || (await fetchSpreadsheetDatabase(SHEET_ID, ALL_TABS));
       const pvpTabs = [...ALL_TABS, 'Legendary Weapons'];
       aegisSheetDbPvP = aegisSheetDbPvP || (await fetchSpreadsheetDatabase(PVP_SHEET_ID, pvpTabs));
-      aegisShoppingDb = aegisShoppingDb || (await fetchShoppingListDatabase(SHEET_ID));
+      aegisShoppingDbPvE = aegisShoppingDbPvE || (await fetchShoppingListDatabase(SHEET_ID));
+      aegisShoppingDb = aegisShoppingDb || aegisShoppingDbPvE;
     }
 
     const storage = await chrome.storage.local.get(['aegisMode']);
     const aegisMode = storage.aegisMode || 'pve';
     const activeDb = aegisMode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE;
+    const activeShopping = aegisMode === 'pvp' ? (aegisShoppingDbPvP || aegisShoppingDbPvE) : (aegisShoppingDbPvE || aegisShoppingDbPvP);
 
     await chrome.storage.local.set({
       aegisSheetDbPvE,
       aegisSheetDbPvP,
       aegisSheetDb: activeDb,
-      aegisShoppingDb,
+      aegisShoppingDbPvE,
+      aegisShoppingDbPvP,
+      aegisShoppingDb: activeShopping,
       aegisSheetLastSync: Date.now(),
     });
 
@@ -785,7 +830,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'syncSpreadsheets') {
     fetchAndCacheAegisSheet()
       .then((res) => sendResponse(res))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch((err: unknown) => {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        sendResponse({ success: false, error: errorMsg });
+      });
+    return true;
+  }
+
+  if (message.action === 'getEvaluationLocale') {
+    const locale = typeof message.locale === 'string' ? message.locale : 'en';
+    const force = message.force === true;
+    fetchEvaluationLocale(locale, force)
+      .then((bundle) => sendResponse({ success: true, bundle }))
+      .catch((err: unknown) => {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        sendResponse({ success: false, error: errorMsg });
+      });
     return true;
   }
 
