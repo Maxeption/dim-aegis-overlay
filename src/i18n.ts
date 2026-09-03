@@ -238,7 +238,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: 'Badge Only',
     summaryHidden: 'Hidden',
     clearWishlist: 'Clear / Reset',
-    wishlistCleared: 'Wishlist cleared and reset to default.'
+    wishlistCleared: 'Wishlist cleared and reset to default.',
+    copyAegisWishlist: 'Copy Aegis God Roll',
+    copyFinnaldWishlist: 'Copy Finnald God Roll',
+    rollCopied: 'Wishlist roll copied!',
+    armoryMetaAnalysis: 'Aegis / Finnald Strategic Analysis',
+    armoryRecommendedPerks: 'Recommended Perks & Strategic Analysis'
   },
 
   es: {
@@ -465,7 +470,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: 'Solo Placa',
     summaryHidden: 'Oculto',
     clearWishlist: 'Limpiar / Restablecer',
-    wishlistCleared: 'Lista de deseos restablecida por defecto.'
+    wishlistCleared: 'Lista de deseos restablecida por defecto.',
+    copyAegisWishlist: 'Copiar God Roll de Aegis',
+    copyFinnaldWishlist: 'Copiar God Roll de Finnald',
+    rollCopied: '¡Roll copiado!',
+    armoryMetaAnalysis: 'Análisis Estratégico de Aegis / Finnald',
+    armoryRecommendedPerks: 'Ventajas Recomendadas y Análisis Estratégico'
   },
 
   ko: {
@@ -692,7 +702,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: '배지만 표시',
     summaryHidden: '숨김',
     clearWishlist: '초기화 / 리셋',
-    wishlistCleared: '위시리스트가 초기화되었습니다.'
+    wishlistCleared: '위시리스트가 초기화되었습니다.',
+    copyAegisWishlist: 'Aegis 갓롤 복사',
+    copyFinnaldWishlist: 'Finnald 갓롤 복사',
+    rollCopied: '위시리스트 롤이 복사되었습니다!',
+    armoryMetaAnalysis: 'Aegis / Finnald 전략 분석',
+    armoryRecommendedPerks: '추천 특성 및 전략 분석'
   },
 
   ja: {
@@ -919,7 +934,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: 'バッジのみ',
     summaryHidden: '非表示',
     clearWishlist: 'クリア / リセット',
-    wishlistCleared: 'ウィッシュリストがリセットされました。'
+    wishlistCleared: 'ウィッシュリストがリセットされました。',
+    copyAegisWishlist: 'Aegis ゴッドロールをコピー',
+    copyFinnaldWishlist: 'Finnald ゴッドロールをコピー',
+    rollCopied: 'ウィッシュリストのロールがコピーされました！',
+    armoryMetaAnalysis: 'Aegis / Finnald 戦略分析',
+    armoryRecommendedPerks: 'おすすめパーク & 戦略分析'
   },
 
   'zh-CHS': {
@@ -1146,7 +1166,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: '仅显示角标',
     summaryHidden: '隐藏',
     clearWishlist: '清除 / 重置',
-    wishlistCleared: '心愿单已清除并恢复默认。'
+    wishlistCleared: '心愿单已清除并恢复默认。',
+    copyAegisWishlist: '复制 Aegis 完美配装',
+    copyFinnaldWishlist: '复制 Finnald 完美配装',
+    rollCopied: '已复制配装！',
+    armoryMetaAnalysis: 'Aegis / Finnald 深度战略分析',
+    armoryRecommendedPerks: '推荐特质与战略分析'
   },
 
   'zh-CHT': {
@@ -1373,7 +1398,12 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     summaryBadge: '僅顯示徽章',
     summaryHidden: '隱藏',
     clearWishlist: '清除 / 重設',
-    wishlistCleared: '心願單已清除並恢復預設。'
+    wishlistCleared: '心願單已清除並恢復預設。',
+    copyAegisWishlist: '複製 Aegis 完美配裝',
+    copyFinnaldWishlist: '複製 Finnald 完美配裝',
+    rollCopied: '已複製配裝！',
+    armoryMetaAnalysis: 'Aegis / Finnald 深度戰略分析',
+    armoryRecommendedPerks: '推薦特性與戰略分析'
   }
 };
 

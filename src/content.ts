@@ -4212,6 +4212,315 @@ export function getGradeLetterFromDisplay(gradeStr: string): string {
 }
 
 /**
+ * Helper function to render a weapon details section (perks, MW, superiors, analysis)
+ */
+function renderWeaponDetailsContent(
+  sheetW: AegisSheetWeapon,
+  sPerks?: SheetPerksGroup,
+  mode?: 'pve' | 'pvp',
+  equippedMasterwork?: string,
+  hasDualData?: boolean
+): string {
+  const db = mode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE;
+  const categoryTab = findWeaponCategory(sheetW.name, undefined, db);
+  const superiors = findSuperiors(categoryTab, sheetW.energy, sheetW.frame, db);
+
+  const renderCategoryRow = (item: { label: string; type: 'barrel' | 'mag' | 'perk1' | 'perk2' | 'origin'; rawVal?: string }) => {
+    if (!item.rawVal) return '';
+    let chipsHtml = '';
+    if (sPerks) {
+      let perksToRender: TooltipPerk[] = [];
+      if (aegisPerkOrder === 'owned' || !sPerks.all) {
+        const matched = sPerks.matched.filter(p => p.type === item.type);
+        const missing = sPerks.missing.filter(p => p.type === item.type);
+        perksToRender = [...matched, ...missing];
+      } else {
+        perksToRender = sPerks.all.filter(p => p.type === item.type);
+      }
+
+      for (const perk of perksToRender) {
+        const isMissing = perk.status === 'missing' || !perk.matched;
+        const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
+        const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+        const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
+        chipsHtml += `
+          <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
+            ${iconHtml}
+            <span class="aegis-chip-name">${perk.name}</span>
+          </span>
+        `;
+      }
+    }
+
+    if (!chipsHtml) {
+      const rawVal = item.rawVal;
+      const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).join(' / ');
+      if (!cleanVal) return '';
+      chipsHtml = `<span class="aegis-details-value-text">${cleanVal}</span>`;
+    }
+
+    return `
+      <div class="aegis-details-row aegis-perk-row">
+        <span class="aegis-details-label">${item.label}</span>
+        <div class="aegis-details-value aegis-details-chips-container">
+          ${chipsHtml}
+        </div>
+      </div>
+    `;
+  };
+
+  let perksRowsHtml = '';
+  if (aegisCompactPerksMatrix) {
+    const leftRows = [
+      renderCategoryRow({ label: t('barrel'), type: 'barrel', rawVal: sheetW.barrel }),
+      renderCategoryRow({ label: t('magazine'), type: 'mag', rawVal: sheetW.mag })
+    ].filter(Boolean).join('');
+
+    const rightRows = [
+      renderCategoryRow({ label: t('perk1'), type: 'perk1', rawVal: sheetW.perk1 }),
+      renderCategoryRow({ label: t('perk2'), type: 'perk2', rawVal: sheetW.perk2 }),
+      renderCategoryRow({ label: t('origin'), type: 'origin', rawVal: sheetW.origin })
+    ].filter(Boolean).join('');
+
+    if (leftRows || rightRows) {
+      perksRowsHtml = `
+        <div class="aegis-perks-matrix-2col">
+          <div class="aegis-perks-matrix-col col-left">${leftRows}</div>
+          <div class="aegis-perks-matrix-col col-right">${rightRows}</div>
+        </div>
+      `;
+    }
+  } else {
+    perksRowsHtml = [
+      renderCategoryRow({ label: t('barrel'), type: 'barrel', rawVal: sheetW.barrel }),
+      renderCategoryRow({ label: t('magazine'), type: 'mag', rawVal: sheetW.mag }),
+      renderCategoryRow({ label: t('perk1'), type: 'perk1', rawVal: sheetW.perk1 }),
+      renderCategoryRow({ label: t('perk2'), type: 'perk2', rawVal: sheetW.perk2 }),
+      renderCategoryRow({ label: t('origin'), type: 'origin', rawVal: sheetW.origin })
+    ].filter(Boolean).join('');
+  }
+
+  // Extract recommended Masterworks
+  const recMWs: string[] = [];
+  let rawMW = sheetW.mw ? sheetW.mw.trim() : null;
+  if (rawMW && rawMW !== '-') {
+    const parts = rawMW.split(/[\/\n\\]/);
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed) recMWs.push(trimmed);
+    }
+  }
+  if (recMWs.length === 0) {
+    const notesText = getOriginalEvaluationText(sheetW, 'notes')
+      + ' '
+      + getOriginalEvaluationText(sheetW, 'description');
+    const foundMW = extractRecommendedMasterwork(notesText);
+    if (foundMW) {
+      const parts = foundMW.split(/[\/\n\\]/);
+      for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed) recMWs.push(trimmed);
+      }
+    }
+  }
+
+  let mwHtml = '';
+  if (recMWs.length > 0) {
+    let mwChipsHtml = '';
+    const eqMW = (equippedMasterwork || '').toLowerCase();
+
+    for (const mw of recMWs) {
+      const mwLower = mw.toLowerCase();
+      const isMatch = eqMW && (
+        mwLower === eqMW ||
+        eqMW.startsWith(mwLower) ||
+        mwLower.startsWith(eqMW)
+      );
+
+      let chipStyle = [
+        'border-radius: 4px !important',
+        'font-size: 10px !important',
+        'font-weight: 800 !important',
+        'padding: 3px 7px !important',
+        'display: inline-flex !important',
+        'align-items: center !important',
+        'gap: 4px !important',
+        'transition: all 0.2s ease !important',
+      ];
+
+      let icon = '☆';
+      let title = t('aegisRecommendsMw', { mw });
+
+      if (isMatch) {
+        chipStyle.push(
+          'background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 140, 0, 0.25)) !important',
+          'border: 1.5px solid #ffd700 !important',
+          'color: #ffffff !important',
+          'text-shadow: 0 0 6px rgba(255, 215, 0, 0.8) !important',
+          'box-shadow: 0 0 10px rgba(255, 191, 0, 0.65), inset 0 0 4px rgba(255, 255, 255, 0.2) !important'
+        );
+        icon = '✓';
+        title = t('mwEquipped');
+      } else {
+        chipStyle.push(
+          'background: rgba(255, 191, 0, 0.05) !important',
+          'border: 1px dashed rgba(255, 191, 0, 0.4) !important',
+          'color: rgba(235, 203, 139, 0.65) !important',
+          'box-shadow: none !important'
+        );
+      }
+
+      mwChipsHtml += `
+        <span class="aegis-perk-chip" style="${chipStyle.join('; ')}" title="${title}">
+          <span style="font-size: 11px !important; line-height: 1 !important; ${isMatch ? 'color: #ffe57f !important;' : ''}">${icon}</span>
+          ${mw}
+        </span>
+      `;
+    }
+
+    mwHtml = `
+      <div class="aegis-details-row aegis-perk-row">
+        <span class="aegis-details-label">MW</span>
+        <div class="aegis-details-value aegis-details-chips-container" style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">
+          ${mwChipsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // Check if superiors exist and format them
+  let superiorsHtml = '';
+  if (superiors.byEnergy || superiors.byFrame || superiors.byBoth) {
+    const uniqueSups = new Map<string, { weapon: any; labels: string[] }>();
+    const addUniqueSup = (label: string, supW: any) => {
+      if (!supW) return;
+      const key = supW.name.toLowerCase();
+      if (uniqueSups.has(key)) {
+        uniqueSups.get(key)!.labels.push(label);
+      } else {
+        uniqueSups.set(key, { weapon: supW, labels: [label] });
+      }
+    };
+
+    if (sheetW.energy) addUniqueSup(sheetW.energy, superiors.byEnergy);
+    if (sheetW.frame) addUniqueSup(sheetW.frame, superiors.byFrame);
+    if (sheetW.energy && sheetW.frame) {
+      addUniqueSup(`${sheetW.energy} ${sheetW.frame}`, superiors.byBoth);
+    }
+
+    let supRowsHtml = '';
+    for (const item of uniqueSups.values()) {
+      const isSelf = item.weapon.name.toLowerCase() === sheetW.name.toLowerCase();
+      const selfClass = isSelf ? 'aegis-sup-self' : '';
+      const labelsStr = item.labels.join(' / ');
+      const localizedLabelsStr = getLocalizedArchetypeLabel(labelsStr);
+      const localizedWeaponName = getLocalizedWeaponName(item.weapon.name);
+      
+      const tierLetter = item.weapon.tier ? item.weapon.tier.charAt(0).toLowerCase() : '';
+      const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${item.weapon.tier}</span>`;
+      const rankHtml = item.weapon.rank ? `<span class="aegis-sup-rank-num">#${item.weapon.rank}</span>` : '';
+      const currentLabel = isSelf ? `<span class="aegis-current-badge">(${t('currentBadge')})</span>` : '';
+
+      supRowsHtml += `
+        <div class="aegis-details-row aegis-sup-row ${isSelf ? 'aegis-sup-row-self' : ''}">
+          <span class="aegis-details-label aegis-sup-type-label" title="${localizedLabelsStr}">${localizedLabelsStr}</span>
+          <span class="aegis-sup-name ${selfClass}">${localizedWeaponName}${currentLabel}</span>
+          <div class="aegis-sup-rank-group">
+            ${tierBadgeHtml}
+            ${rankHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    const currentWeaponKey = sheetW.name.toLowerCase();
+    if (!uniqueSups.has(currentWeaponKey)) {
+      const tierLetter = sheetW.tier ? sheetW.tier.charAt(0).toLowerCase() : '';
+      const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetW.tier}</span>`;
+      const rankHtml = sheetW.rank ? `<span class="aegis-sup-rank-num">#${sheetW.rank}</span>` : '';
+      const localizedWeaponName = getLocalizedWeaponName(sheetW.name);
+
+      supRowsHtml += `
+        <div class="aegis-details-row aegis-sup-row aegis-sup-row-self">
+          <span class="aegis-details-label aegis-sup-type-label" title="${t('currentWeapon')}">${t('currentWeapon')}</span>
+          <span class="aegis-sup-name aegis-sup-self">${localizedWeaponName}<span class="aegis-current-badge">(${t('currentBadge')})</span></span>
+          <div class="aegis-sup-rank-group">
+            ${tierBadgeHtml}
+            ${rankHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    if (supRowsHtml) {
+      superiorsHtml = `
+        <div class="aegis-details-divider"></div>
+        <div class="aegis-details-header" style="margin-top: 8px;">${t('bestInCategory', { category: getLocalizedCategory(categoryTab) || t('category') })}</div>
+        <div class="aegis-details-body">
+          ${supRowsHtml}
+        </div>
+      `;
+    }
+  }
+
+  let exoticViabilityHtml = '';
+  if (sheetW.exoticViability || sheetW.notes || sheetW.description) {
+    const matrixHtml = sheetW.exoticViability ? renderViabilityMatrix(sheetW.exoticViability, mode === 'pvp' ? 'pvp' : 'pve') : '';
+    const tagsBadge = sheetW.exoticViability?.tags 
+      ? `<span style="font-size: 10px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">${sheetW.exoticViability.tags.toUpperCase()}</span>` 
+      : '';
+    const tierBadgeLetter = sheetW.tier ? sheetW.tier.charAt(0).toLowerCase() : '';
+    const showTierInside = !hasDualData && sheetW.tier;
+    const tierBadgeHtml = showTierInside 
+      ? `<span class="aegis-mini-tier-badge aegis-badge-${tierBadgeLetter}" style="font-size: 11px; padding: 2px 8px; font-weight: 800;">${sheetW.tier} Tier</span>` 
+      : '';
+
+    let analysisBlock = '';
+    if (sheetW.notes) {
+      analysisBlock = `
+        <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #ebcb8b; border-radius: 0 6px 6px 0; padding: 6px 9px;">
+          <div style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('strategicAnalysis')}</div>
+          <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetW.notes)}</div>
+        </div>
+      `;
+    }
+
+    let mechanicsBlock = '';
+    if (sheetW.description) {
+      mechanicsBlock = `
+        <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #88c0d0; border-radius: 0 6px 6px 0; padding: 6px 9px;">
+          <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('exoticMechanics')}</div>
+          <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetW.description)}</div>
+        </div>
+      `;
+    }
+
+    const topRow = (tierBadgeHtml || tagsBadge) ? `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+        ${tierBadgeHtml}
+        ${tagsBadge}
+      </div>
+    ` : '';
+
+    exoticViabilityHtml = `
+      ${topRow}
+      ${matrixHtml}
+      ${analysisBlock}
+      ${mechanicsBlock}
+    `;
+  }
+
+  return `
+    <div class="aegis-details-body aegis-perks-body" style="margin-bottom: ${superiorsHtml ? '8px' : '0'};">
+      ${exoticViabilityHtml}
+      ${perksRowsHtml}
+      ${mwHtml}
+    </div>
+    ${superiorsHtml}
+  `;
+}
+
+/**
  * Injects a detailed grade summary block into the DIM item popup header.
  */
 function injectPopupSummary(
@@ -4559,307 +4868,6 @@ function injectPopupSummary(
     }
   }
 
-  // Helper function to render a weapon details section (perks, MW, superiors, analysis)
-  const renderWeaponDetailsContent = (sheetW: AegisSheetWeapon, sPerks?: SheetPerksGroup, mode?: 'pve' | 'pvp') => {
-    const db = mode === 'pvp' ? aegisSheetDbPvP : aegisSheetDbPvE;
-    const categoryTab = findWeaponCategory(sheetW.name, undefined, db);
-    const superiors = findSuperiors(categoryTab, sheetW.energy, sheetW.frame, db);
-
-    const renderCategoryRow = (item: { label: string; type: 'barrel' | 'mag' | 'perk1' | 'perk2' | 'origin'; rawVal?: string }) => {
-      if (!item.rawVal) return '';
-      let chipsHtml = '';
-      if (sPerks) {
-        let perksToRender: TooltipPerk[] = [];
-        if (aegisPerkOrder === 'owned' || !sPerks.all) {
-          const matched = sPerks.matched.filter(p => p.type === item.type);
-          const missing = sPerks.missing.filter(p => p.type === item.type);
-          perksToRender = [...matched, ...missing];
-        } else {
-          perksToRender = sPerks.all.filter(p => p.type === item.type);
-        }
-
-        for (const perk of perksToRender) {
-          const isMissing = perk.status === 'missing' || !perk.matched;
-          const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
-          const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
-          const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
-          chipsHtml += `
-            <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
-              ${iconHtml}
-              <span class="aegis-chip-name">${perk.name}</span>
-            </span>
-          `;
-        }
-      }
-
-      if (!chipsHtml) {
-        const rawVal = item.rawVal;
-        const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).join(' / ');
-        if (!cleanVal) return '';
-        chipsHtml = `<span class="aegis-details-value-text">${cleanVal}</span>`;
-      }
-
-      return `
-        <div class="aegis-details-row aegis-perk-row">
-          <span class="aegis-details-label">${item.label}</span>
-          <div class="aegis-details-value aegis-details-chips-container">
-            ${chipsHtml}
-          </div>
-        </div>
-      `;
-    };
-
-    let perksRowsHtml = '';
-    if (aegisCompactPerksMatrix) {
-      const leftRows = [
-        renderCategoryRow({ label: t('barrel'), type: 'barrel', rawVal: sheetW.barrel }),
-        renderCategoryRow({ label: t('magazine'), type: 'mag', rawVal: sheetW.mag })
-      ].filter(Boolean).join('');
-
-      const rightRows = [
-        renderCategoryRow({ label: t('perk1'), type: 'perk1', rawVal: sheetW.perk1 }),
-        renderCategoryRow({ label: t('perk2'), type: 'perk2', rawVal: sheetW.perk2 }),
-        renderCategoryRow({ label: t('origin'), type: 'origin', rawVal: sheetW.origin })
-      ].filter(Boolean).join('');
-
-      if (leftRows || rightRows) {
-        perksRowsHtml = `
-          <div class="aegis-perks-matrix-2col">
-            <div class="aegis-perks-matrix-col col-left">${leftRows}</div>
-            <div class="aegis-perks-matrix-col col-right">${rightRows}</div>
-          </div>
-        `;
-      }
-    } else {
-      perksRowsHtml = [
-        renderCategoryRow({ label: t('barrel'), type: 'barrel', rawVal: sheetW.barrel }),
-        renderCategoryRow({ label: t('magazine'), type: 'mag', rawVal: sheetW.mag }),
-        renderCategoryRow({ label: t('perk1'), type: 'perk1', rawVal: sheetW.perk1 }),
-        renderCategoryRow({ label: t('perk2'), type: 'perk2', rawVal: sheetW.perk2 }),
-        renderCategoryRow({ label: t('origin'), type: 'origin', rawVal: sheetW.origin })
-      ].filter(Boolean).join('');
-    }
-
-    // Extract recommended Masterworks
-    const recMWs: string[] = [];
-    let rawMW = sheetW.mw ? sheetW.mw.trim() : null;
-    if (rawMW && rawMW !== '-') {
-      const parts = rawMW.split(/[\/\n\\]/);
-      for (const part of parts) {
-        const trimmed = part.trim();
-        if (trimmed) recMWs.push(trimmed);
-      }
-    }
-    if (recMWs.length === 0) {
-      const notesText = getOriginalEvaluationText(sheetW, 'notes')
-        + ' '
-        + getOriginalEvaluationText(sheetW, 'description');
-      const foundMW = extractRecommendedMasterwork(notesText);
-      if (foundMW) {
-        const parts = foundMW.split(/[\/\n\\]/);
-        for (const part of parts) {
-          const trimmed = part.trim();
-          if (trimmed) recMWs.push(trimmed);
-        }
-      }
-    }
-
-    let mwHtml = '';
-    if (recMWs.length > 0) {
-      let mwChipsHtml = '';
-      const eqMW = (equippedMasterwork || '').toLowerCase();
-
-      for (const mw of recMWs) {
-        const mwLower = mw.toLowerCase();
-        const isMatch = eqMW && (
-          mwLower === eqMW ||
-          eqMW.startsWith(mwLower) ||
-          mwLower.startsWith(eqMW)
-        );
-
-        let chipStyle = [
-          'border-radius: 4px !important',
-          'font-size: 10px !important',
-          'font-weight: 800 !important',
-          'padding: 3px 7px !important',
-          'display: inline-flex !important',
-          'align-items: center !important',
-          'gap: 4px !important',
-          'transition: all 0.2s ease !important',
-        ];
-
-        let icon = '☆';
-        let title = t('aegisRecommendsMw', { mw });
-
-        if (isMatch) {
-          chipStyle.push(
-            'background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 140, 0, 0.25)) !important',
-            'border: 1.5px solid #ffd700 !important',
-            'color: #ffffff !important',
-            'text-shadow: 0 0 6px rgba(255, 215, 0, 0.8) !important',
-            'box-shadow: 0 0 10px rgba(255, 191, 0, 0.65), inset 0 0 4px rgba(255, 255, 255, 0.2) !important'
-          );
-          icon = '✓';
-          title = t('mwEquipped');
-        } else {
-          chipStyle.push(
-            'background: rgba(255, 191, 0, 0.05) !important',
-            'border: 1px dashed rgba(255, 191, 0, 0.4) !important',
-            'color: rgba(235, 203, 139, 0.65) !important',
-            'box-shadow: none !important'
-          );
-        }
-
-        mwChipsHtml += `
-          <span class="aegis-perk-chip" style="${chipStyle.join('; ')}" title="${title}">
-            <span style="font-size: 11px !important; line-height: 1 !important; ${isMatch ? 'color: #ffe57f !important;' : ''}">${icon}</span>
-            ${mw}
-          </span>
-        `;
-      }
-
-      mwHtml = `
-        <div class="aegis-details-row aegis-perk-row">
-          <span class="aegis-details-label">MW</span>
-          <div class="aegis-details-value aegis-details-chips-container" style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">
-            ${mwChipsHtml}
-          </div>
-        </div>
-      `;
-    }
-
-    // Check if superiors exist and format them
-    let superiorsHtml = '';
-    if (superiors.byEnergy || superiors.byFrame || superiors.byBoth) {
-      const uniqueSups = new Map<string, { weapon: any; labels: string[] }>();
-      const addUniqueSup = (label: string, supW: any) => {
-        if (!supW) return;
-        const key = supW.name.toLowerCase();
-        if (uniqueSups.has(key)) {
-          uniqueSups.get(key)!.labels.push(label);
-        } else {
-          uniqueSups.set(key, { weapon: supW, labels: [label] });
-        }
-      };
-
-      if (sheetW.energy) addUniqueSup(sheetW.energy, superiors.byEnergy);
-      if (sheetW.frame) addUniqueSup(sheetW.frame, superiors.byFrame);
-      if (sheetW.energy && sheetW.frame) {
-        addUniqueSup(`${sheetW.energy} ${sheetW.frame}`, superiors.byBoth);
-      }
-
-      let supRowsHtml = '';
-      for (const item of uniqueSups.values()) {
-        const isSelf = item.weapon.name.toLowerCase() === sheetW.name.toLowerCase();
-        const selfClass = isSelf ? 'aegis-sup-self' : '';
-        const labelsStr = item.labels.join(' / ');
-        const localizedLabelsStr = getLocalizedArchetypeLabel(labelsStr);
-        const localizedWeaponName = getLocalizedWeaponName(item.weapon.name);
-        
-        const tierLetter = item.weapon.tier ? item.weapon.tier.charAt(0).toLowerCase() : '';
-        const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${item.weapon.tier}</span>`;
-        const rankHtml = item.weapon.rank ? `<span class="aegis-sup-rank-num">#${item.weapon.rank}</span>` : '';
-        const currentLabel = isSelf ? `<span class="aegis-current-badge">(${t('currentBadge')})</span>` : '';
-
-        supRowsHtml += `
-          <div class="aegis-details-row aegis-sup-row ${isSelf ? 'aegis-sup-row-self' : ''}">
-            <span class="aegis-details-label aegis-sup-type-label" title="${localizedLabelsStr}">${localizedLabelsStr}</span>
-            <span class="aegis-sup-name ${selfClass}">${localizedWeaponName}${currentLabel}</span>
-            <div class="aegis-sup-rank-group">
-              ${tierBadgeHtml}
-              ${rankHtml}
-            </div>
-          </div>
-        `;
-      }
-
-      const currentWeaponKey = sheetW.name.toLowerCase();
-      if (!uniqueSups.has(currentWeaponKey)) {
-        const tierLetter = sheetW.tier ? sheetW.tier.charAt(0).toLowerCase() : '';
-        const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetW.tier}</span>`;
-        const rankHtml = sheetW.rank ? `<span class="aegis-sup-rank-num">#${sheetW.rank}</span>` : '';
-        const localizedWeaponName = getLocalizedWeaponName(sheetW.name);
-
-        supRowsHtml += `
-          <div class="aegis-details-row aegis-sup-row aegis-sup-row-self">
-            <span class="aegis-details-label aegis-sup-type-label" title="${t('currentWeapon')}">${t('currentWeapon')}</span>
-            <span class="aegis-sup-name aegis-sup-self">${localizedWeaponName}<span class="aegis-current-badge">(${t('currentBadge')})</span></span>
-            <div class="aegis-sup-rank-group">
-              ${tierBadgeHtml}
-              ${rankHtml}
-            </div>
-          </div>
-        `;
-      }
-
-      if (supRowsHtml) {
-        superiorsHtml = `
-          <div class="aegis-details-divider"></div>
-          <div class="aegis-details-header" style="margin-top: 8px;">${t('bestInCategory', { category: getLocalizedCategory(categoryTab) || t('category') })}</div>
-          <div class="aegis-details-body">
-            ${supRowsHtml}
-          </div>
-        `;
-      }
-    }
-
-    let exoticViabilityHtml = '';
-    if (sheetW.exoticViability || sheetW.notes || sheetW.description) {
-      const matrixHtml = sheetW.exoticViability ? renderViabilityMatrix(sheetW.exoticViability, mode === 'pvp' ? 'pvp' : 'pve') : '';
-      const tagsBadge = sheetW.exoticViability?.tags 
-        ? `<span style="font-size: 10px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">${sheetW.exoticViability.tags.toUpperCase()}</span>` 
-        : '';
-      const tierBadgeLetter = sheetW.tier ? sheetW.tier.charAt(0).toLowerCase() : '';
-      const showTierInside = !hasDualData && sheetW.tier;
-      const tierBadgeHtml = showTierInside 
-        ? `<span class="aegis-mini-tier-badge aegis-badge-${tierBadgeLetter}" style="font-size: 11px; padding: 2px 8px; font-weight: 800;">${sheetW.tier} Tier</span>` 
-        : '';
-
-      let analysisBlock = '';
-      if (sheetW.notes) {
-        analysisBlock = `
-          <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #ebcb8b; border-radius: 0 6px 6px 0; padding: 6px 9px;">
-            <div style="font-size: 9.5px; font-weight: 700; color: #ebcb8b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('strategicAnalysis')}</div>
-            <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetW.notes)}</div>
-          </div>
-        `;
-      }
-
-      let mechanicsBlock = '';
-      if (sheetW.description) {
-        mechanicsBlock = `
-          <div style="margin-top: 6px; background: rgba(0, 0, 0, 0.25); border-left: 3px solid #88c0d0; border-radius: 0 6px 6px 0; padding: 6px 9px;">
-            <div style="font-size: 9.5px; font-weight: 700; color: #88c0d0; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">${t('exoticMechanics')}</div>
-            <div style="font-size: 11px; line-height: 1.55; color: #d8dee9;">${formatFormattedNotes(sheetW.description)}</div>
-          </div>
-        `;
-      }
-
-      const topRow = (tierBadgeHtml || tagsBadge) ? `
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
-          ${tierBadgeHtml}
-          ${tagsBadge}
-        </div>
-      ` : '';
-
-      exoticViabilityHtml = `
-        ${topRow}
-        ${matrixHtml}
-        ${analysisBlock}
-        ${mechanicsBlock}
-      `;
-    }
-
-    return `
-      <div class="aegis-details-body aegis-perks-body" style="margin-bottom: ${superiorsHtml ? '8px' : '0'};">
-        ${exoticViabilityHtml}
-        ${perksRowsHtml}
-        ${mwHtml}
-      </div>
-      ${superiorsHtml}
-    `;
-  };
-
   // If we have sheet data, inject detailed overview card
   const hasDualData = dualInfo && (dualInfo.sheetWeaponPvE || dualInfo.sheetWeaponPvP);
   const hasSingleData = sheetWeapon;
@@ -4912,7 +4920,7 @@ function injectPopupSummary(
                 ${sheetWeaponPvE.tier ? `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetWeaponPvE.tier} Tier</span>` : ''}
               </div>
               ${pveBanner}
-              ${renderWeaponDetailsContent(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve')}
+              ${renderWeaponDetailsContent(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', equippedMasterwork, true)}
             </div>
           `;
         }
@@ -4926,7 +4934,7 @@ function injectPopupSummary(
                 ${sheetWeaponPvP.tier ? `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetWeaponPvP.tier} Tier</span>` : ''}
               </div>
               ${pvpBanner}
-              ${renderWeaponDetailsContent(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp')}
+              ${renderWeaponDetailsContent(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', equippedMasterwork, true)}
             </div>
           `;
         }
@@ -4956,7 +4964,7 @@ function injectPopupSummary(
             <span>${cardHeaderTitle}</span>
             ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeapon.source}</span>` : ''}
           </div>
-          ${renderWeaponDetailsContent(sheetWeapon, sheetPerks, aegisMode === 'pvp' ? 'pvp' : 'pve')}
+          ${renderWeaponDetailsContent(sheetWeapon, sheetPerks, aegisMode === 'pvp' ? 'pvp' : 'pve', equippedMasterwork, false)}
         `
         );
       }
@@ -5028,6 +5036,197 @@ function injectPopupSummary(
 
       attachDetailsCard();
       activeDetailsTimeout = setTimeout(attachDetailsCard, 150);
+    }
+  }
+}
+
+/**
+ * Injects Meta Category Ranking Banner & Integrated Aegis/Finnald Recommendations Card into DIM Armory.
+ */
+function injectArmoryEnhancements(
+  armoryContainer: HTMLElement,
+  _result: ScoringResult,
+  scoringSource: string,
+  sheetWeapon?: AegisSheetWeapon,
+  sheetPerks?: SheetPerksGroup,
+  equippedMasterwork?: string,
+  dualInfo?: DualSheetInfo
+) {
+  // 1. Meta Category Rank Banner (Option 3)
+  const headerContainer = armoryContainer.querySelector<HTMLElement>('.wYPsYK5B') || armoryContainer.querySelector('h1')?.parentElement;
+  if (headerContainer) {
+    let banner = headerContainer.querySelector<HTMLElement>('.aegis-armory-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'aegis-armory-banner';
+      const h1 = headerContainer.querySelector('h1');
+      if (h1 && h1.nextElementSibling) {
+        h1.after(banner);
+      } else {
+        headerContainer.appendChild(banner);
+      }
+    }
+
+    // Build Banner HTML
+    let bannerHtml = '';
+    const hasDual = dualInfo && (dualInfo.sheetWeaponPvE || dualInfo.sheetWeaponPvP);
+
+    if (hasDual) {
+      const { sheetWeaponPvE, sheetWeaponPvP } = dualInfo;
+      const pveTier = sheetWeaponPvE?.tier ? sheetWeaponPvE.tier.charAt(0).toLowerCase() : '';
+      const pvpTier = sheetWeaponPvP?.tier ? sheetWeaponPvP.tier.charAt(0).toLowerCase() : '';
+
+      bannerHtml = `
+        ${sheetWeaponPvE?.tier ? `<span class="aegis-popup-meta-badge aegis-tier-${pveTier}" style="font-size: 11px; padding: 2px 7px;">PvE: ${sheetWeaponPvE.tier} Tier</span>` : ''}
+        ${sheetWeaponPvE?.rank ? `<span class="aegis-armory-rank-pill aegis-pve-pill">🏆 PvE Rank #${sheetWeaponPvE.rank} in Category</span>` : ''}
+        ${sheetWeaponPvP?.tier ? `<span class="aegis-popup-meta-badge aegis-tier-${pvpTier}" style="font-size: 11px; padding: 2px 7px;">PvP: ${sheetWeaponPvP.tier} Tier</span>` : ''}
+        ${sheetWeaponPvP?.rank ? `<span class="aegis-armory-rank-pill aegis-pvp-pill">⚔️ PvP Rank #${sheetWeaponPvP.rank} in Category</span>` : ''}
+      `;
+    } else if (sheetWeapon) {
+      const tierLetter = sheetWeapon.tier ? sheetWeapon.tier.charAt(0).toLowerCase() : '';
+      const tierClass = `aegis-tier-${tierLetter}`;
+      const isPvP = scoringSource.toLowerCase().includes('finnald') || aegisMode === 'pvp';
+      const icon = isPvP ? '⚔️' : '🏆';
+      const pillClass = isPvP ? 'aegis-pvp-pill' : 'aegis-pve-pill';
+
+      bannerHtml = `
+        ${sheetWeapon.tier ? `<span class="aegis-popup-meta-badge ${tierClass}" style="font-size: 11px; padding: 2px 7px;">${sheetWeapon.tier} Tier</span>` : ''}
+        ${sheetWeapon.rank ? `<span class="aegis-armory-rank-pill ${pillClass}">${icon} ${t('rankInCategory', { rank: sheetWeapon.rank })}</span>` : ''}
+      `;
+    }
+
+    if (bannerHtml) {
+      safeSetInnerHTML(banner, bannerHtml);
+    }
+  }
+
+  // 2. Integrated Recommendations Section inside Armory (Placed next to DIM's Perks grid)
+  const hasDualData = dualInfo && (dualInfo.sheetWeaponPvE || dualInfo.sheetWeaponPvP);
+  const hasSingleData = sheetWeapon;
+
+  if (hasDualData || hasSingleData) {
+    // Find DIM's perks socket container (.kpKFmMZ7 containing perk sockets / .mDCuySCm / role="button")
+    const allKpContainers = Array.from(armoryContainer.querySelectorAll<HTMLElement>('.kpKFmMZ7, [class*="kpKFmMZ7"]'));
+    const perksContainer = allKpContainers.find(el => 
+      el.querySelector('.mDCuySCm, [class*="mDCuySCm"], [role="button"], [class*="sockets" i], svg.e_nYedyn')
+    ) || (allKpContainers.length > 1 ? allKpContainers[1] : allKpContainers[0]);
+
+    let perksRow: HTMLElement | null = null;
+    let armorySection: HTMLElement | null = null;
+
+    if (perksContainer) {
+      if (perksContainer.parentElement?.classList.contains('aegis-armory-perks-row')) {
+        perksRow = perksContainer.parentElement as HTMLElement;
+      } else {
+        perksRow = document.createElement('div');
+        perksRow.className = 'aegis-armory-perks-row';
+        perksContainer.before(perksRow);
+        perksRow.appendChild(perksContainer);
+      }
+      armorySection = perksRow.querySelector<HTMLElement>('.aegis-armory-details-card');
+      if (!armorySection) {
+        armorySection = document.createElement('div');
+        armorySection.className = `aegis-popup-details-card aegis-armory-details-card ${hasDualData ? 'aegis-dual-card' : ''}`;
+        armorySection.setAttribute('data-aegis-details', 'true');
+        armorySection.setAttribute('data-aegis-armory-section', 'true');
+        perksRow.appendChild(armorySection);
+      }
+    } else {
+      armorySection = armoryContainer.querySelector<HTMLElement>('.aegis-armory-details-card');
+      if (!armorySection) {
+        armorySection = document.createElement('div');
+        armorySection.className = `aegis-popup-details-card aegis-armory-details-card ${hasDualData ? 'aegis-dual-card' : ''}`;
+        armorySection.setAttribute('data-aegis-details', 'true');
+        armorySection.setAttribute('data-aegis-armory-section', 'true');
+
+        const wishlistSection = armoryContainer.querySelector('.VehDTIoJ, [class*="VehDTIoJ"]');
+        const alternateH2 = Array.from(armoryContainer.querySelectorAll('h2')).find(h => h.textContent?.includes('Alternate') || h.textContent?.includes('Your Items'));
+        const insertAnchor = wishlistSection || alternateH2;
+
+        if (insertAnchor && insertAnchor.parentElement === armoryContainer) {
+          insertAnchor.before(armorySection);
+        } else if (insertAnchor && insertAnchor.parentElement) {
+          insertAnchor.parentElement.insertBefore(armorySection, insertAnchor);
+        } else {
+          armoryContainer.appendChild(armorySection);
+        }
+      }
+    }
+
+    if (hasDualData) {
+      const { 
+        sheetWeaponPvE, 
+        sheetWeaponPvP, 
+        sheetPerksPvE, 
+        sheetPerksPvP, 
+        shoppingItemPvE, 
+        shoppingAltPvE, 
+        shoppingItemPvP, 
+        shoppingAltPvP 
+      } = dualInfo!;
+
+      const pveBanner = renderShoppingBannerHtml(shoppingItemPvE, shoppingAltPvE, 'Aegis');
+      const pvpBanner = renderShoppingBannerHtml(shoppingItemPvP, shoppingAltPvP, 'Finnald');
+      
+      let pveColHtml = '';
+      let pvpColHtml = '';
+
+      if (sheetWeaponPvE) {
+        const tierLetter = sheetWeaponPvE.tier ? sheetWeaponPvE.tier.charAt(0).toLowerCase() : '';
+        pveColHtml = `
+          <div class="aegis-popup-dual-col aegis-col-pve">
+            <div class="aegis-popup-col-header">
+              <span class="aegis-popup-col-title">${t('modePve')}</span>
+              ${sheetWeaponPvE.tier ? `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetWeaponPvE.tier} Tier</span>` : ''}
+            </div>
+            ${pveBanner}
+            ${renderWeaponDetailsContent(sheetWeaponPvE, sheetPerksPvE || undefined, 'pve', equippedMasterwork, true)}
+          </div>
+        `;
+      }
+
+      if (sheetWeaponPvP) {
+        const tierLetter = sheetWeaponPvP.tier ? sheetWeaponPvP.tier.charAt(0).toLowerCase() : '';
+        pvpColHtml = `
+          <div class="aegis-popup-dual-col aegis-col-pvp">
+            <div class="aegis-popup-col-header">
+              <span class="aegis-popup-col-title">${t('modePvp')}</span>
+              ${sheetWeaponPvP.tier ? `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetWeaponPvP.tier} Tier</span>` : ''}
+            </div>
+            ${pvpBanner}
+            ${renderWeaponDetailsContent(sheetWeaponPvP, sheetPerksPvP || undefined, 'pvp', equippedMasterwork, true)}
+          </div>
+        `;
+      }
+
+      safeSetInnerHTML(
+        armorySection,
+        `
+        <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <span>${t('modeBoth')} Recommendations</span>
+          ${(sheetWeaponPvE?.source || sheetWeaponPvP?.source) ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeaponPvE?.source || sheetWeaponPvP?.source}</span>` : ''}
+        </div>
+        <div class="aegis-popup-dual-grid">
+          ${pveColHtml}
+          ${pvpColHtml}
+        </div>
+      `
+      );
+    } else if (sheetWeapon) {
+      const cardHeaderTitle = sheetWeapon.exoticViability 
+        ? (aegisMode === 'pvp' ? t('finnaldExoticAnalysis') : t('aegisExoticAnalysis')) 
+        : (aegisMode === 'pvp' ? t('finnaldRecommendedPerks') : t('aegisRecommendedPerks'));
+
+      safeSetInnerHTML(
+        armorySection,
+        `
+        <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <span>${cardHeaderTitle}</span>
+          ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeapon.source}</span>` : ''}
+        </div>
+        ${renderWeaponDetailsContent(sheetWeapon, sheetPerks, aegisMode === 'pvp' ? 'pvp' : 'pve', equippedMasterwork, false)}
+      `
+      );
     }
   }
 }
@@ -5846,6 +6045,39 @@ function processElement(el: HTMLElement) {
               bestAlternativePvP,
               isBestInClassPvE,
               isBestInClassPvP,
+              shoppingItemPvE,
+              shoppingAltPvE,
+              shoppingItemPvP,
+              shoppingAltPvP
+            } : undefined
+          );
+        }
+
+        // Inject Armory page enhancements (Meta category rank banner & integrated recommendations)
+        const armoryContainer = el.closest('.armory, [class*="armory" i]') as HTMLElement | null;
+        if (armoryContainer) {
+          injectArmoryEnhancements(
+            armoryContainer,
+            result,
+            scoringSource,
+            sheetWeapon || undefined,
+            sheetPerks,
+            equippedMasterwork,
+            aegisMode === 'both' ? {
+              sheetWeaponPvE,
+              sheetWeaponPvP,
+              sheetPerksPvE,
+              sheetPerksPvP,
+              pveResult,
+              pvpResult,
+              bestAlternativePvE,
+              bestAlternativePvP,
+              isBestInClassPvE,
+              isBestInClassPvP,
+              shoppingItemPvE,
+              shoppingAltPvE,
+              shoppingItemPvP,
+              shoppingAltPvP
             } : undefined
           );
         }
