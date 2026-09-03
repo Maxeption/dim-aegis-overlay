@@ -295,7 +295,7 @@
       "perk2": "Master of Arms\nMultikill Clip\nRampage",
       "origin": "Gun and Run",
       "source": "Gambit / Drifter Vendor",
-      "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWither Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
+      "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWithering Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
       "rank": "",
       "tier": "S",
       "mw": "Range\nStability"
@@ -310,7 +310,7 @@
       "perk2": "Vorpal Weapon\nMultikill Clip\nTap the Trigger",
       "origin": "Häkke Breach Armaments",
       "source": "Gambit / Drifter Vendor",
-      "notes": "19 zoom, higher than S tier options of the same archetype.\nModern  Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
+      "notes": "19 zoom, higher than S tier options of the same archetype.\nModern Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
       "rank": "",
       "tier": "A",
       "mw": "Stability\nRange"
@@ -16331,7 +16331,7 @@
         "perk2": "Master of Arms\nMultikill Clip\nRampage",
         "origin": "Gun and Run",
         "source": "Gambit / Drifter Vendor",
-        "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWither Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
+        "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWithering Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
@@ -16348,7 +16348,7 @@
         "perk2": "Vorpal Weapon\nMultikill Clip\nTap the Trigger",
         "origin": "Häkke Breach Armaments",
         "source": "Gambit / Drifter Vendor",
-        "notes": "19 zoom, higher than S tier options of the same archetype.\nModern  Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
+        "notes": "19 zoom, higher than S tier options of the same archetype.\nModern Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
         "rank": "",
         "tier": "A",
         "mw": "Stability\nRange"
@@ -33272,7 +33272,7 @@
         "perk2": "Master of Arms\nMultikill Clip\nRampage",
         "origin": "Gun and Run",
         "source": "Gambit / Drifter Vendor",
-        "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWither Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
+        "notes": "Best-in-Class for Adaptive frame 600 RPM autos.\nWithering Gaze allows neutral TtK shift.\nWithering Gaze, MoA x1, Rampage x1, Multikill Clip x1, or Swash x1: => 0.70\nMoA x2, Multikill Clip x2, Rampage x3, or Swash x3: => 0.60\nMultikill Clip x3: => 0.50\nPairing Withering w/ MoA can make for easy kill chain starts.",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
@@ -33287,7 +33287,7 @@
         "perk2": "Vorpal Weapon\nMultikill Clip\nTap the Trigger",
         "origin": "Häkke Breach Armaments",
         "source": "Gambit / Drifter Vendor",
-        "notes": "19 zoom, higher than S tier options of the same archetype.\nModern  Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
+        "notes": "19 zoom, higher than S tier options of the same archetype.\nModern Vorpal Weapon option in Kinetic slot. \nTTK shift via Multikill Clip x1: 0.75->0.60\nMultikill Clip x3: => 0.45",
         "rank": "",
         "tier": "A",
         "mw": "Stability\nRange"
