@@ -17,6 +17,12 @@ const EVALUATION_LOCALE_CACHE_KEY = 'aegisEvaluationLocaleCache';
 const EVALUATION_LOCALE_CACHE_TTL_MS = 60 * 60 * 1000;
 const sourceTextHashCache = new Map<string, Promise<string>>();
 const originalEvaluationText = new WeakMap<AegisSheetWeapon, { notes: string; description?: string }>();
+const localizedSources = new WeakMap<AegisSheetWeapon, { source: string; translation: string }>();
+
+export function getLocalizedSource(weapon: AegisSheetWeapon): string {
+  const localized = localizedSources.get(weapon);
+  return localized && localized.source === weapon.source ? localized.translation : weapon.source || '';
+}
 
 function isValidLocale(locale: string): boolean {
   return /^[a-z]{2}(?:-[A-Za-z]{2,4})?$/.test(locale);
@@ -42,6 +48,21 @@ function isValidBundle(value: unknown, locale: string): value is EvaluationLocal
   return true;
 }
 
+async function withBundledEntries(bundle: EvaluationLocaleBundle): Promise<EvaluationLocaleBundle> {
+  try {
+    const response = await fetch(chrome.runtime.getURL(`data/locales/${encodeURIComponent(bundle.locale)}.json`));
+    if (response.ok) {
+      const bundled: unknown = await response.json();
+      if (isValidBundle(bundled, bundle.locale)) {
+        return { ...bundle, entries: { ...bundled.entries, ...bundle.entries } };
+      }
+    }
+  } catch {
+    // The remote bundle can be used without a bundled locale.
+  }
+  return bundle;
+}
+
 export async function fetchEvaluationLocale(
   locale: string,
   force = false
@@ -53,7 +74,7 @@ export async function fetchEvaluationLocale(
   const cached = cache[locale];
 
   if (!force && cached && cached.bundle && Date.now() - cached.fetchedAt < EVALUATION_LOCALE_CACHE_TTL_MS) {
-    return cached.bundle;
+    return withBundledEntries(cached.bundle);
   }
 
   // 1. Try remote CDN
@@ -66,7 +87,7 @@ export async function fetchEvaluationLocale(
       if (isValidBundle(bundle, locale)) {
         cache[locale] = { bundle, fetchedAt: Date.now() };
         await chrome.storage.local.set({ [EVALUATION_LOCALE_CACHE_KEY]: cache });
-        return bundle;
+        return withBundledEntries(bundle);
       }
     }
   } catch (error) {
@@ -157,5 +178,6 @@ export async function applyEvaluationLocale(
     const sourceDescription = source.description || '';
     weapon.notes = await translate(sourceNotes);
     weapon.description = sourceDescription ? await translate(sourceDescription) : undefined;
+    localizedSources.set(weapon, { source: weapon.source || '', translation: await translate(weapon.source || '') });
   }));
 }

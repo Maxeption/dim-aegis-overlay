@@ -1,6 +1,8 @@
 import { ScoringResult, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingItem, DualSheetInfo } from './types';
 import { t, getLocalizedElement } from './i18n';
-import { getOriginalEvaluationText } from './evaluation-i18n';
+import { getOriginalEvaluationText, getLocalizedSource } from './evaluation-i18n';
+import { getLocalizedPerkName, getPerkIcon } from './hash-translator';
+import { renderLocalizedName, renderLocalizedWeaponReference } from './localized-display';
 import { safeSetInnerHTML } from './dom-utils';
 
 
@@ -201,7 +203,7 @@ function renderSheetWeaponSection(
   if (isBestInClass) {
     categoryMetaText = `<span class="aegis-tooltip-best-tag">${t('bestInClass')}</span>`;
   } else if (bestAlternative) {
-    categoryMetaText = `<span class="aegis-tooltip-alt-text">${t('alternate', { name: bestAlternative })}</span>`;
+    categoryMetaText = `<span class="aegis-tooltip-alt-text">${t('alternate', { name: renderLocalizedWeaponReference(bestAlternative) })}</span>`;
   }
 
   if (isInlineHeader) {
@@ -210,7 +212,7 @@ function renderSheetWeaponSection(
         <span class="aegis-tooltip-sheet-badge ${tierClass}">${t('weaponTier', { tier: sheetWeapon.tier })}</span>
         ${rankText ? `<span class="aegis-meta-dot">•</span><span class="aegis-tooltip-sheet-rank">${rankText}</span>` : ''}
         ${categoryMetaText ? `<span class="aegis-meta-dot">•</span>${categoryMetaText}` : ''}
-        ${sheetWeapon.source ? `<span class="aegis-meta-dot">•</span><span class="aegis-tooltip-source-inline">${t('source')}: <strong style="color: #ffd700;">${sheetWeapon.source}</strong></span>` : ''}
+        ${sheetWeapon.source ? `<span class="aegis-meta-dot">•</span><span class="aegis-tooltip-source-inline">${t('source')}: <strong style="color: #ffd700;">${getLocalizedSource(sheetWeapon)}</strong></span>` : ''}
       </div>
     `;
   } else {
@@ -220,7 +222,7 @@ function renderSheetWeaponSection(
         ${rankText ? `<span class="aegis-tooltip-sheet-rank">${rankText}</span>` : ''}
         ${categoryMetaText}
       </div>
-      ${sheetWeapon.source ? `<div class="aegis-tooltip-weapon-source" style="font-size: 11px; margin-top: 4px; color: #ffd700;"><span style="color: #aaa; font-weight: 500;">${t('source')}:</span> ${sheetWeapon.source}</div>` : ''}
+      ${sheetWeapon.source ? `<div class="aegis-tooltip-weapon-source" style="font-size: 11px; margin-top: 4px; color: #ffd700;"><span style="color: #aaa; font-weight: 500;">${t('source')}:</span> ${getLocalizedSource(sheetWeapon)}</div>` : ''}
     `;
   }
 
@@ -241,12 +243,15 @@ function renderSheetWeaponSection(
       for (const perk of perksToRender) {
         const isMissing = perk.status === 'missing' || !perk.matched;
         const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
-        const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+        const key = perk.hash || perk.name;
+        const displayName = getLocalizedPerkName(key, perk.name);
+        const icon = getPerkIcon(key) || perk.icon;
+        const iconHtml = icon ? `<img src="https://www.bungie.net${icon}" class="aegis-chip-icon" />` : '';
         const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
         chipsHtml += `
-          <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
+          <span class="aegis-perk-chip ${statusClass}" title="${displayName}${statusLabel}">
             ${iconHtml}
-            <span class="aegis-chip-name">${perk.name}</span>
+            ${renderLocalizedName('perk', key, perk.name, 'aegis-chip-name')}
           </span>
         `;
       }
@@ -255,7 +260,7 @@ function renderSheetWeaponSection(
     if (!chipsHtml) {
       const cleanTokens = tokenizeRecommendationPerks(item.rawVal);
       if (cleanTokens.length === 0) return '';
-      chipsHtml = `<span class="aegis-details-value-text" style="font-size: 11px; color: #e5e9f0;">${cleanTokens.join(' / ')}</span>`;
+      chipsHtml = `<span class="aegis-details-value-text" style="font-size: 11px; color: #e5e9f0;">${cleanTokens.map(name => renderLocalizedName('perk', name)).join(' / ')}</span>`;
     }
 
     return `
@@ -328,7 +333,7 @@ function renderSheetWeaponSection(
       const title = isMatch
         ? t('mwEquipped')
         : t('mwNotEquipped');
-      return `<span class="aegis-mw-badge" style="${matchStyle}" title="${title}">${icon} ${mw}</span>`;
+      return `<span class="aegis-mw-badge" style="${matchStyle}" title="${title}">${icon} ${renderLocalizedName('stat', mw)}</span>`;
     }).join('');
 
     recMwBlock = `

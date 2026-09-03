@@ -1,8 +1,24 @@
 import { HASH_TO_ENGLISH_WEAPON, HASH_TO_ENGLISH_PERK, CANONICAL_PERK_HASHES } from './canonical-hashes';
+import { WEAPON_STAT_HASHES } from './weapon-stats';
+import { t } from './i18n';
 
 // Localized registries populated by DIM React Fiber & IndexedDB manifest scans
 let localizedPerkRegistry: Record<number, { name: string; icon: string }> = {};
 let localizedWeaponRegistry: Record<number, string> = {};
+let localizedStatRegistry: Record<number, string> = {};
+const requestedPerks = new Set<number>();
+const requestedWeapons = new Set<number>();
+
+function requestNames(hash: number, weapon = false) {
+  const requested = weapon ? requestedWeapons : requestedPerks;
+  const registryEl = document.getElementById('aegis-global-perk-registry');
+  if (!registryEl || requested.has(hash)) return;
+  requested.add(hash);
+  const attribute = weapon ? 'data-request-weapon-hashes' : 'data-request-hashes';
+  const pending = new Set((registryEl.getAttribute(attribute) || '').split(',').filter(Boolean));
+  pending.add(String(hash));
+  registryEl.setAttribute(attribute, [...pending].join(','));
+}
 
 const ENGLISH_WEAPON_TO_HASH: Record<string, number> = {};
 for (const [hashStr, name] of Object.entries(HASH_TO_ENGLISH_WEAPON)) {
@@ -11,6 +27,8 @@ for (const [hashStr, name] of Object.entries(HASH_TO_ENGLISH_WEAPON)) {
   if (!ENGLISH_WEAPON_TO_HASH[lower]) {
     ENGLISH_WEAPON_TO_HASH[lower] = hash;
   }
+  const clean = cleanName(lower);
+  if (!ENGLISH_WEAPON_TO_HASH[clean]) ENGLISH_WEAPON_TO_HASH[clean] = hash;
 }
 
 export function getEnglishWeaponNameFromHash(hash: number): string | null {
@@ -23,7 +41,8 @@ export function getEnglishPerkNameFromHash(hash: number): string | null {
 
 export function updateLocalizedRegistries(
   perks: Record<string | number, { name: string; icon: string }>,
-  weapons?: Record<string | number, string>
+  weapons?: Record<string | number, string>,
+  stats?: Record<string | number, string>
 ) {
   if (perks) {
     for (const [hashStr, p] of Object.entries(perks)) {
@@ -40,6 +59,13 @@ export function updateLocalizedRegistries(
       if (!isNaN(hash) && name) {
         localizedWeaponRegistry[hash] = name;
       }
+    }
+  }
+
+  if (stats) {
+    for (const [hashStr, name] of Object.entries(stats)) {
+      const hash = Number(hashStr);
+      if (!isNaN(hash) && name) localizedStatRegistry[hash] = name;
     }
   }
 }
@@ -94,6 +120,7 @@ export function getLocalizedPerkName(englishNameOrHash: string | number, fallbac
   if (hash && localizedPerkRegistry[hash]?.name) {
     return localizedPerkRegistry[hash].name;
   }
+  if (hash) requestNames(hash);
 
   if (fallback) return fallback;
   if (typeof englishNameOrHash === 'string') {
@@ -115,8 +142,16 @@ export function getLocalizedWeaponName(englishNameOrHash: string | number, fallb
   if (hash && localizedWeaponRegistry[hash]) {
     return localizedWeaponRegistry[hash];
   }
+  if (hash) requestNames(hash, true);
 
   return fallback || (typeof englishNameOrHash === 'string' ? englishNameOrHash : `Weapon #${englishNameOrHash}`);
+}
+
+export function getLocalizedStatName(stat: string): string {
+  const key = stat.toLowerCase().trim();
+  if (key === 'none') return t('none');
+  const hash = WEAPON_STAT_HASHES[key];
+  return localizedStatRegistry[hash] || stat;
 }
 
 /**

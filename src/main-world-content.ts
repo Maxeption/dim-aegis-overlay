@@ -12,6 +12,8 @@
  * wishlist calculations and UI injections without needing direct React Fiber access.
  */
 
+import { WEAPON_STAT_HASHES } from './weapon-stats';
+
 interface PerkInfo {
   name: string;
   icon: string;
@@ -32,6 +34,8 @@ const instanceCache: Record<string, { perkHashes: number[]; perksDataMap: Record
 let manifestDbName: string | null = null;
 let itemStoreName: string | null = null;
 let plugSetStoreName: string | null = null;
+let statStoreName: string | null = null;
+let manifestKeyvalStoreName = 'keyval';
 const weaponNameToHash: Record<string, number> = {};
 const itemSocketsCount: Record<number, number> = {};
 
@@ -47,6 +51,11 @@ let indexBuilt = false;
  * Traverses all stores and handles both key-lookup and nested dictionary formats.
  */
 async function getPerkFromDB(hash: number): Promise<PerkInfo | null> {
+  await indexReadyPromise;
+  const definition = await getDefinitionByHash(hash, 'DestinyInventoryItemDefinition');
+  if (definition?.displayProperties?.name) {
+    return { name: definition.displayProperties.name, icon: definition.displayProperties.icon || '' };
+  }
   try {
     const dbs = await indexedDB.databases();
     for (const dbInfo of dbs) {
@@ -130,8 +139,8 @@ async function getManifestDictionaryByKey(keyName: string): Promise<any | null> 
   if (!db) return null;
 
   try {
-    const tx = db.transaction('keyval', 'readonly');
-    const store = tx.objectStore('keyval');
+    const tx = db.transaction(manifestKeyvalStoreName, 'readonly');
+    const store = tx.objectStore(manifestKeyvalStoreName);
     const val = await new Promise<any>((resolve) => {
       const req = store.get(keyName);
       req.onsuccess = () => resolve(req.result);
@@ -155,18 +164,21 @@ async function getManifestDictionaryByKey(keyName: string): Promise<any | null> 
  */
 async function getDefinitionByHash(hash: number, storeName: string): Promise<any | null> {
   // If we are using keyval store, resolve key name and look up in memory cache
-  if (itemStoreName && itemStoreName.startsWith('keyval:')) {
+  if (itemStoreName && itemStoreName.includes(':')) {
     let targetKey: string | null = null;
     if (storeName === 'DestinyInventoryItemDefinition') {
-      targetKey = itemStoreName.split(':')[1];
+      targetKey = itemStoreName.slice(itemStoreName.indexOf(':') + 1);
     } else if (storeName === 'DestinyPlugSetDefinition' && plugSetStoreName) {
-      targetKey = plugSetStoreName.split(':')[1];
+      targetKey = plugSetStoreName.slice(plugSetStoreName.indexOf(':') + 1);
+    } else if (storeName === 'DestinyStatDefinition' && statStoreName) {
+      targetKey = statStoreName.slice(statStoreName.indexOf(':') + 1);
     }
 
     if (targetKey) {
       const dict = await getManifestDictionaryByKey(targetKey);
       if (dict) {
-        return dict[hash] || dict[String(hash)] || null;
+        const table = dict[storeName] || dict[storeName.replace(/^Destiny|Definition$/g, '')] || dict;
+        return table[hash] || table[String(hash)] || null;
       }
     }
     return null;
@@ -178,8 +190,11 @@ async function getDefinitionByHash(hash: number, storeName: string): Promise<any
   if (!db) return null;
 
   try {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
+    const resolvedStore = storeName === 'DestinyInventoryItemDefinition' ? itemStoreName
+      : storeName === 'DestinyPlugSetDefinition' ? plugSetStoreName : statStoreName;
+    if (!resolvedStore) return null;
+    const tx = db.transaction(resolvedStore, 'readonly');
+    const store = tx.objectStore(resolvedStore);
 
     const val = await new Promise<any>((resolve) => {
       const req1 = store.get(hash);
@@ -402,7 +417,11 @@ async function getWeaponPossiblePerksByName(weaponName: string): Promise<{
  * Attaches a MutationObserver to the registry element to listen for on-demand perk name requests
  * and weapon-specific perk list requests.
  */
+const observedRegistries = new WeakSet<HTMLElement>();
+
 function setupRegistryObserver(registryEl: HTMLElement) {
+  if (observedRegistries.has(registryEl)) return;
+  observedRegistries.add(registryEl);
   const regObserver = new MutationObserver(async (mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes' && mutation.attributeName === 'data-request-hashes') {
@@ -435,6 +454,24 @@ function setupRegistryObserver(registryEl: HTMLElement) {
         }
       }
 
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-request-weapon-hashes') {
+        const requestStr = registryEl.getAttribute('data-request-weapon-hashes');
+        if (requestStr) {
+          registryEl.removeAttribute('data-request-weapon-hashes');
+          await indexReadyPromise;
+          let updated = false;
+          for (const hash of new Set(requestStr.split(',').map(Number).filter(Number.isFinite))) {
+            if (globalWeaponRegistry[hash]) continue;
+            const definition = await getDefinitionByHash(hash, 'DestinyInventoryItemDefinition');
+            if (definition?.displayProperties?.name) {
+              globalWeaponRegistry[hash] = definition.displayProperties.name;
+              updated = true;
+            }
+          }
+          if (updated) flushWeaponRegistry();
+        }
+      }
+
       if (mutation.type === 'attributes' && mutation.attributeName === 'data-request-weapon-perks') {
         const requestStr = registryEl.getAttribute('data-request-weapon-perks');
         if (requestStr) {
@@ -454,8 +491,12 @@ function setupRegistryObserver(registryEl: HTMLElement) {
 
   regObserver.observe(registryEl, {
     attributes: true,
-    attributeFilter: ['data-request-hashes', 'data-request-weapon-perks'],
+    attributeFilter: ['data-request-hashes', 'data-request-weapon-hashes', 'data-request-weapon-perks'],
   });
+  for (const attribute of ['data-request-hashes', 'data-request-weapon-hashes', 'data-request-weapon-perks']) {
+    const pending = registryEl.getAttribute(attribute);
+    if (pending) registryEl.setAttribute(attribute, pending);
+  }
 }
 
 
@@ -1153,6 +1194,7 @@ async function initManifestDatabase() {
           manifestDbName = name;
           itemStoreName = itemStore;
           plugSetStoreName = storeNames.find(s => s.includes('DestinyPlugSetDefinition')) || null;
+          statStoreName = storeNames.find(s => s.includes('DestinyStatDefinition')) || null;
           db.close();
           sendDiagnosticLog(`Bound separate-stores manifest database "${manifestDbName}". Item: ${itemStoreName}, PlugSet: ${plugSetStoreName}`);
           return true;
@@ -1176,13 +1218,16 @@ async function initManifestDatabase() {
 
           sendDiagnosticLog(`Keys in "${keyvalStore}": ${keys.slice(0, 15).join(', ')} (total: ${keys.length})`);
           
-          const itemKey = keys.find(k => k.includes('InventoryItem'));
-          const plugSetKey = keys.find(k => k.includes('PlugSet'));
+          const itemKey = keys.find(k => k === 'd2-manifest-InventoryItem') || keys.find(k => k.includes('InventoryItem'));
+          const plugSetKey = keys.find(k => k === 'd2-manifest-PlugSet') || keys.find(k => k.includes('PlugSet'));
+          const statKey = keys.find(k => k === 'd2-manifest-Stat') || keys.find(k => /(?:^|[-.])(?:Destiny)?Stat(?:Definition)?$/.test(k));
 
           if (itemKey) {
             manifestDbName = name;
             itemStoreName = `${keyvalStore}:${itemKey}`;
             plugSetStoreName = plugSetKey ? `${keyvalStore}:${plugSetKey}` : null;
+            statStoreName = statKey ? `${keyvalStore}:${statKey}` : null;
+            manifestKeyvalStoreName = keyvalStore;
             db.close();
             sendDiagnosticLog(`Bound keyval manifest database "${manifestDbName}" with itemKey "${itemKey}" and plugSetKey "${plugSetKey}".`);
             return true;
@@ -1200,7 +1245,18 @@ async function initManifestDatabase() {
   const scan = async () => {
     const success = await tryConnect();
     if (success) {
-      await buildWeaponIndex();
+      try {
+        await buildWeaponIndex();
+        const stats: Record<number, string> = {};
+        for (const hash of new Set(Object.values(WEAPON_STAT_HASHES))) {
+          const definition = await getDefinitionByHash(hash, 'DestinyStatDefinition');
+          if (definition?.displayProperties?.name) stats[hash] = definition.displayProperties.name;
+        }
+        initRegistryEl().setAttribute('data-stats', JSON.stringify(stats));
+      } finally {
+        indexBuilt = true;
+        if (indexReadyResolve) indexReadyResolve();
+      }
     } else if (retries < maxRetries) {
       retries++;
       sendDiagnosticLog(`Retrying manifest database connection (attempt ${retries}/${maxRetries})...`);
@@ -1234,8 +1290,8 @@ async function buildWeaponIndex() {
   sendDiagnosticLog(`Starting weapon & perk indexing. itemStoreName: "${itemStoreName}"...`);
 
   // 1. If it's a key-value store, load the entire manifest dictionary into memory first
-  if (itemStoreName.startsWith('keyval:')) {
-    const itemKeyName = itemStoreName.split(':')[1];
+  if (itemStoreName.includes(':')) {
+    const itemKeyName = itemStoreName.slice(itemStoreName.indexOf(':') + 1);
     const dict = await getManifestDictionaryByKey(itemKeyName);
     if (dict) {
       sendDiagnosticLog('Loaded cached manifest dictionary from keyval store. Building weapon & perk indexes...');
@@ -1374,11 +1430,13 @@ async function buildWeaponIndex() {
 function initRegistryEl() {
   let registryEl = document.getElementById('aegis-global-perk-registry');
   if (!registryEl) {
-registryEl = document.createElement('div');
+    registryEl = document.createElement('div');
     registryEl.id = 'aegis-global-perk-registry';
     registryEl.style.display = 'none';
     document.body.appendChild(registryEl);
   }
+  setupRegistryObserver(registryEl);
+  if (!document.getElementById('aegis-global-weapon-registry')) flushWeaponRegistry();
   return registryEl;
 }
 

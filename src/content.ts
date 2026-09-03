@@ -2,8 +2,9 @@ import { scoreWeapon } from './scorer';
 import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingDatabase, AegisShoppingItem, DualSheetInfo, ManifestWeapon, AegisChaseItem, WeaponEvaluationPayload } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, renderViabilityMatrix, formatFormattedNotes, renderShoppingBannerHtml } from './tooltip';
 import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel } from './i18n';
-import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
-import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText } from './evaluation-i18n';
+import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getLocalizedStatName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
+import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText, getLocalizedSource } from './evaluation-i18n';
+import { renderLocalizedName, refreshLocalizedNames } from './localized-display';
 import { safeSetInnerHTML } from './dom-utils';
 
 /** Strongly typed, GC-safe storage for weapon/armor evaluation data attached to DOM tiles */
@@ -597,35 +598,25 @@ function setupRegistryObserver() {
     return;
   }
 
+  const syncNames = () => {
+    try {
+      const perks = JSON.parse(registryEl.getAttribute('data-registry') || '{}');
+      const weapons = JSON.parse(document.getElementById('aegis-global-weapon-registry')?.getAttribute('data-registry') || '{}');
+      const stats = JSON.parse(registryEl.getAttribute('data-stats') || '{}');
+      updateLocalizedRegistries(perks, weapons, stats);
+      updatePerkNameToIcon(perks);
+      if (Object.keys(perks).length) schedulePerkRegistryPersist(perks);
+      refreshLocalizedNames();
+    } catch (e) {
+      // Ignore
+    }
+  };
+
   registryObserver = new MutationObserver((mutations) => {
+    if (mutations.some(mutation => mutation.attributeName === 'data-registry' || mutation.attributeName === 'data-stats')) syncNames();
     for (let i = 0; i < mutations.length; i++) {
       const mutation = mutations[i];
       if (mutation.type === 'attributes' && mutation.attributeName === 'data-registry') {
-        const registryStr = registryEl.getAttribute('data-registry');
-        if (registryStr) {
-          try {
-            const parsed = JSON.parse(registryStr);
-            schedulePerkRegistryPersist(parsed);
-            updatePerkNameToIcon(parsed);
-            updateLocalizedRegistries(parsed);
-          } catch (e) {
-            // Ignore
-          }
-        }
-
-        const weaponRegEl = document.getElementById('aegis-global-weapon-registry');
-        if (weaponRegEl) {
-          const weaponStr = weaponRegEl.getAttribute('data-registry');
-          if (weaponStr) {
-            try {
-              const parsedWeapons = JSON.parse(weaponStr);
-              updateLocalizedRegistries({}, parsedWeapons);
-            } catch (e) {
-              // Ignore
-            }
-          }
-        }
-
         if (hoveredElement) {
           const data = weaponDataMap.get(hoveredElement);
           if (data && data.result && data.result.grade) {
@@ -695,8 +686,11 @@ function setupRegistryObserver() {
 
   registryObserver.observe(registryEl, {
     attributes: true,
-    attributeFilter: ['data-registry', 'data-weapon-perks-response'],
+    attributeFilter: ['data-registry', 'data-stats', 'data-weapon-perks-response'],
   });
+  const weaponRegEl = document.getElementById('aegis-global-weapon-registry');
+  if (weaponRegEl) registryObserver.observe(weaponRegEl, { attributes: true, attributeFilter: ['data-registry'] });
+  syncNames();
 }
 
 /**
@@ -1092,6 +1086,7 @@ function computeGrade(
 
 interface EvaluatedPerk {
   name: string;
+  hash?: number;
   icon?: string;
   matched: boolean;
   status: 'active' | 'selectable' | 'missing';
@@ -1164,6 +1159,7 @@ function evaluateCategoryPerks(
     if (foundPerk) {
       results.push({
         name: perksMap[foundPerk.hash]?.name || foundPerk.name,
+        hash: foundPerk.hash,
         icon: foundPerk.icon,
         matched: true,
         status: foundPerk.active ? 'active' : 'selectable',
@@ -1174,6 +1170,7 @@ function evaluateCategoryPerks(
       const missingIcon = getPerkIcon(rawRec) || perkNameToIcon[rec] || perkNameToIcon[displayName.toLowerCase().trim()];
       results.push({
         name: displayName,
+        hash: recHash || undefined,
         icon: missingIcon || undefined,
         matched: false,
         status: 'missing',
@@ -1278,6 +1275,7 @@ function scoreSheetWeapon(
       const perk = cat.evals[i];
       const tooltipPerk: TooltipPerk = {
         name: perk.name,
+        hash: perk.hash,
         icon: perk.icon,
         matched: perk.matched,
         type: cat.type,
@@ -4242,12 +4240,15 @@ function renderWeaponDetailsContent(
       for (const perk of perksToRender) {
         const isMissing = perk.status === 'missing' || !perk.matched;
         const statusClass = isMissing ? 'aegis-chip-missing' : (perk.status === 'active' ? 'aegis-chip-active' : 'aegis-chip-selectable');
-        const iconHtml = perk.icon ? `<img src="https://www.bungie.net${perk.icon}" class="aegis-chip-icon" />` : '';
+        const key = perk.hash || perk.name;
+        const displayName = getLocalizedPerkName(key, perk.name);
+        const icon = getPerkIcon(key) || perk.icon;
+        const iconHtml = icon ? `<img src="https://www.bungie.net${icon}" class="aegis-chip-icon" />` : '';
         const statusLabel = isMissing ? ` (${t('missing')})` : (perk.status === 'active' ? '' : ` (${t('selectable')})`);
         chipsHtml += `
-          <span class="aegis-perk-chip ${statusClass}" title="${perk.name}${statusLabel}">
+          <span class="aegis-perk-chip ${statusClass}" title="${displayName}${statusLabel}">
             ${iconHtml}
-            <span class="aegis-chip-name">${perk.name}</span>
+            ${renderLocalizedName('perk', key, perk.name, 'aegis-chip-name')}
           </span>
         `;
       }
@@ -4255,7 +4256,7 @@ function renderWeaponDetailsContent(
 
     if (!chipsHtml) {
       const rawVal = item.rawVal;
-      const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).join(' / ');
+      const cleanVal = rawVal.split(/[\/\n]/).map(s => s.trim()).filter(Boolean).map(name => renderLocalizedName('perk', name)).join(' / ');
       if (!cleanVal) return '';
       chipsHtml = `<span class="aegis-details-value-text">${cleanVal}</span>`;
     }
@@ -4350,7 +4351,7 @@ function renderWeaponDetailsContent(
       ];
 
       let icon = '☆';
-      let title = t('aegisRecommendsMw', { mw });
+      let title = t('aegisRecommendsMw', { mw: getLocalizedStatName(mw) });
 
       if (isMatch) {
         chipStyle.push(
@@ -4374,14 +4375,14 @@ function renderWeaponDetailsContent(
       mwChipsHtml += `
         <span class="aegis-perk-chip" style="${chipStyle.join('; ')}" title="${title}">
           <span style="font-size: 11px !important; line-height: 1 !important; ${isMatch ? 'color: #ffe57f !important;' : ''}">${icon}</span>
-          ${mw}
+          ${renderLocalizedName('stat', mw)}
         </span>
       `;
     }
 
     mwHtml = `
       <div class="aegis-details-row aegis-perk-row">
-        <span class="aegis-details-label">MW</span>
+        <span class="aegis-details-label">${t('masterwork')}</span>
         <div class="aegis-details-value aegis-details-chips-container" style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">
           ${mwChipsHtml}
         </div>
@@ -4415,7 +4416,7 @@ function renderWeaponDetailsContent(
       const selfClass = isSelf ? 'aegis-sup-self' : '';
       const labelsStr = item.labels.join(' / ');
       const localizedLabelsStr = getLocalizedArchetypeLabel(labelsStr);
-      const localizedWeaponName = getLocalizedWeaponName(item.weapon.name);
+      const localizedWeaponName = renderLocalizedName('weapon', item.weapon.name);
       
       const tierLetter = item.weapon.tier ? item.weapon.tier.charAt(0).toLowerCase() : '';
       const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${item.weapon.tier}</span>`;
@@ -4439,7 +4440,7 @@ function renderWeaponDetailsContent(
       const tierLetter = sheetW.tier ? sheetW.tier.charAt(0).toLowerCase() : '';
       const tierBadgeHtml = `<span class="aegis-mini-tier-badge aegis-badge-${tierLetter}">${sheetW.tier}</span>`;
       const rankHtml = sheetW.rank ? `<span class="aegis-sup-rank-num">#${sheetW.rank}</span>` : '';
-      const localizedWeaponName = getLocalizedWeaponName(sheetW.name);
+      const localizedWeaponName = renderLocalizedName('weapon', sheetW.name);
 
       supRowsHtml += `
         <div class="aegis-details-row aegis-sup-row aegis-sup-row-self">
@@ -4963,7 +4964,7 @@ function injectPopupSummary(
           `
           <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
             <span>${cardHeaderTitle}</span>
-            ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeapon.source}</span>` : ''}
+            ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${getLocalizedSource(sheetWeapon)}</span>` : ''}
           </div>
           ${renderWeaponDetailsContent(sheetWeapon, sheetPerks, aegisMode === 'pvp' ? 'pvp' : 'pve', equippedMasterwork, false)}
         `
@@ -5223,7 +5224,7 @@ function injectArmoryEnhancements(
         `
         <div class="aegis-details-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
           <span>${cardHeaderTitle}</span>
-          ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${sheetWeapon.source}</span>` : ''}
+          ${sheetWeapon.source ? `<span class="aegis-details-source-badge" style="font-size: 10px; font-weight: 500; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.2); font-family: sans-serif; letter-spacing: 0.1px;">${t('source')}: ${getLocalizedSource(sheetWeapon)}</span>` : ''}
         </div>
         ${renderWeaponDetailsContent(sheetWeapon, sheetPerks, aegisMode === 'pvp' ? 'pvp' : 'pve', equippedMasterwork, false)}
       `

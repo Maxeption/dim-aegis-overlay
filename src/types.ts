@@ -187,6 +187,7 @@ export interface AegisSheetDatabase {
  */
 export interface TooltipPerk {
   name: string;
+  hash?: number;
   icon?: string;
   matched: boolean;
   type: 'barrel' | 'mag' | 'perk1' | 'perk2' | 'origin';
