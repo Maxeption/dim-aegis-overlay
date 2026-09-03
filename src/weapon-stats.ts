@@ -1,0 +1,16 @@
+export const WEAPON_STAT_HASHES: Record<string, number> = {
+  impact: 4043523819,
+  range: 1240592695,
+  accuracy: 1591432999,
+  'charge time': 2961396640,
+  velocity: 2523465841,
+  'blast radius': 3614673599,
+  stability: 155624089,
+  handling: 943549884,
+  reload: 4188031367,
+  'reload speed': 4188031367,
+  'shield duration': 1842278586,
+  persistence: 3085395333,
+  'cooling efficiency': 4006394725,
+  'draw time': 447667954,
+};

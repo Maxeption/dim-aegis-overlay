@@ -47,6 +47,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: 'Strategic Analysis',
     exoticMechanics: 'Exotic Mechanics',
     recMasterwork: 'Rec Masterwork',
+    masterwork: 'MW',
     recMod: 'Recommended Weapon Mod',
     modPrefix: 'Mod',
     aegisMetaAnalysis: 'Aegis Meta Analysis',
@@ -278,6 +279,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: 'Análisis Estratégico',
     exoticMechanics: 'Mecánicas Exóticas',
     recMasterwork: 'Obra Maestra Rec',
+    masterwork: 'Obra maestra',
     recMod: 'Mod de Arma Recomendado',
     modPrefix: 'Mod',
     aegisMetaAnalysis: 'Análisis del Meta de Aegis',
@@ -510,6 +512,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: '전략 분석',
     exoticMechanics: '경이 메커니즘',
     recMasterwork: '추천 걸작',
+    masterwork: '걸작',
     recMod: '추천 무기 개조 부품',
     modPrefix: '개조',
     aegisMetaAnalysis: 'Aegis 메타 분석',
@@ -742,6 +745,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: '戦略的分析',
     exoticMechanics: 'エキゾチックメカニズム',
     recMasterwork: '推奨マスターワーク',
+    masterwork: 'マスターワーク',
     recMod: '推奨武器MOD',
     modPrefix: 'MOD',
     aegisMetaAnalysis: 'Aegis メタ分析',
@@ -974,6 +978,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: '战术分析',
     exoticMechanics: '异域装备机制',
     recMasterwork: '推荐大师化',
+    masterwork: '大师之作',
     recMod: '推荐武器模组',
     modPrefix: '模组',
     aegisMetaAnalysis: 'Aegis 环境分析',
@@ -1206,6 +1211,7 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     strategicAnalysis: '戰術分析',
     exoticMechanics: '異域裝備機制',
     recMasterwork: '推薦大師化',
+    masterwork: '大師之作',
     recMod: '推薦武器模組',
     modPrefix: '模組',
     aegisMetaAnalysis: 'Aegis 環境分析',
@@ -1763,10 +1769,13 @@ export function getLocalizedElement(energy: string): string {
 
 export function getLocalizedFrame(frame: string): string {
   if (!frame) return '';
-  const lower = frame.toLowerCase().trim().replace(/\s+frame$/i, '');
+  const lower = frame.toLowerCase().trim().replace(/\s+/g, ' ');
+  const aliases: Record<string, string> = { rapid: 'rapid-fire', 'rapid fire': 'rapid-fire', wave: 'wave frame', 'spread shot': 'spread shotgun' };
+  const key = aliases[lower] || lower;
   const langFrames = FRAME_TRANSLATIONS[currentLanguage];
-  if (langFrames && langFrames[lower]) {
-    return langFrames[lower];
+  const translated = langFrames?.[key] || langFrames?.[key.replace(/\s+frame$/i, '')];
+  if (translated) {
+    return translated;
   }
   return frame;
 }
@@ -1788,13 +1797,11 @@ export function getLocalizedArchetypeLabel(labelStr: string): string {
   if (!labelStr) return '';
   const parts = labelStr.split(' / ');
   return parts.map(part => {
-    const tokens = part.trim().split(/\s+/);
-    return tokens.map(token => {
-      const el = getLocalizedElement(token);
-      if (el && el.toLowerCase() !== token.toLowerCase()) return el;
-      const fr = getLocalizedFrame(token);
-      if (fr && fr.toLowerCase() !== token.toLowerCase()) return fr;
-      return token;
-    }).join(' ');
+    const value = part.trim();
+    const match = value.match(/^(kinetic|arc|solar|void|stasis|strand)(?:\s+(.+))?$/i);
+    if (match) {
+      return [getLocalizedElement(match[1]), match[2] ? getLocalizedFrame(match[2]) : ''].filter(Boolean).join(' ');
+    }
+    return getLocalizedFrame(value);
   }).join(' / ');
 }
