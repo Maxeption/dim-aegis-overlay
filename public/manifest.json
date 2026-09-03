@@ -98,7 +98,6 @@
         "database_explorer_btn.png",
         "armor_set_bonus_example.png",
         "wishlist_configuration.png",
-        "data/manifest-weapons.json",
         "data/locales/*.json"
       ],
       "matches": [
