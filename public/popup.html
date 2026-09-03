@@ -30,7 +30,7 @@
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
           </svg>
         </a>
-        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.8.1 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
+        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.9.0 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -156,7 +156,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span id="update-check-status" style="font-size: 9px; font-weight: 600; text-transform: uppercase;"></span>
-          <span class="version" id="version-text" title="Click to check for updates">v1.8.1</span>
+          <span class="version" id="version-text" title="Click to check for updates">v1.9.0</span>
         </div>
       </div>
     </header>
@@ -164,7 +164,7 @@
     <main class="popup-main">
       <div id="extension-update-banner" class="update-banner hidden">
         <div class="update-banner-content">
-          <span>Update available: Version <strong id="new-version-text">v1.8.1</strong> is ready on GitHub.</span>
+          <span>Update available: Version <strong id="new-version-text">v1.9.0</strong> is ready on GitHub.</span>
           <button id="update-banner-dismiss" type="button" class="dismiss-btn">&times;</button>
         </div>
       </div>
@@ -464,10 +464,10 @@
     <div class="changelog-modal-card">
       <div class="changelog-modal-header">
         <div class="changelog-badge-row">
-          <span class="changelog-version-tag">v1.8.1</span>
+          <span class="changelog-version-tag">v1.9.0</span>
           <span class="changelog-date-tag">Changelog</span>
         </div>
-        <h2 class="changelog-title">v1.8.1 Release Notes</h2>
+        <h2 class="changelog-title">v1.9.0 Release Notes</h2>
         <button type="button" id="changelog-close-btn" class="changelog-close-x">&times;</button>
       </div>
 
@@ -475,37 +475,46 @@
         
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Fast GitHub CDN Mirror & Daily Auto-Sync</span>
+            <span class="changelog-feature-name">Simultaneous Dual Mode (PvE + PvP)</span>
           </div>
           <p class="changelog-feature-desc">
-            Spreadsheet sync is now powered by GitHub CDN pre-compiled databases (<code>pve-database.json</code> & <code>pvp-database.json</code>), backed by an automated daily GitHub Action sync engine.
+            Evaluate weapons simultaneously against both Aegis and Finnald spreadsheets with native two-tone fused split badges (<code>S+ / A</code>), side-by-side dual tooltips, and dual upgrade arrows.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Immunity to Google Sheets 429 Rate Limits</span>
+            <span class="changelog-feature-name">DIM Armory Weapon Card Integration</span>
           </div>
           <p class="changelog-feature-desc">
-            Completely resolved Google's new bot-blocking rate limits (HTTP 429) using direct HTML table decoding with dynamic tab GID discovery for both primary and offline fallback paths.
+            Injected Meta Category Rank banners and embedded a side-by-side Recommended Perks & Strategic Analysis card right next to DIM's interactive Armory perk grid.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Finnald PvP Unified Spreadsheet Integration</span>
+            <span class="changelog-feature-name">Popup Summary Modes & Wishlist Reset</span>
           </div>
           <p class="changelog-feature-desc">
-            Native support for Finnald's consolidated <code>Legendary Weapons</code> and <code>Exotic Weapons</code> tabs across all overlays, tooltips, and shopping list targets.
+            Customizable popup header modes (<code>Full Details</code>, <code>Badge Only</code>, <code>Hidden</code>), wishlist reset button, top-aligned sidepanel, custom gold scrollbar, and selectable text.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Aegis Shopping List & Multi-Language Suite</span>
+            <span class="changelog-feature-name">Bungie Manifest & Chase List Overhaul</span>
           </div>
           <p class="changelog-feature-desc">
-            Real-time inventory audit classifying gear into <code>Ready</code>, <code>Suboptimal</code>, or <code>Missing</code>, alongside 6-language localization support and deep tooltip customization.
+            Search and chase any weapon in Destiny 2 via Bungie Manifest integration, with custom god roll overrides, instant progressive rendering, and Finnald PvP armor ratings.
+          </p>
+        </div>
+
+        <div class="changelog-feature-card">
+          <div class="changelog-feature-header">
+            <span class="changelog-feature-name">Remote Evaluation Locales & Full Korean Suite</span>
+          </div>
+          <p class="changelog-feature-desc">
+            Remotely updatable evaluation translations via cloud mirror with offline fallback, complete Korean localization suite, and enhanced security and memory hardening.
           </p>
         </div>
 
