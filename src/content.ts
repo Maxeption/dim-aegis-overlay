@@ -6516,11 +6516,10 @@ function evaluateAegisFiltering() {
         const pvePart = result?.pveGrade?.toLowerCase() || (isSplit ? grade.split('|')[0].trim() : '');
         const pvpPart = result?.pvpGrade?.toLowerCase() || (isSplit ? grade.split('|')[1].trim() : '');
 
-        let weaponRank = '';
+        const weaponRank = sheetW?.tier || '';
         let perkRank = '';
         const isTwoTier = !isSplit && (grade.length > 2 || (grade.length === 2 && !grade.endsWith('+') && !grade.endsWith('-')));
         if (isTwoTier) {
-          weaponRank = grade.charAt(0);
           perkRank = grade.substring(1);
         } else if (!isSplit) {
           perkRank = grade;
