@@ -10,9 +10,12 @@
     "build:all": "tsc && node scripts/build.mjs && node scripts/package.mjs",
     "preview": "vite preview"
   },
-  "dependencies": {},
+  "dependencies": {
+    "culori": "4.0.2"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
+    "@types/culori": "4.0.1",
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.11"

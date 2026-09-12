@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIM Aegis Overlay Settings</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="compact-options.css">
 </head>
 <body class="popup-body">
   <div class="popup-container">
@@ -39,8 +40,9 @@
             <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
         </button>
+
         <div class="aegis-help-container">
-          <button type="button" class="aegis-help-icon-btn">
+          <button type="button" class="aegis-help-icon-btn" data-i18n-aria-label="scoringGuides" aria-label="Scoring & Guides" data-i18n-title="scoringGuides" title="Scoring & Guides">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -49,33 +51,25 @@
           </button>
           
           <div class="aegis-help-tooltip">
-            <h3 class="tooltip-title">Scoring & Guides</h3>
+            <h3 class="tooltip-title" data-i18n="scoringGuides">Scoring & Guides</h3>
             <div class="tooltip-section">
-              <span class="tooltip-section-header">1. Standard Grading (Match Accuracy)</span>
-              <div class="tooltip-grid">
-                <span class="grade-pill grade-s-pill">S+</span><span>Traits 1 & 2 + Mag + Barrel + Origin</span>
-                <span class="grade-pill grade-s-pill">S</span><span>Traits 1 & 2 + Magazine matched</span>
-                <span class="grade-pill grade-a-pill">A+</span><span>Traits 1 & 2 + Barrel matched</span>
-                <span class="grade-pill grade-a-pill">A</span><span>Traits 1 & 2 both matched</span>
-                <span class="grade-pill grade-b-pill">B+</span><span>1 Trait active + 1 selectable + Mag/Barrel</span>
-                <span class="grade-pill grade-b-pill">B</span><span>1 Trait active + 1 selectable Trait</span>
-                <span class="grade-pill grade-c-pill">C</span><span>1 Trait matched + Magazine or Barrel</span>
-                <span class="grade-pill grade-d-pill">D</span><span>Only 1 Trait matched</span>
-                <span class="grade-pill grade-f-pill">F</span><span>Underperforming (no Traits matched)</span>
-              </div>
-              <span class="tooltip-note">*Main Traits 1 & 2 must match to score A or higher.</span>
+              <div class="grade-guide-heading"><span class="tooltip-section-header" data-i18n="standardGrading">1. Standard Grading (Match Accuracy)</span></div>
+              <div id="grade-scoring-guide"></div>
             </div>
             
             <div class="tooltip-divider"></div>
             
             <div class="tooltip-section">
-              <span class="tooltip-section-header">2. 2-Tier System (e.g. BS+, SF)</span>
-              <p class="tooltip-desc">Combines weapon meta tier with roll accuracy:</p>
+              <span class="tooltip-section-header" data-i18n="twoTierGuideTitle">2. 2-Tier System (e.g. BS+, SF)</span>
+              <p class="tooltip-desc" data-i18n="twoTierGuideIntro">Combines weapon meta tier with roll accuracy:</p>
               <div class="two-tier-demo-wrapper">
-                <img src="two-tier-demo.png" class="two-tier-demo-img" alt="2-tier grade badge demo" />
+                <div class="two-tier-demo-tile">
+                  <img src="weapon-mockup.png" class="two-tier-demo-img" data-i18n-alt="exampleWeapon" alt="Example weapon" />
+                  <span class="grade-pill grade-s-pill grade-guide-demo" data-aegis-grade="S+">BS+</span>
+                </div>
                 <div class="two-tier-demo-text">
-                  <div class="tooltip-formula">[Archetype Tier] [Roll Grade]</div>
-                  <span class="tooltip-note">Example: <b>BS+</b> means archetype is <b>B-Tier</b>, but your roll is a perfect <b>S+</b>.</span>
+                  <div class="tooltip-formula" data-i18n="twoTierFormula">[Archetype Tier] [Roll Grade]</div>
+                  <span class="tooltip-note" data-i18n-html="twoTierExample">Example: <b>BS+</b> means archetype is <b>B-Tier</b>, and its perk roll meets the <b>S+</b> criteria above.</span>
                 </div>
               </div>
             </div>
@@ -242,6 +236,17 @@
             <button type="button" data-value="true" data-i18n="badgeTwoTier">2-Tier (BS+, SF...)</button>
           </div>
         </div>
+        <div class="input-group input-group-compact" id="aegis-two-tier-options" hidden>
+          <div class="input-group input-group-compact">
+            <label id="aegis-badge-color-label" data-i18n="badgeColor">Color Basis</label>
+            <div class="segmented-control" id="aegis-badge-color-segmented" role="group" aria-labelledby="aegis-badge-color-label">
+              <button type="button" data-value="perk" class="active" aria-pressed="true" data-i18n="badgeColorPerk">Perk (Classic)</button>
+              <button type="button" data-value="archetype" aria-pressed="false" data-i18n="badgeColorArchetype">Archetype</button>
+              <button type="button" data-value="gradient" aria-pressed="false" data-i18n="badgeColorGradient">Gradient (Both)</button>
+            </div>
+          </div>
+          <div class="input-group"><label for="aegis-tile-glow" data-i18n="tileGlow">Tile Glow</label><select id="aegis-tile-glow"><option value="archetype" data-i18n="tileGlowArchetype">S-tier archetypes (default)</option><option value="perk" data-i18n="tileGlowPerk">S+ perks (god rolls)</option><option value="max" data-i18n="tileGlowMax">SS+ only</option></select></div>
+        </div>
         <div class="input-group">
           <label data-i18n="perkEvaluation">Perk Evaluation Basis</label>
           <div class="segmented-control" id="aegis-grade-display-segmented">
@@ -302,13 +307,6 @@
           </div>
         </div>
         <div class="input-group">
-          <label data-i18n="inlineHeaderTitle">Inline Tooltip Header</label>
-          <div class="segmented-control" id="aegis-inline-header-segmented">
-            <button type="button" data-value="true" class="active" data-i18n="inlineHeaderEnabled">Compact Inline</button>
-            <button type="button" data-value="false" data-i18n="inlineHeaderClassic">Classic Stacked</button>
-          </div>
-        </div>
-        <div class="input-group">
           <label data-i18n="autoMaxHeightTitle">Screen-Aware Auto Height</label>
           <div class="segmented-control" id="aegis-auto-max-height-segmented">
             <button type="button" data-value="true" class="active" data-i18n="autoMaxHeightEnabled">Auto Fit & Scroll</button>
@@ -344,6 +342,7 @@
             <button type="button" data-value="circle" class="active" data-i18n="upgradeStyleCircle">Classic Circle</button>
             <button type="button" data-value="triangle" data-i18n="upgradeStyleTriangle">Green Triangle</button>
             <button type="button" data-value="chevron" data-i18n="upgradeStyleChevron">Chevron</button>
+            <button type="button" data-value="none" data-i18n="upgradeStyleNone">None</button>
           </div>
         </div>
         <div class="input-group">
@@ -353,6 +352,40 @@
           </div>
           <input type="range" id="aegis-badge-scale-slider" min="70" max="130" step="5" value="100" style="width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px;" />
         </div>
+        <div class="input-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label data-i18n="badgeSize">Badge Size</label>
+            <span id="badge-size-value">100%</span>
+          </div>
+          <input type="range" id="aegis-badge-size-slider" min="70" max="150" step="5" value="100" />
+        </div>
+        <section id="aegis-visibility-options" aria-labelledby="badge-visibility-title">
+          <h2 id="badge-visibility-title" data-i18n="badgeVisibility">Visibility</h2>
+          <div class="input-group">
+            <label id="badge-armor-label" data-i18n="badgeArmor">Armor</label>
+            <div class="segmented-control" data-badge-category="armor" role="group" aria-labelledby="badge-armor-label">
+              <button type="button" data-value="grade" data-i18n="badgeWithGrade">Grade</button>
+              <button type="button" data-value="color" data-i18n="badgeColorOnly">Color Only</button>
+              <button type="button" data-value="off" data-i18n="badgeOff">Off</button>
+            </div>
+          </div>
+          <div class="input-group">
+            <label id="badge-exotic-label" data-i18n="badgeExoticWeapons">Exotic Weapons</label>
+            <div class="segmented-control" data-badge-category="exotic" role="group" aria-labelledby="badge-exotic-label">
+              <button type="button" data-value="grade" data-i18n="badgeWithGrade">Grade</button>
+              <button type="button" data-value="color" data-i18n="badgeColorOnly">Color Only</button>
+              <button type="button" data-value="off" data-i18n="badgeOff">Off</button>
+            </div>
+          </div>
+          <div class="input-group">
+            <label id="badge-weapon-label" data-i18n="badgeOtherWeapons">Other Weapons</label>
+            <div class="segmented-control" data-badge-category="weapon" role="group" aria-labelledby="badge-weapon-label">
+              <button type="button" data-value="grade" data-i18n="badgeWithGrade">Grade</button>
+              <button type="button" data-value="color" data-i18n="badgeColorOnly">Color Only</button>
+              <button type="button" data-value="off" data-i18n="badgeOff">Off</button>
+            </div>
+          </div>
+        </section>
         <div class="input-group">
           <label data-i18n="badgePosition">Badge Position (Click a corner on the weapon tile)</label>
           <div class="interactive-portrait-container">
@@ -387,6 +420,8 @@
           </div>
         </div>
       </section>
+
+
 
       <section class="settings-card">
         <h2 data-i18n="dataSourceTitle">Custom Wishlist</h2>
@@ -469,6 +504,7 @@
   </div>
 
   <!-- Changelog Modal Popup -->
+  <div id="aegis-grade-settings"></div>
   <div id="changelog-modal" class="changelog-modal-overlay hidden">
     <div class="changelog-modal-card">
       <div class="changelog-modal-header">

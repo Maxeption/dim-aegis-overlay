@@ -13,6 +13,7 @@
  */
 
 import { WEAPON_STAT_HASHES } from './weapon-stats';
+import { masterworkStatName } from './masterwork';
 
 interface PerkInfo {
   name: string;
@@ -795,6 +796,8 @@ function processElement(el: HTMLElement) {
 
     if (!isWeapon && !isArmor) return;
 
+    setItemAttribute(el, 'data-aegis-item-exotic', item.isExotic === true ? 'true' : null);
+
     if (isArmor) {
       const newHash = String(item.hash);
       setItemAttribute(el, 'data-aegis-item-hash', newHash);
@@ -928,12 +931,10 @@ function processElement(el: HTMLElement) {
       }
     }
 
-    // === Strategy 1: item.masterworkInfo — DIM surfaces this directly on the item object ===
-    // DIM stores masterwork info in item.masterworkInfo.statName (e.g. "Range", "Handling")
+    // Prefer the primary stat hash; DIM's display names depend on its language.
     if (item.masterworkInfo) {
-      // statName is the clean stat name (e.g. "Reload Speed", "Range", "Handling")
-      // — use it directly without stripping since it won't contain "masterwork"
       const mwStatName =
+        masterworkStatName(item.masterworkInfo.stats) ||
         item.masterworkInfo.statName ||
         item.masterworkInfo.stat?.displayProperties?.name ||
         item.masterworkInfo.name ||

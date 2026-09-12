@@ -1,3 +1,6 @@
+import type { GradeSettings } from './grading';
+import type { BadgeVisibilitySettings } from './badge-presentation';
+
 /**
  * Represents a single parsed wishlist entry.
  */
@@ -18,6 +21,7 @@ export type WishlistDatabase = Record<number, WishlistRoll[]>;
  * Result of scoring a weapon roll against a wishlist entry.
  */
 export interface ScoringResult {
+  customGrading?: boolean;
   grade: string | null;
   matchPercentage: number;
   matchedPerks: number[];
@@ -35,12 +39,23 @@ export interface ScoringResult {
   pvpGrade?: string;
 }
 
+export type BadgeColor = 'perk' | 'archetype' | 'gradient';
+export type TileGlow = 'archetype' | 'perk' | 'max';
+
 export type AegisMode = 'pve' | 'pvp' | 'both';
 
 /**
  * Storage schema for chrome.storage.local
  */
 export interface LocalStorageSchema {
+  aegisTwoTierColors?: boolean;
+  aegisBadgeColor?: BadgeColor;
+  aegisMaxTierGlow?: boolean;
+  aegisTileGlow?: TileGlow;
+  aegisBadgeSize?: number;
+  aegisBadgeVisibility?: BadgeVisibilitySettings;
+  aegisGradeSettings?: GradeSettings;
+  aegisGradeColors?: Pick<GradeSettings, 'version' | 'colorsEnabled' | 'colors'>;
   wishlistUrl?: string;
   wishlistData?: WishlistDatabase;
   lastUpdated?: number;
@@ -56,7 +71,6 @@ export interface LocalStorageSchema {
   aegisShoppingDbPvP?: AegisShoppingDatabase;
   aegisMode?: AegisMode;
   aegisCompactPerksMatrix?: boolean;
-  aegisInlineHeader?: boolean;
   aegisPopupSummaryMode?: 'full' | 'badge' | 'hidden';
   aegisAutoMaxHeight?: boolean;
   aegisTooltipWidthMode?: 'auto' | 'fixed';
@@ -276,6 +290,4 @@ export interface WeaponEvaluationPayload {
   isBestInClassPvE?: boolean;
   isBestInClassPvP?: boolean;
 }
-
-
 

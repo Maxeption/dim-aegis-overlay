@@ -1,0 +1,132 @@
+.compact-options { height: 600px; overflow: hidden; }
+.compact-options #error-container.hidden { display: none; }
+.compact-options .popup-container { display: flex; flex-direction: column; box-sizing: border-box; height: 100%; max-height: 100dvh; padding: 12px 12px 0; }
+.compact-options .popup-header { flex-shrink: 0; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; }
+.compact-options .logo-wrapper { flex: 1; gap: 5px; }
+.compact-options .shield-logo { width: 18px; height: 18px; flex-shrink: 0; }
+.compact-options .header-actions { width: auto; gap: 2px; }
+.compact-options .header-actions :is(.github-link-btn, .aegis-help-icon-btn, .kofi-link-btn) { width: 22px; height: 24px; padding: 2px; box-sizing: border-box; }
+.compact-options .header-actions svg { width: 13px; height: 13px; }
+.compact-options .popup-header h1 { font-size: 12px; white-space: nowrap; }
+.compact-options .popup-main { position: relative; flex: 1; min-height: 0; margin-inline: -12px; overflow: hidden; gap: 0; --options-surface: #15151d; }
+.options-tabs { display: grid; flex-shrink: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 12px; border-bottom: 1px solid #343440; }
+.options-tabs button { position: relative; margin-bottom: -1px; border: 1px solid transparent; border-bottom-color: #343440; border-radius: 6px 6px 0 0; background: transparent; color: #aaaab5; font: 600 12px/1.3 system-ui; padding: 10px 2px; cursor: pointer; }
+.options-tabs button[aria-selected="true"] { background: var(--options-surface); color: #ffc04a; border-color: #343440; border-bottom-color: var(--options-surface); box-shadow: inset 0 2px #ad813a; }
+.options-tabs button:hover { color: white; }
+.compact-options button:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }
+.options-panel[hidden] { display: none !important; }
+.options-panel { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #727282 transparent; background: var(--options-surface); padding: 10px 12px 12px; }
+.options-panel.option-tab-exiting { position: absolute; left: 0; right: 0; z-index: 2; box-sizing: border-box; overflow: hidden; pointer-events: none; }
+.options-panel > .input-group, .options-section > .input-group { margin: 0 !important; padding: 7px 0; }
+.options-section + .options-section { border-top: 1px solid #343440; margin-top: 8px; padding-top: 10px; }
+.options-section > h2 { font-size: 12px; font-weight: 700; color: #fff; margin: 0 0 6px; }
+.options-panel > .input-group:first-child { padding-top: 2px; }
+.options-panel > .input-group:last-child { border-bottom: 0; }
+#aegis-visibility-options { border-top: 1px solid #343440; margin-top: 8px; padding-top: 10px; }
+#badge-visibility-title { font-size: 12px; font-weight: 700; color: #fff; margin: 0 0 6px; }
+#aegis-visibility-options .input-group { display: grid; grid-template-columns: 85px minmax(0, 1fr); align-items: center; gap: 8px; margin: 0; padding: 5px 0; }
+#aegis-visibility-options label { margin: 0; }
+#aegis-badge-size-slider { min-width: 0; width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px; }
+.options-panel .input-group label { color: #c4c4cf; font-size: 11px; line-height: 15px; font-weight: 600; margin-bottom: 4px; }
+.options-panel .segmented-control { background: #18181f; border-color: #303039; }
+.options-panel .segmented-control button { flex-basis: 0; min-width: 0; font-size: 10px; line-height: 14px; font-weight: 600; min-height: 25px; padding: 3px 2px; color: #a9a9b6; }
+.options-panel .segmented-control button.active { background: #332918; color: #ffc04a; border-color: #705023; font-weight: 600; }
+.options-panel .segmented-control-two-line button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 36px; }
+.options-panel .segmented-control button > :is(span, small) { pointer-events: none; }
+.options-panel .segmented-control-two-line small { font-size: 9px; line-height: 11px; font-weight: 400; font-style: italic; color: #868694; }
+.options-panel .segmented-control-two-line button.active small { color: #c4a46e; }
+.options-panel .settings-card, .options-panel .status-card, .options-panel .info-card { padding: 10px; margin-top: 10px; box-shadow: none; }
+.options-panel .settings-card h2 { font-size: 12px; }
+.options-panel .description { font-size: 11px; line-height: 1.45; }
+.options-panel .interactive-portrait-container { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 14px; padding: 4px 0; margin: 0; background: none; border: 0; }
+.options-panel .portrait-pos-label-row { flex: 1; margin: 0; }
+.options-panel .segmented-control-mini { display: flex; width: 100%; }
+.options-panel > .input-group:has(+ .option-dependent), .options-section > .input-group:has(+ .option-dependent) { padding-bottom: 3px; }
+.options-panel > .option-dependent, .options-section > .option-dependent { padding-block: 3px; }
+.options-panel .option-dependent > label,
+.options-panel .option-dependent > .input-group > label { padding-inline-start: 8px; }
+.options-panel #aegis-mode-toggle-group > label { padding-inline-start: 16px; }
+.options-panel #aegis-two-tier-options { padding: 0; }
+.options-panel #aegis-two-tier-options > .input-group { margin: 0; padding: 3px 0; }
+.options-panel .input-group:has(> .segmented-control),
+.options-panel .input-group:has(> .interactive-portrait-container),
+.options-panel .input-group:has(> .popup-dropdown-wrapper),
+.options-panel .input-group:has(> select),
+.options-panel .inline-range { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; column-gap: 8px; }
+.options-panel .input-group:has(> .segmented-control) > label,
+.options-panel .input-group:has(> .interactive-portrait-container) > label,
+.options-panel .input-group:has(> .popup-dropdown-wrapper) > label,
+.options-panel .input-group:has(> select) > label,
+.options-panel .inline-range > label { margin: 0; }
+.options-panel #aegis-tile-glow { width: 100%; min-width: 0; height: 27px; padding: 3px 5px; background: #18181f; border: 1px solid #303039; border-radius: 5px; color: #a9a9b6; font: 10px system-ui; color-scheme: dark; }
+.options-panel .inline-range { grid-template-columns: 76px minmax(0, 1fr) 40px; }
+#aegis-tooltip-width-slider { grid-column: 2; }
+#aegis-tooltip-width-slider-group > label { display: none; }
+.options-panel .inline-range > span { text-align: right; font-size: 11px; font-weight: 700; color: #ffd700; }
+.options-panel .interactive-portrait-container { min-width: 0; gap: 8px; box-shadow: none; }
+.options-panel .interactive-weapon-tile { flex-shrink: 0; }
+.options-panel .segmented-control-mini button { font-size: 15px; }
+.upgrade-option-preview { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 16px; vertical-align: middle; pointer-events: none; }
+.upgrade-option-none { position: relative; display: block; box-sizing: border-box; width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 50%; opacity: .65; }
+.upgrade-option-none::after { content: ''; position: absolute; top: 50%; left: -1px; right: -1px; height: 1.5px; background: currentColor; transform: translateY(-50%) rotate(-60deg); }
+.upgrade-option-preview .aegis-badge-upgrade-arrow { position: static !important; width: 16px !important; height: 16px !important; flex: 0 0 16px !important; margin: 0 !important; pointer-events: none; }
+.upgrade-option-preview .aegis-badge-upgrade-arrow.aegis-upgrade-circle { width: 16px !important; height: 16px !important; flex-basis: 16px !important; font-size: 8px !important; }
+.options-panel .segmented-control { position: relative; }
+.options-panel .segmented-control button { position: relative; z-index: 1; border: 1px solid transparent; }
+.options-panel .has-option-selection button.active { background: transparent; border-color: transparent; }
+.option-selection { position: absolute; top: 0; left: 0; pointer-events: none; box-sizing: border-box; border: 1px solid #705023; border-radius: 4px; background: #332918; }
+.options-panel .option-revealing { box-sizing: border-box; overflow: hidden; }
+.options-panel [hidden] { display: none !important; }
+.options-preview { position: relative; z-index: 3; flex-shrink: 0; padding: 10px 12px 6px; border-top: 1px solid #343440; background: #1e222a; box-shadow: 0 -6px 14px rgba(0, 0, 0, .35); --item-size: 72px; --preview-power-height: calc(.2 * var(--item-size) + 4px); }
+.options-preview[hidden] { display: none; }
+.options-preview-heading { display: flex; align-items: center; gap: 8px; height: 26px; margin-bottom: 6px; }
+.options-preview h2 { flex-shrink: 0; margin: 0; color: #c4c4cf; font-size: 11px; font-weight: 600; }
+.options-preview .input-group { margin: 0; }
+.options-preview .interactive-portrait-container { flex-direction: row; align-items: flex-start; justify-content: center; gap: 16px; height: 116px; padding: 0; margin: 0; background: none; border: 0; box-shadow: none; }
+.options-preview .interactive-weapon-tile { flex-shrink: 0; width: var(--item-size); height: calc(var(--item-size) + var(--preview-power-height) - 1px); contain: layout paint style size; box-sizing: border-box; border: 0; border-radius: 0; overflow: visible; box-shadow: none; cursor: default; }
+.options-preview-item { position: relative; flex: 0 0 72px; }
+.options-preview-item:has(> [hidden]) { display: none; }
+.options-preview #mock-aegis-badge { z-index: 99 !important; transition: transform .18s ease, opacity .18s ease !important; }
+.options-preview-status { min-width: 0; margin: 0; color: #646b76; font: 9px/12px system-ui; }
+.options-preview-status:empty { display: none; }
+.options-preview .preview-inventory-item .mock-weapon-img { height: 100% !important; clip-path: none; }
+.options-preview .preview-inventory-item .options-preview-art { background: #15131b; }
+.options-preview-art { position: relative; flex: none; height: var(--item-size); overflow: hidden; border: 1px solid #000; box-sizing: border-box; }
+.preview-native > :is(.options-preview-art, .options-preview-power) { display: none; }
+.options-preview-native { position: relative; flex: none; width: var(--item-size); pointer-events: none; }
+.options-preview .interactive-weapon-tile:not(.preview-inventory-item) .mock-weapon-img { height: 125% !important; clip-path: inset(1px 1px 20%); }
+.options-preview-power { display: flex; flex: none; align-items: center; justify-content: flex-end; position: relative; box-sizing: border-box; margin-top: -1px; height: var(--preview-power-height); padding: 0 2px; background: #000; color: #efefef; font: calc(.2 * var(--item-size))/1 system-ui; white-space: nowrap; }
+.options-preview .portrait-pos-label-row { margin: 0; width: 72px; }
+.options-preview .segmented-control-mini { display: grid; grid-template-columns: 1fr 1fr; }
+.options-preview .segmented-control-mini button { font-size: 15px; padding: 3px; }
+.options-panel .grade-settings { padding-top: 12px; border-top: 1px solid #343440; margin-top: 10px; }
+.options-panel .grade-editor-title { margin: 0 0 6px; padding: 0; border: 0; font-size: 12px; text-transform: none; letter-spacing: normal; }
+.options-panel .grade-settings .grade-pills, .options-panel .grade-settings .grade-actions { margin: 6px 0; gap: 6px; }
+.options-panel .grade-settings .grade-pills { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.options-panel .grade-settings .grade-pills button { padding-inline: 2px; }
+.options-panel .grade-settings .grade-color-fields { grid-template-columns: minmax(0, 1fr) 84px; margin: 6px 0; gap: 8px; }
+.options-panel .grade-settings .grade-color-sliders { gap: 6px; }
+.options-panel .grade-settings .grade-color-slider { grid-template-columns: minmax(0, 1fr) 52px; }
+.options-panel .grade-settings .grade-hsv-field { padding-inline: 5px; }
+.options-panel .grade-hex-field { display: flex; align-items: center; gap: 3px; padding: 0 7px; border: 1px solid #555c68; border-radius: 5px; background: #20232b; }
+.options-panel .grade-hex-field > span { color: #858894; pointer-events: none; user-select: none; }
+.options-panel .grade-hex-field:focus-within { border-color: #ffd700; outline: 1px solid #ffd700; }
+.options-panel .grade-settings .grade-hex-field input { padding: 7px 0; border: 0; border-radius: 0; outline: none; background: transparent; text-align: right; }
+.options-panel .grade-settings .grade-check { font-size: 11px; gap: 5px; }
+.options-panel .grade-rules-header { display: flex; align-items: center; gap: 8px; }
+.options-panel .grade-rules-header .grade-editor-title { flex: 1; min-width: 0; margin: 0; }
+.options-panel .grade-settings .grade-profile-row { flex-shrink: 0; gap: 6px; }
+.options-panel .grade-settings .grade-profile-row label { flex: none; }
+.options-panel .grade-profile-row [data-context] { width: 76px; }
+.options-panel [data-context][aria-disabled="true"] { opacity: .5; }
+.options-panel [data-context] button:disabled { cursor: default; }
+.options-panel .grade-summary-row { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; }
+.options-panel .grade-summary-row .grade-check { flex-shrink: 0; min-height: 0; line-height: 16px; white-space: nowrap; color: #c4c4cf; }
+.options-panel .grade-settings [data-rule-summary] { min-width: 0; margin: 0; font-style: italic; line-height: 16px; color: #9295a2; }
+.options-panel .grade-pills [data-grade-inactive] { filter: grayscale(1); opacity: .3; }
+.options-panel .grade-pills [data-grade-inactive][aria-pressed="true"] { opacity: .5; }
+.options-panel .grade-rule-fields[aria-disabled="true"] { opacity: .5; }
+.options-panel .grade-rule-fields[aria-disabled="true"] :disabled { opacity: 1; }
+.options-panel .grade-rule-fields[aria-disabled="true"] label { cursor: default; }
+.options-panel .grade-rule-checks { display: grid; grid-template-columns: 76px minmax(0, 1fr); }
+.options-panel .grade-settings .grade-color-actions button { font-size: 11px; padding: 7px 4px; white-space: normal; }

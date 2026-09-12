@@ -1,32 +1,23 @@
-import { initLanguage, t } from './i18n';
+import { refreshOptionDescriptions } from './compact-options';
+import { updateOptionsPreview, renderOptionsPreview } from './options-preview';
+import { refreshOptionHighlights, revealOption } from './options-motion';
+import { initGradeSettings } from './grade-settings';
+import { normalizeGradeSettings } from './grading';
+import { setGradeColors, setBadgeColor, resolveBadgeColor, resolveTileGlow } from './grade-colors';
+import { initLanguage, t, localizeElements } from './i18n';
 import { LocalStorageSchema, AegisMode } from './types';
+import { normalizeBadgeSize, normalizeBadgeVisibility, type BadgeCategory, type BadgeVisibility } from './badge-presentation';
 
 function localizePopup(storedLang?: string) {
   initLanguage(storedLang);
-  document.querySelectorAll('[data-i18n]').forEach((el) => {
-    const key = el.getAttribute('data-i18n');
-    if (key) {
-      el.textContent = t(key);
-    }
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
-    const key = el.getAttribute('data-i18n-placeholder');
-    if (key && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) {
-      el.placeholder = t(key);
-    }
-  });
-  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
-    const key = el.getAttribute('data-i18n-title');
-    if (key && el instanceof HTMLElement) {
-      el.title = t(key);
-    }
-  });
+  localizeElements();
 }
 
 const DEFAULT_URL =
   'https://raw.githubusercontent.com/charlesxcaliber/DIMAegisWeaponWishlist/main/MrCharlesWishlist_MRB_PPC2.txt';
 
 document.addEventListener('DOMContentLoaded', () => {
+  const refreshGradeLanguage = initGradeSettings();
   const urlInput = document.getElementById('wishlist-url') as HTMLInputElement;
   const syncBtn = document.getElementById('sync-button') as HTMLButtonElement;
   const syncStatus = document.getElementById('sync-status') as HTMLSpanElement;
@@ -44,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateUI() {
     chrome.storage.local.get(
       [
+        'aegisGradeSettings',
+        'aegisGradeColors',
         'wishlistUrl',
         'lastUpdated',
         'parsedCount',
@@ -57,15 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisDbMode',
         'aegisMode',
         'aegisTwoTier',
+        'aegisTwoTierColors',
+        'aegisBadgeColor',
+        'aegisMaxTierGlow',
+        'aegisTileGlow',
         'aegisBadgePosition',
         'aegisBadgeStyle',
         'aegisUpgradeStyle',
         'aegisBadgeScale',
+        'aegisBadgeSize',
+        'aegisBadgeVisibility',
         'aegisFadeHover',
         'aegisGradeDisplayMode',
         'aegisHoverEnabled',
         'aegisCompactPerksMatrix',
-        'aegisInlineHeader',
         'aegisPopupSummaryMode',
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
@@ -78,6 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ],
       (res: any) => {
         localizePopup(res.aegisLanguage);
+        refreshGradeLanguage?.();
+        setGradeColors(normalizeGradeSettings(res.aegisGradeSettings, res.aegisGradeColors));
+        const badgeColor = resolveBadgeColor(res.aegisBadgeColor, res.aegisTwoTierColors);
+        setBadgeColor(res.aegisTwoTier === true ? badgeColor : 'perk');
 
         // Auto-show Changelog Modal once for new version updates
         const currentVer = chrome.runtime.getManifest().version;
@@ -182,9 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const dbToggleGroup = document.getElementById('aegis-db-toggle-group');
           if (dbToggleGroup) {
             if (sourceVal === 'lightgg') {
-              dbToggleGroup.style.display = 'none';
+              revealOption(dbToggleGroup, false);
             } else {
-              dbToggleGroup.style.display = 'block';
+              revealOption(dbToggleGroup, true);
             }
           }
         }
@@ -203,9 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const aegisModeGroup = document.getElementById('aegis-mode-toggle-group');
           if (aegisModeGroup) {
             if (dbModeVal === 'wishlist' || sourceVal === 'lightgg') {
-              aegisModeGroup.style.display = 'none';
+              revealOption(aegisModeGroup, false);
             } else {
-              aegisModeGroup.style.display = 'block';
+              revealOption(aegisModeGroup, true);
             }
           }
         }
@@ -250,6 +252,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set Aegis Two-Tier segmented control
+        const twoTierColorsGroup = document.getElementById('aegis-two-tier-options');
+        if (twoTierColorsGroup) revealOption(twoTierColorsGroup, res.aegisTwoTier === true);
+        document.querySelectorAll<HTMLButtonElement>('#aegis-badge-color-segmented button').forEach(button => {
+          const active = button.dataset.value === badgeColor;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        const tileGlow = document.getElementById('aegis-tile-glow') as HTMLSelectElement | null;
+        if (tileGlow) tileGlow.value = resolveTileGlow(res.aegisTileGlow, res.aegisMaxTierGlow);
         const twoTierVal = res.aegisTwoTier ? 'true' : 'false';
         const twoTierSegmented = document.getElementById('aegis-two-tier-segmented');
         if (twoTierSegmented) {
@@ -289,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set Aegis Upgrade Style segmented control
-        const upgradeStyleVal = (res.aegisUpgradeStyle === 'triangle' || res.aegisUpgradeStyle === 'chevron') ? res.aegisUpgradeStyle : 'circle';
+        const upgradeStyleVal = (res.aegisUpgradeStyle === 'triangle' || res.aegisUpgradeStyle === 'chevron' || res.aegisUpgradeStyle === 'none') ? res.aegisUpgradeStyle : 'circle';
         const upgradeStyleSegmented = document.getElementById('aegis-upgrade-style-segmented');
         if (upgradeStyleSegmented) {
           upgradeStyleSegmented.querySelectorAll('button').forEach(btn => {
@@ -312,60 +323,29 @@ document.addEventListener('DOMContentLoaded', () => {
           scaleValueText.textContent = `${badgeScaleVal}%`;
         }
         document.documentElement.style.setProperty('--aegis-badge-scale', (badgeScaleVal / 100).toString());
-
-        // Update Live Interactive Weapon Tile Preview
-        const mockBadge = document.getElementById('mock-aegis-badge');
-        if (mockBadge) {
-          // Remove old position and style classes
-          mockBadge.classList.remove('aegis-pos-bl', 'aegis-pos-tl', 'aegis-pos-tr', 'aegis-pos-br');
-          mockBadge.classList.remove('aegis-style-classic', 'aegis-style-pill', 'aegis-style-notch', 'aegis-style-footer');
-
-          const posKey = badgePosVal.replace('bottom-left', 'bl').replace('top-left', 'tl').replace('top-right', 'tr').replace('bottom-right', 'br');
-          mockBadge.classList.add(`aegis-pos-${posKey}`);
-          mockBadge.classList.add(`aegis-style-${badgeStyleVal}`);
-
-          const isTwoTier = res.aegisTwoTier === true;
-          if (aegisModeVal === 'both') {
-            mockBadge.classList.add('aegis-badge-split', 'aegis-badge-wide');
-            const pveStr = isTwoTier ? 'SS+' : 'S+';
-            const pvpStr = isTwoTier ? 'AA' : 'A';
-            mockBadge.innerHTML = `<span class="aegis-split-half aegis-split-left aegis-badge-s">${pveStr}</span><span class="aegis-split-half aegis-split-right aegis-badge-a">${pvpStr}</span>`;
-          } else {
-            mockBadge.classList.remove('aegis-badge-split');
-            mockBadge.textContent = isTwoTier ? 'SS+' : 'S+';
-          }
-          if (badgeStyleVal === 'footer' || badgeStyleVal === 'notch') {
-            const labels = aegisModeVal === 'both' ? mockBadge.querySelectorAll('.aegis-split-half') : [mockBadge];
-            for (const label of labels) {
-              const text = document.createElement('span');
-              text.className = 'aegis-grade-text';
-              text.textContent = label.textContent;
-              label.replaceChildren(text);
-            }
-          }
-
-          // Append preview upgrade arrow
-          const upgradeArrow = document.createElement('span');
-          upgradeArrow.className = `aegis-badge-upgrade-arrow aegis-upgrade-${upgradeStyleVal}`;
-          upgradeArrow.textContent = '▲';
-          mockBadge.appendChild(upgradeArrow);
-        }
-
-        const cornerTargets = document.querySelectorAll('.interactive-weapon-tile .corner-target');
-        cornerTargets.forEach(target => {
-          if (target.getAttribute('data-pos') === badgePosVal) {
-            target.classList.add('active-corner');
-          } else {
-            target.classList.remove('active-corner');
-          }
+        const badgeSize = normalizeBadgeSize(res.aegisBadgeSize);
+        (document.getElementById('aegis-badge-size-slider') as HTMLInputElement).value = String(badgeSize);
+        document.getElementById('badge-size-value')!.textContent = `${badgeSize}%`;
+        document.documentElement.style.setProperty('--aegis-badge-size', String(badgeSize / 100));
+        const visibility = normalizeBadgeVisibility(res.aegisBadgeVisibility);
+        document.querySelectorAll<HTMLElement>('[data-badge-category]').forEach(group => {
+          group.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+            const active = visibility[group.dataset.badgeCategory as BadgeCategory] === button.dataset.value;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+          });
         });
+
+        updateOptionsPreview(res);
+
+        revealOption(document.getElementById('aegis-badge-position-group')!, badgeStyleVal !== 'notch' && badgeStyleVal !== 'footer');
 
         // Set Aegis Fade on Hover segmented control
         const fadeHoverVal = res.aegisFadeHover === true ? 'true' : 'false';
         const fadeHoverSegmented = document.getElementById('aegis-fade-hover-segmented');
         if (fadeHoverSegmented) {
           const fadeHoverGroup = fadeHoverSegmented.closest<HTMLElement>('.input-group');
-          if (fadeHoverGroup) fadeHoverGroup.hidden = badgeStyleVal === 'footer';
+          if (fadeHoverGroup) revealOption(fadeHoverGroup, badgeStyleVal !== 'footer');
           fadeHoverSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === fadeHoverVal) {
               btn.classList.add('active');
@@ -427,19 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
-        // Set Aegis Inline Header segmented control
-        const inlineHeaderVal = res.aegisInlineHeader !== false ? 'true' : 'false';
-        const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
-        if (inlineHeaderSegmented) {
-          inlineHeaderSegmented.querySelectorAll('button').forEach(btn => {
-            if (btn.getAttribute('data-value') === inlineHeaderVal) {
-              btn.classList.add('active');
-            } else {
-              btn.classList.remove('active');
-            }
-          });
-        }
-
         // Set Aegis Auto Max-Height segmented control
         const autoMaxHeightVal = res.aegisAutoMaxHeight !== false ? 'true' : 'false';
         const autoMaxHeightSegmented = document.getElementById('aegis-auto-max-height-segmented');
@@ -455,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Set Aegis Tooltip Width Mode segmented control
         const tooltipWidthModeVal = res.aegisTooltipWidthMode || 'fixed';
+        revealOption(document.getElementById('aegis-tooltip-width-slider-group')!, tooltipWidthModeVal === 'fixed');
         const tooltipWidthModeSegmented = document.getElementById('aegis-tooltip-width-mode-segmented');
         if (tooltipWidthModeSegmented) {
           tooltipWidthModeSegmented.querySelectorAll('button').forEach(btn => {
@@ -481,16 +449,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const armorSourceVal = res.aegisArmorSource || 'lowco';
         const armorSourceSegmented = document.getElementById('aegis-armor-source-segmented');
         if (armorSourceSegmented) {
-          const armorAegisBtn = armorSourceSegmented.querySelector('button[data-value="aegis"]');
+          const armorAegisBtn = armorSourceSegmented.querySelector<HTMLButtonElement>('button[data-value="aegis"]');
           if (armorAegisBtn) {
+            const heading = armorAegisBtn.querySelector('span')!;
             if (aegisModeVal === 'pvp') {
-              armorAegisBtn.textContent = t('armorFinnald');
+              heading.textContent = t('inlineFinnald');
+              armorAegisBtn.title = t('armorFinnald');
             } else if (aegisModeVal === 'both') {
-              armorAegisBtn.textContent = t('armorDual');
+              heading.textContent = t('sourceBoth');
+              armorAegisBtn.title = t('armorDual');
             } else {
-              armorAegisBtn.textContent = t('armorAegis');
+              heading.textContent = t('inlineAegis');
+              armorAegisBtn.title = t('armorAegis');
             }
           }
+          armorAegisBtn?.setAttribute('aria-label', armorAegisBtn.title);
           armorSourceSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === armorSourceVal) {
               btn.classList.add('active');
@@ -523,6 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
           syncStatus.classList.add('status-success');
           setLoadingState(false);
         }
+        refreshOptionDescriptions();
+        refreshOptionHighlights();
       }
     );
   }
@@ -700,22 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Inline Header segmented control click
-  const inlineHeaderSegmented = document.getElementById('aegis-inline-header-segmented');
-  if (inlineHeaderSegmented) {
-    inlineHeaderSegmented.addEventListener('click', (e) => {
-      const target = e.target as HTMLButtonElement;
-      if (target && target.tagName === 'BUTTON') {
-        const val = target.getAttribute('data-value');
-        if (val) {
-          chrome.storage.local.set({ aegisInlineHeader: val === 'true' }, () => {
-            updateUI();
-          });
-        }
-      }
-    });
-  }
-
   // Handle Auto Max-Height segmented control click
   const autoMaxHeightSegmented = document.getElementById('aegis-auto-max-height-segmented');
   if (autoMaxHeightSegmented) {
@@ -801,23 +760,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Interactive Mockup Portrait Corner Hotspots click
-  const interactiveTile = document.getElementById('interactive-weapon-tile');
-  if (interactiveTile) {
-    interactiveTile.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const hotspot = target.closest('.corner-target') as HTMLElement;
-      if (hotspot) {
-        const pos = hotspot.getAttribute('data-pos');
-        if (pos) {
-          chrome.storage.local.set({ aegisBadgePosition: pos }, () => {
-            console.log(`[DIM Aegis Overlay] Interactive tile position set to: ${pos}`);
-            updateUI();
-          });
-        }
-      }
+  document.querySelectorAll<HTMLButtonElement>('#aegis-badge-color-segmented button').forEach(button => {
+    button.addEventListener('click', () => {
+      chrome.storage.local.set({ aegisBadgeColor: resolveBadgeColor(button.dataset.value) }, updateUI);
     });
-  }
+  });
+
+  const tileGlow = document.getElementById('aegis-tile-glow') as HTMLSelectElement | null;
+  tileGlow?.addEventListener('change', () => {
+    chrome.storage.local.set({ aegisTileGlow: resolveTileGlow(tileGlow.value) }, updateUI);
+  });
 
   // Handle Badge Style segmented control click
   const badgeStyleSegmented = document.getElementById('aegis-badge-style-segmented');
@@ -852,6 +804,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  document.querySelectorAll<HTMLElement>('[data-badge-category]').forEach(group => {
+    group.addEventListener('click', async event => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-value]');
+      if (!button) return;
+      const stored = await chrome.storage.local.get(['aegisBadgeVisibility']);
+      const visibility = normalizeBadgeVisibility(stored.aegisBadgeVisibility);
+      visibility[group.dataset.badgeCategory as BadgeCategory] = button.dataset.value as BadgeVisibility;
+      await chrome.storage.local.set({ aegisBadgeVisibility: visibility });
+    });
+  });
+  const sizeSlider = document.getElementById('aegis-badge-size-slider') as HTMLInputElement;
+  sizeSlider.addEventListener('input', () => {
+    const value = normalizeBadgeSize(Number(sizeSlider.value));
+    document.getElementById('badge-size-value')!.textContent = `${value}%`;
+    document.documentElement.style.setProperty('--aegis-badge-size', String(value / 100));
+    chrome.storage.local.set({ aegisBadgeSize: value });
+  });
 
   // Handle Badge Scale Slider
   const scaleSlider = document.getElementById('aegis-badge-scale-slider') as HTMLInputElement;
@@ -1217,6 +1187,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen for storage updates in real-time
   chrome.storage.onChanged.addListener((_changes, namespace) => {
     if (namespace === 'local') {
+      if (_changes.aegisGradeColors && Object.keys(_changes).length === 1) {
+        setGradeColors(normalizeGradeSettings(_changes.aegisGradeColors.newValue));
+        renderOptionsPreview();
+        return;
+      }
       updateUI();
     }
   });
