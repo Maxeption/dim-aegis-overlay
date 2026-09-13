@@ -5737,3 +5737,24 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .item-drag-container[data-aegis-gradient-glow]:has(> .item > .aegis-badge[data-aegis-dimmed="1"])::after {
   opacity: .15;
 }
+.aegis-compare-panel { margin-top: 10px; color: #e5e9f0; background: #191c23; font-size: 12px; }
+.aegis-compare-panel[hidden] { display: none; }
+.aegis-compare-panel .aegis-compare-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px 4px; border-top: 1px solid #696046; max-width: calc(100vw - 32px); }
+.aegis-compare-panel button { color: #bac7da; background: transparent; border: 0; padding: 3px 4px; cursor: pointer; font: inherit; }
+.aegis-compare-panel button:focus-visible { outline: 2px solid #efbf51; outline-offset: 1px; }
+.aegis-compare-panel button[data-compare-action="collapse"] { color: #efc75a; font-weight: 600; }
+.aegis-compare-panel button[aria-pressed="true"] { color: #ffd700; background: #403721; border-radius: 3px; }
+.aegis-compare-panel table { table-layout: fixed; width: 100%; border-collapse: collapse; color: inherit; font: inherit; }
+.aegis-compare-panel td,.aegis-compare-panel th { padding: 5px 4px; vertical-align: top; text-align: left; font-weight: normal; overflow-wrap: anywhere; border-right: 1px solid #383e47; }
+.aegis-compare-panel th { color: #b3bac5; position: sticky; left: 0; background: #191c23; z-index: 1; }
+.aegis-compare-panel td:last-child { border-right: 0; }
+.aegis-compare-panel .aegis-compare-perks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.aegis-compare-panel .aegis-compare-chip { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; padding: 2px 4px; border: 1px solid; border-radius: 3px; line-height: 1.3; }
+.aegis-compare-panel .aegis-compare-chip > span:first-child { flex-shrink: 0; }
+.aegis-compare-panel .aegis-compare-chip > span:last-child { min-width: 0; }
+.aegis-compare-panel .aegis-compare-chip img { width: 14px; height: 14px; align-self: center; flex-shrink: 0; }
+.aegis-compare-panel .aegis-compare-active { color: #70e7ab; border-color: #285f44; background: #1b3128; }
+.aegis-compare-panel .aegis-compare-selectable { color: #82d1f3; border-color: #416679; border-style: dashed; background: #1b2a35; }
+.aegis-compare-panel .aegis-compare-missing { color: #d69b92; border-color: #533631; background: #291e20; }
+.aegis-compare-panel .aegis-compare-grade { display: inline-block; padding: 2px 6px; border-radius: 3px; color: white; font-weight: 600; }
+.aegis-compare-panel .aegis-compare-legend { padding: 7px 4px; color: #b3bac5; font-size: 11px; max-width: calc(100vw - 32px); }

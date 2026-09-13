@@ -18,6 +18,7 @@ function visit(node) {
   ts.forEachChild(node, visit);
 }
 visit(settings);
+visit(ts.createSourceFile('compare-perks.ts', src('compare-perks.ts'), ts.ScriptTarget.Latest, true));
 const html = fs.readFileSync(path.join(__dirname, '../public/popup.html'), 'utf8');
 const guide = html.slice(html.indexOf('id="open-grade-colors-btn"'), html.indexOf('<main'));
 for (const markup of [src('grade-settings.ts'), guide]) {

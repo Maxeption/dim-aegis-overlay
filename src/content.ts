@@ -12,6 +12,8 @@ import { renderLocalizedName, refreshLocalizedNames } from './localized-display'
 import { outermostElements, safeSetInnerHTML, withoutTileReorders } from './dom-utils';
 import { applyBadgePresentation, badgeCategory, normalizeBadgeSize, normalizeBadgeVisibility } from './badge-presentation';
 import { measurePerkCardWidth } from './card-width';
+import { initComparePerks } from './compare-perks';
+import { COMPARE_BUCKET_SELECTOR } from './compare-selectors';
 
 /** Strongly typed, GC-safe storage for weapon/armor evaluation data attached to DOM tiles */
 export const weaponDataMap = new WeakMap<HTMLElement, WeaponEvaluationPayload>();
@@ -255,6 +257,8 @@ let aegisAutoMaxHeight = true;
 let aegisTooltipWidthMode: 'auto' | 'fixed' = 'fixed';
 let aegisTooltipWidth = 280;
 let aegisArmoryEnabled = true;
+const comparePerks = initComparePerks({ getData: element => weaponDataMap.get(element),
+  getMode: () => aegisMode, enabled: () => !IS_WINNOWER_HOST && aegisDbMode !== 'wishlist' });
 
 function applyTooltipWidthStyles() {
   if (aegisTooltipWidthMode === 'auto') {
@@ -6186,7 +6190,7 @@ function processElement(el: HTMLElement) {
     });
 
     // Index into playerVaultInventory for Shopping List Audit
-    if (result.grade) {
+    if (result.grade && !el.closest(COMPARE_BUCKET_SELECTOR)) {
       const lookupKey = normWName;
       const existing = playerVaultInventory.get(lookupKey) || [];
       const instanceId = el.getAttribute('data-aegis-instance-id') || el.getAttribute('data-aegis-item-id') || undefined;
@@ -6991,6 +6995,7 @@ function reprocessAllElements() {
     renderResults();
   }
   evaluateAegisFiltering();
+  comparePerks.refresh();
 }
 
 // Mutations are batched and processed once per animation frame instead of
@@ -7014,9 +7019,11 @@ const pendingProcessTargets = createItemQueue(item => processElement(item), item
   setupSearchFilterObserver();
   evaluateAegisFiltering(items);
   scheduleOpacityUpdate(items);
+  comparePerks.refresh();
 });
 
 const observer = new MutationObserver((mutations) => {
+  comparePerks.observe(mutations);
   for (const mutation of withoutTileReorders(mutations)) {
 
     // Check if the custom data attributes were modified
