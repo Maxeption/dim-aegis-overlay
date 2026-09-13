@@ -1145,6 +1145,19 @@ function queueItem(item: HTMLElement) {
 const pendingNodes = new Set<HTMLElement>();
 let scanScheduled = false;
 
+// A simulated socket change may only update React state or an unobserved DOM property.
+function scheduleCompareScan(event: Event) {
+  const bucket = event.target instanceof Element && event.target.closest<HTMLElement>(COMPARE_BUCKET_SELECTOR);
+  if (!bucket) return;
+  pendingNodes.add(bucket);
+  if (!scanScheduled) {
+    scanScheduled = true;
+    requestAnimationFrame(flushPendingNodes);
+  }
+}
+document.addEventListener('click', scheduleCompareScan, true);
+document.addEventListener('change', scheduleCompareScan, true);
+
 function flushPendingNodes() {
   scanScheduled = false;
   const nodes = outermostElements(pendingNodes);

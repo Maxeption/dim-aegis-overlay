@@ -11,7 +11,6 @@ type Perk = { name: string; status: Status; icon?: string };
 const slots = ['barrel', 'mag', 'perk1', 'perk2', 'origin', 'mw'] as const;
 const labels = ['barrel', 'magazine', 'perk1', 'perk2', 'origin', 'masterwork'];
 const statusLabel = { active: 'compareSelected', selectable: 'selectable', missing: 'missing' };
-const symbols = { active: '✓', selectable: '↗', missing: '−' };
 
 export function initComparePerks(options: {
   getData: (element: HTMLElement) => WeaponEvaluationPayload | undefined;
@@ -89,7 +88,6 @@ export function initComparePerks(options: {
     const text = { title: t('compareRecommendations'), all: t(expanded ? 'compareCompact' : 'compareAll'),
       grade: t('compareGrade'), loading: t('compareLoading'), noSheet: t('compareNoSheet'),
       notRecommended: t('compareNotRecommended'), less: t('compareLess'),
-      legend: Object.entries(symbols).map(([key, symbol]) => `${symbol} ${t(statusLabel[key as Status])}`).join(' · '),
       previewNote: t('comparePreviewNote'),
       labels: labels.map(label => t(label)), statuses: Object.fromEntries(Object.entries(statusLabel).map(([key, value]) => [key, t(value)])) };
     const nextSignature = JSON.stringify({ columns, widths, context, mode, expanded, collapsed, rows: [...expandedRows], text });
@@ -163,8 +161,6 @@ export function initComparePerks(options: {
               const chip = document.createElement('span'); chip.className = `aegis-compare-chip aegis-compare-${perk.status}`;
               chip.title = `${text.statuses[perk.status]}: ${perk.name}`;
               chip.setAttribute('aria-label', chip.title);
-              const status = document.createElement('span'); status.textContent = symbols[perk.status]; status.setAttribute('aria-hidden', 'true');
-              chip.append(status);
               if (perk.icon) {
                 try {
                   const url = new URL(perk.icon, 'https://www.bungie.net');
@@ -187,7 +183,12 @@ export function initComparePerks(options: {
           row.append(cell);
         });
       });
-      const legend = document.createElement('div'); legend.className = 'aegis-compare-legend'; legend.textContent = `${text.legend} · ${text.previewNote}`;
+      const legend = document.createElement('div'); legend.className = 'aegis-compare-legend';
+      for (const status of Object.keys(statusLabel) as Status[]) {
+        const label = document.createElement('span'); label.className = `aegis-compare-${status}`;
+        label.textContent = text.statuses[status]; legend.append(label, ' · ');
+      }
+      legend.append(text.previewNote);
       panel!.append(table, legend);
     }
     applyGradeColors(panel!);

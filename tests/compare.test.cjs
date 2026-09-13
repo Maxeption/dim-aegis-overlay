@@ -24,4 +24,19 @@ bucket.__reactProps$test.children[1].props.rows = [{ item: undefined }, { item: 
 assert.equal(getCompareItem(element, preview), original);
 bucket.__reactProps$test.children = [];
 assert.equal(getCompareItem(element, original), original);
+// A retained DOM props handle and tile fiber must not win over the committed tree.
+const oldRoot = {}, newRoot = {};
+const oldBucket = { return: oldRoot, memoizedProps: { children: [{ props: { rows: [{ item: original }] } }] } };
+const newBucket = { return: newRoot, memoizedProps: { children: [{ props: { rows: [{ item: preview }] } }] } };
+oldBucket.alternate = newBucket; newBucket.alternate = oldBucket;
+oldRoot.alternate = newRoot; newRoot.alternate = oldRoot;
+oldRoot.child = oldBucket; newRoot.child = newBucket;
+oldRoot.stateNode = newRoot.stateNode = { current: newRoot };
+bucket.__reactFiber$test = oldBucket;
+bucket.__reactProps$test = oldBucket.memoizedProps;
+assert.equal(getCompareItem(element, original), preview);
+oldRoot.stateNode.current = oldRoot;
+assert.equal(getCompareItem(element, preview), original);
+newRoot.child = oldBucket; oldRoot.stateNode.current = newRoot;
+assert.equal(getCompareItem(element, preview), original, 'shared child fibers retain the committed item');
 console.log('PASS: current Compare rows override stale tile props without modifying inventory items; missing rows, mismatched IDs/hashes, and non-Compare tiles retain the original item.');

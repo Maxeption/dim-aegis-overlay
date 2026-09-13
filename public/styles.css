@@ -5750,7 +5750,6 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-compare-panel td:last-child { border-right: 0; }
 .aegis-compare-panel .aegis-compare-perks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .aegis-compare-panel .aegis-compare-chip { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; padding: 2px 4px; border: 1px solid; border-radius: 3px; line-height: 1.3; }
-.aegis-compare-panel .aegis-compare-chip > span:first-child { flex-shrink: 0; }
 .aegis-compare-panel .aegis-compare-chip > span:last-child { min-width: 0; }
 .aegis-compare-panel .aegis-compare-chip img { width: 14px; height: 14px; align-self: center; flex-shrink: 0; }
 .aegis-compare-panel .aegis-compare-active { color: #70e7ab; border-color: #285f44; background: #1b3128; }
@@ -5758,3 +5757,4 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .aegis-compare-panel .aegis-compare-missing { color: #d69b92; border-color: #533631; background: #291e20; }
 .aegis-compare-panel .aegis-compare-grade { display: inline-block; padding: 2px 6px; border-radius: 3px; color: white; font-weight: 600; }
 .aegis-compare-panel .aegis-compare-legend { padding: 7px 4px; color: #b3bac5; font-size: 11px; max-width: calc(100vw - 32px); }
+.aegis-compare-panel .aegis-compare-legend > span { border: 0; background: none; }
