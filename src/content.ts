@@ -7033,20 +7033,67 @@ function scheduleOpacityUpdate() {
   requestAnimationFrame(tryRun);
 }
 
+// Height animation updates get a trailing check, while search-fade changes
+// keep their normal frame scheduling. Compare declarations without forcing layout.
+const previousDimmingStyle = document.createElement('div').style;
+
+function dimmingStyleChange(target: HTMLElement, oldValue: string | null): 'none' | 'height' | 'other' {
+  previousDimmingStyle.cssText = oldValue ?? '';
+  const currentStyle = target.style;
+  const properties = new Set([...Array.from(previousDimmingStyle), ...Array.from(currentStyle)]);
+  let heightChanged = false;
+  for (const property of properties) {
+    if (
+      previousDimmingStyle.getPropertyValue(property) !== currentStyle.getPropertyValue(property) ||
+      previousDimmingStyle.getPropertyPriority(property) !== currentStyle.getPropertyPriority(property)
+    ) {
+      if (property !== 'height') return 'other';
+      heightChanged = true;
+    }
+  }
+  return heightChanged ? 'height' : 'none';
+}
+
+let heightQuietTimer: ReturnType<typeof setTimeout> | undefined;
+let heightDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
+
+function flushHeightDimmingCheck() {
+  clearTimeout(heightQuietTimer);
+  clearTimeout(heightDeadlineTimer);
+  heightQuietTimer = undefined;
+  heightDeadlineTimer = undefined;
+  scheduleOpacityUpdate();
+}
+
+function scheduleHeightDimmingCheck() {
+  clearTimeout(heightQuietTimer);
+  heightQuietTimer = setTimeout(flushHeightDimmingCheck, 120);
+  // Keep checking occasionally if something changes height continuously.
+  heightDeadlineTimer ??= setTimeout(flushHeightDimmingCheck, 1000);
+}
+
 const dimmingObserver = new MutationObserver((mutations) => {
+  let heightChanged = false;
+  let needsImmediateCheck = false;
   for (let i = 0; i < mutations.length; i++) {
     const target = mutations[i].target as HTMLElement;
     // Ignore our own badge style writes
     if (target.classList && target.classList.contains('aegis-badge')) continue;
+    const styleChange = mutations[i].attributeName === 'style'
+      ? dimmingStyleChange(target, mutations[i].oldValue)
+      : 'other';
+    if (styleChange === 'none') continue;
     // Only care about changes on or around annotated item containers
     if (
       target.closest('[data-aegis-item-hash]') ||
       (target.querySelector && target.querySelector('.aegis-badge'))
     ) {
-      scheduleOpacityUpdate();
-      return;
+      if (styleChange === 'height') heightChanged = true;
+      else needsImmediateCheck = true;
     }
   }
+  if (heightChanged) scheduleHeightDimmingCheck();
+  if (needsImmediateCheck) scheduleOpacityUpdate();
 });
 
 function startDimmingObserver() {
@@ -7060,6 +7107,7 @@ function startDimmingObserver() {
   dimmingObserver.observe(document.body, {
     attributes: true,
     attributeFilter: ['class', 'style'],
+    attributeOldValue: true,
     subtree: true,
   });
   const onFadeFinished = (event: TransitionEvent) => {
