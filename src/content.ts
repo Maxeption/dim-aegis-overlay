@@ -7037,20 +7037,47 @@ function scheduleOpacityUpdate() {
 // keep their normal frame scheduling. Compare declarations without forcing layout.
 const previousDimmingStyle = document.createElement('div').style;
 
-function dimmingStyleChange(target: HTMLElement, oldValue: string | null): 'none' | 'height' | 'other' {
-  previousDimmingStyle.cssText = oldValue ?? '';
+function isHeightOnlyChange(target: HTMLElement, oldValue: string | null): 'none' | 'height' | 'other' {
+  const currentAttr = target.getAttribute('style') ?? '';
+  const oldAttr = oldValue ?? '';
+  if (currentAttr === oldAttr) return 'none';
+
+  previousDimmingStyle.cssText = oldAttr;
   const currentStyle = target.style;
-  const properties = new Set([...Array.from(previousDimmingStyle), ...Array.from(currentStyle)]);
+
+  // Fast-path: 1 property on each side, both 'height'
+  if (
+    previousDimmingStyle.length === 1 &&
+    currentStyle.length === 1 &&
+    previousDimmingStyle[0] === 'height' &&
+    currentStyle[0] === 'height'
+  ) {
+    return 'height';
+  }
+
   let heightChanged = false;
-  for (const property of properties) {
+
+  // Check all properties in previousDimmingStyle
+  for (let j = 0; j < previousDimmingStyle.length; j++) {
+    const prop = previousDimmingStyle[j];
     if (
-      previousDimmingStyle.getPropertyValue(property) !== currentStyle.getPropertyValue(property) ||
-      previousDimmingStyle.getPropertyPriority(property) !== currentStyle.getPropertyPriority(property)
+      previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop) ||
+      previousDimmingStyle.getPropertyPriority(prop) !== currentStyle.getPropertyPriority(prop)
     ) {
-      if (property !== 'height') return 'other';
+      if (prop !== 'height' && prop !== 'max-height' && prop !== 'min-height') return 'other';
       heightChanged = true;
     }
   }
+
+  // Check any newly added properties in currentStyle
+  for (let j = 0; j < currentStyle.length; j++) {
+    const prop = currentStyle[j];
+    if (previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop)) {
+      if (prop !== 'height' && prop !== 'max-height' && prop !== 'min-height') return 'other';
+      heightChanged = true;
+    }
+  }
+
   return heightChanged ? 'height' : 'none';
 }
 
@@ -7075,25 +7102,40 @@ function scheduleHeightDimmingCheck() {
 const dimmingObserver = new MutationObserver((mutations) => {
   let heightChanged = false;
   let needsImmediateCheck = false;
+
   for (let i = 0; i < mutations.length; i++) {
     const target = mutations[i].target as HTMLElement;
     // Ignore our own badge style writes
-    if (target.classList && target.classList.contains('aegis-badge')) continue;
-    const styleChange = mutations[i].attributeName === 'style'
-      ? dimmingStyleChange(target, mutations[i].oldValue)
-      : 'other';
-    if (styleChange === 'none') continue;
-    // Only care about changes on or around annotated item containers
-    if (
-      target.closest('[data-aegis-item-hash]') ||
-      (target.querySelector && target.querySelector('.aegis-badge'))
-    ) {
-      if (styleChange === 'height') heightChanged = true;
-      else needsImmediateCheck = true;
+    if (target.classList?.contains('aegis-badge')) continue;
+
+    // Check element relevance FIRST before any CSS parsing
+    const isRelevant =
+      target.closest?.('[data-aegis-item-hash]') ||
+      (target.querySelector && target.querySelector('.aegis-badge'));
+    if (!isRelevant) continue;
+
+    // Class mutations always trigger immediate checks (e.g. search-fade classes)
+    if (mutations[i].attributeName === 'class') {
+      needsImmediateCheck = true;
+      break;
+    }
+
+    // Style mutation diffing
+    const change = isHeightOnlyChange(target, mutations[i].oldValue);
+    if (change === 'none') continue;
+    if (change === 'height') {
+      heightChanged = true;
+    } else {
+      needsImmediateCheck = true;
+      break;
     }
   }
-  if (heightChanged) scheduleHeightDimmingCheck();
-  if (needsImmediateCheck) scheduleOpacityUpdate();
+
+  if (needsImmediateCheck) {
+    scheduleOpacityUpdate();
+  } else if (heightChanged) {
+    scheduleHeightDimmingCheck();
+  }
 });
 
 function startDimmingObserver() {
