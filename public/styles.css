@@ -5667,16 +5667,22 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   border: 0 !important;
 }
 
-.interactive-weapon-tile:has(> .aegis-style-footer) {
-  height: auto;
+.interactive-weapon-tile:has(> .aegis-style-footer),
+.interactive-weapon-tile.aegis-tile-footer {
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
 }
 
-.interactive-weapon-tile:has(> .aegis-style-footer) .mock-weapon-img {
+.interactive-weapon-tile:has(> .aegis-style-footer) .mock-weapon-img,
+.interactive-weapon-tile.aegis-tile-footer .mock-weapon-img {
   height: 84px !important;
+  flex-shrink: 0 !important;
 }
 
-.interactive-portrait-container:has(.aegis-style-footer) :is(.corner-target, .portrait-pos-label-row) {
-  display: none;
+.interactive-portrait-container:has(.aegis-style-footer) :is(.corner-target, .portrait-pos-label-row),
+.interactive-portrait-container:has(.aegis-tile-footer) :is(.corner-target, .portrait-pos-label-row) {
+  display: none !important;
 }
 
 

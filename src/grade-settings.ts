@@ -61,8 +61,21 @@ export function initGradeSettings() {
 </div></div></section>
   `);
 
-  document.getElementById('options-Badges')!.append(root.querySelector('#grade-colors-modal')!);
-  document.getElementById('options-Scoring')!.append(root.querySelector('#grade-rules-modal')!);
+  const colorsModal = root.querySelector('#grade-colors-modal');
+  const badgesPanel = document.getElementById('options-Badges');
+  if (colorsModal && badgesPanel) {
+    const footer = badgesPanel.querySelector('.popup-footer');
+    if (footer) {
+      badgesPanel.insertBefore(colorsModal, footer);
+    } else {
+      badgesPanel.append(colorsModal);
+    }
+  }
+
+  const rulesModal = root.querySelector('#grade-rules-modal');
+  if (rulesModal) {
+    document.getElementById('options-Advanced')?.prepend(rulesModal);
+  }
   root.remove();
 
   function ruleDescription(grade: Grade, rules: GradeSettings['pve']) {

@@ -29,9 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const scrollPositions = new Map<HTMLElement, number>();
   const tabs: HTMLButtonElement[] = [];
   let activeIndex = -1;
-  const preview = document.createElement('section');
-  preview.className = 'options-preview';
-  preview.setAttribute('aria-labelledby', 'options-preview-title');
+
   function activate(index: number) {
     if (index === activeIndex) return;
     const previous = activeIndex < 0 ? undefined : panels.get(tabs[activeIndex].dataset.panel!);
@@ -41,14 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
       tab.tabIndex = i === index ? 0 : -1;
     });
     const next = panels.get(tabs[index].dataset.panel!)!;
-    preview.hidden = index > 1;
     showOptionTab(previous, next, Math.sign(index - activeIndex));
     next.scrollTop = scrollPositions.get(next) ?? 0;
     activeIndex = index;
-    if (index < 2) renderOptionsPreview();
+    if (tabs[index].dataset.panel === 'Badges') renderOptionsPreview();
     refreshOptionHighlights(false);
   }
-  for (const name of ['Badges', 'Scoring', 'Details', 'Data']) {
+
+  for (const name of ['Scoring', 'Badges', 'Details', 'Advanced']) {
     const panel = document.createElement('section');
     panel.id = `options-${name}`;
     panel.className = 'options-panel';
@@ -79,16 +77,66 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   main.prepend(nav);
   nav.after(...panels.values());
+
   function move(panel: string, ids: string[]) {
     for (const id of ids) {
-      const control = document.getElementById(id)!;
-      panels.get(panel)!.append(control.closest('.input-group') ?? control);
+      const control = document.getElementById(id);
+      if (control) {
+        panels.get(panel)!.append(control.closest('.input-group') ?? control);
+      }
     }
   }
-  move('Badges', ['aegis-two-tier-segmented', 'aegis-two-tier-options', 'aegis-badge-style-segmented', 'aegis-upgrade-style-group', 'aegis-badge-scale-slider', 'aegis-badge-size-slider', 'aegis-visibility-options', 'interactive-weapon-tile', 'aegis-fade-hover-segmented']);
-  move('Scoring', ['scoring-source-segmented', 'aegis-db-segmented', 'aegis-mode-segmented', 'aegis-grade-display-segmented', 'aegis-armor-source-segmented']);
-  const rankingSource = document.getElementById('aegis-db-segmented')!;
-  rankingSource.append(rankingSource.querySelector('[data-value="both"]')!);
+
+  // 1. Scoring tab setup
+  const langDropdown = document.getElementById('aegis-language-dropdown');
+  if (langDropdown) {
+    panels.get('Scoring')!.append(langDropdown.closest('.input-group') ?? langDropdown);
+  }
+
+  const topActions = main.querySelector('.top-actions-row');
+  if (topActions) {
+    panels.get('Scoring')!.append(topActions);
+  }
+
+  move('Scoring', [
+    'scoring-source-segmented',
+    'aegis-db-segmented',
+    'aegis-mode-segmented',
+    'aegis-grade-display-segmented',
+    'aegis-armor-source-segmented'
+  ]);
+  const rankingSource = document.getElementById('aegis-db-segmented');
+  if (rankingSource) {
+    const bothOpt = rankingSource.querySelector('[data-value="both"]');
+    if (bothOpt) rankingSource.append(bothOpt);
+  }
+
+  // Move Custom Wishlist card to the bottom of Scoring (retaining .settings-card)
+  const wishlistCard = document.getElementById('wishlist-url')?.closest('.settings-card');
+  if (wishlistCard) {
+    panels.get('Scoring')!.append(wishlistCard);
+  }
+
+  // 2. Badges tab setup
+  move('Badges', [
+    'aegis-two-tier-segmented',
+    'aegis-two-tier-options',
+    'aegis-badge-style-segmented',
+    'aegis-upgrade-style-group',
+    'aegis-badge-scale-slider',
+    'aegis-badge-size-slider',
+    'interactive-weapon-tile',
+    'aegis-visibility-options',
+    'aegis-fade-hover-segmented'
+  ]);
+
+  const portrait = document.getElementById('interactive-weapon-tile')?.closest('.input-group');
+  if (portrait) {
+    const posRow = portrait.querySelector('.portrait-pos-label-row') as HTMLElement;
+    if (posRow) posRow.id = 'aegis-badge-position-group';
+  }
+
+  // 3. Details tab setup (Analysis & Tooltips)
   const analysisSections: [string, string[]][] = [
     ['analysisPerkCard', ['aegis-perk-order-segmented', 'aegis-matrix-segmented', 'aegis-auto-max-height-segmented', 'aegis-tooltip-width-mode-segmented', 'aegis-tooltip-width-slider-group']],
     ['analysisDetailsPopup', ['aegis-layout-segmented', 'aegis-popup-summary-segmented']],
@@ -105,80 +153,60 @@ document.addEventListener('DOMContentLoaded', () => {
       section.append(heading);
     }
     for (const id of ids) {
-      const control = document.getElementById(id)!;
-      section.append(control.closest('.input-group') ?? control);
+      const control = document.getElementById(id);
+      if (control) section.append(control.closest('.input-group') ?? control);
     }
     panels.get('Details')!.append(section);
   }
-  move('Data', ['aegis-language-dropdown']);
-  const data = panels.get('Data')!;
-  data.append(main.querySelector('.top-actions-row')!);
-  for (const card of main.querySelectorAll(':scope > .settings-card, :scope > .status-card, :scope > .info-card')) {
-    if (card !== original) data.append(card);
+
+  // 4. Advanced tab setup (Light.gg cache, DB status)
+  const lightggCard = document.getElementById('lightgg-sync-button')?.closest('.settings-card');
+  if (lightggCard) {
+    panels.get('Advanced')!.append(lightggCard);
   }
-  data.append(document.querySelector('.popup-footer')!);
+
+  for (const card of main.querySelectorAll(':scope > .settings-card, :scope > .status-card, :scope > .info-card')) {
+    if (card !== original && card !== wishlistCard && card !== lightggCard) {
+      panels.get('Advanced')!.append(card);
+    }
+  }
+
+  // Append credit footer to all tab panels so it shows when scrolling to the bottom
+  const footer = document.querySelector<HTMLElement>('.popup-footer');
+  if (footer) {
+    for (const panel of panels.values()) {
+      panel.append(footer.cloneNode(true));
+    }
+    footer.remove();
+  }
+
+  // Convert sliders to inline ranges
   for (const id of ['aegis-badge-scale-slider', 'aegis-badge-size-slider', 'aegis-tooltip-width-slider']) {
-    const slider = document.getElementById(id)!;
-    const group = slider.closest('.input-group')!;
-    const heading = group.querySelector('div')!;
-    const label = heading.querySelector('label')!;
+    const slider = document.getElementById(id);
+    if (!slider) continue;
+    const group = slider.closest('.input-group');
+    if (!group) continue;
+    const heading = group.querySelector('div');
+    if (!heading) continue;
+    const label = heading.querySelector('label');
+    if (!label) continue;
     label.id ||= `${id}-label`;
     slider.setAttribute('aria-labelledby', label.id);
-    group.append(label, slider, heading.querySelector('span')!);
+    const span = heading.querySelector('span');
+    if (span) group.append(label, slider, span);
+    else group.append(label, slider);
     heading.remove();
     group.classList.add('inline-range');
   }
+
   original.remove();
-  const portrait = document.getElementById('interactive-weapon-tile')!.closest('.input-group')!;
-  const positionGroup = document.createElement('div');
-  positionGroup.className = 'input-group';
-  positionGroup.id = 'aegis-badge-position-group';
-  positionGroup.append(portrait.querySelector(':scope > label')!, document.getElementById('aegis-badge-position-segmented')!);
-  document.getElementById('aegis-badge-style-segmented')!.closest('.input-group')!.after(positionGroup);
-  positionGroup.after(document.getElementById('aegis-fade-hover-segmented')!.closest('.input-group')!);
-  portrait.querySelector('.portrait-pos-label-row')!.remove();
-  portrait.querySelectorAll('.corner-target').forEach(target => target.remove());
-  const previewTitle = document.createElement('h2');
-  previewTitle.id = 'options-preview-title';
-  previewTitle.dataset.i18n = 'compactPreview';
-  const previewHeading = document.createElement('div');
-  previewHeading.className = 'options-preview-heading';
-  previewHeading.append(previewTitle);
-  preview.append(previewHeading, portrait);
-  const sampleImage = portrait.querySelector<HTMLImageElement>('.mock-weapon-img')!;
-  sampleImage.dataset.i18nAlt = 'exampleWeapon';
-  const artwork = document.createElement('div');
-  artwork.className = 'options-preview-art';
-  sampleImage.before(artwork);
-  const power = document.createElement('span');
-  power.className = 'options-preview-power';
-  power.textContent = '550';
-  power.setAttribute('aria-hidden', 'true');
-  artwork.append(sampleImage);
-  artwork.after(power);
-  const tile = portrait.querySelector<HTMLElement>('#interactive-weapon-tile')!;
-  for (let index = 1; index < 3; index++) {
-    const copy = tile.cloneNode(true) as HTMLElement;
-    copy.id = `preview-weapon-${index}`;
-    copy.querySelector('.aegis-badge')!.removeAttribute('id');
-    tile.parentElement!.append(copy);
-  }
-  for (const sample of portrait.querySelectorAll('.interactive-weapon-tile')) {
-    const frame = document.createElement('div');
-    frame.className = 'options-preview-item item-drag-container';
-    sample.before(frame);
-    sample.classList.add('item');
-    frame.append(sample);
-  }
-  const previewStatus = document.createElement('p');
-  previewStatus.className = 'options-preview-status';
-  previewStatus.dataset.i18n = 'compactPreviewExamples';
-  previewHeading.append(previewStatus);
-  main.append(preview);
+
   const labels: Record<string, string> = {
     badgeMode: 'compactFormat', badgeStyle: 'compactStyle', upgradeIndicatorStyle: 'compactUpgrade',
-    badgePosition: 'compactPosition', activeRankingSource: 'compactSource', spreadsheetMode: 'compactActivity',
+    activeRankingSource: 'compactSource', spreadsheetMode: 'compactActivity',
     perkEvaluation: 'compactEvaluate', armorSource: 'compactArmor', badgeTextScale: 'compactTextSize',
+    badgeScale: 'compactTextSize', badgeTileSize: 'compactTextSize', badgeSize: 'compactTextSize',
+    badgeExoticWeapons: 'compactExotic', badgeOtherWeapons: 'compactOther',
     scoringEngine: 'inlineEngine', perksLayout: 'inlineLayout', recPerkOrder: 'inlinePerkOrder',
     hoverCard: 'inlineHover', compactPerksMatrix: 'inlineMatrix', popupSummaryTitle: 'inlineSummary',
     autoMaxHeightTitle: 'inlineHeight', tooltipWidthMode: 'inlineWidthMode',
@@ -207,28 +235,34 @@ document.addEventListener('DOMContentLoaded', () => {
     armorAegis: ['inlineAegis', 'optionTierRatings']
   };
   for (const [key, [heading, detail]] of Object.entries(twoLineOptions)) {
-    const button = main.querySelector<HTMLButtonElement>(`button[data-i18n-title="${key}"]`)!;
-    button.parentElement!.classList.add('segmented-control-two-line');
-    delete button.dataset.i18n;
-    const title = document.createElement('span');
-    title.dataset.i18n = heading;
-    const description = document.createElement('small');
-    if (detail) description.dataset.i18n = detail;
-    else description.textContent = 'F → S+';
-    button.replaceChildren(title, description);
+    const button = main.querySelector<HTMLButtonElement>(`button[data-i18n-title="${key}"]`);
+    if (button && button.parentElement) {
+      button.parentElement.classList.add('segmented-control-two-line');
+      delete button.dataset.i18n;
+      const title = document.createElement('span');
+      title.dataset.i18n = heading;
+      const description = document.createElement('small');
+      if (detail) description.dataset.i18n = detail;
+      else description.textContent = 'F → S+';
+      button.replaceChildren(title, description);
+    }
   }
   for (const key of ['badgeStandard', 'badgeTwoTier', 'badgeColorPerk', 'badgeColorGradient', 'modePve', 'modePvp', 'modeBoth', 'sourceBoth', 'sourceSpreadsheet', 'sourceWishlist', 'layoutSide', 'layoutInline', 'orderSheetRank', 'widthModeAuto', 'widthModeFixed']) {
-    const button = main.querySelector<HTMLButtonElement>(`button[data-i18n="${key}"], button[data-i18n-title="${key}"]`)!;
-    button.parentElement!.classList.add('segmented-control-two-line');
-    button.dataset.optionDescription = key;
-    delete button.dataset.i18n;
-    button.replaceChildren(document.createElement('span'), document.createElement('small'));
+    const button = main.querySelector<HTMLButtonElement>(`button[data-i18n="${key}"], button[data-i18n-title="${key}"]`);
+    if (button && button.parentElement) {
+      button.parentElement.classList.add('segmented-control-two-line');
+      button.dataset.optionDescription = key;
+      delete button.dataset.i18n;
+      button.replaceChildren(document.createElement('span'), document.createElement('small'));
+    }
   }
   for (const button of main.querySelectorAll<HTMLButtonElement>('#aegis-upgrade-style-segmented button')) {
-    const key = button.dataset.i18n!;
-    button.dataset.i18nTitle = key;
-    button.dataset.i18nAriaLabel = key;
-    delete button.dataset.i18n;
+    const key = button.dataset.i18n;
+    if (key) {
+      button.dataset.i18nTitle = key;
+      button.dataset.i18nAriaLabel = key;
+      delete button.dataset.i18n;
+    }
     const preview = document.createElement('span');
     preview.className = 'upgrade-option-preview aegis-style-footer';
     preview.setAttribute('aria-hidden', 'true');
@@ -239,15 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     preview.append(icon);
     button.replaceChildren(preview);
   }
-  const corners = document.getElementById('aegis-badge-position-segmented')!;
-  for (const [position, arrow] of Object.entries({ 'top-left': '↖', 'top-right': '↗', 'bottom-left': '↙', 'bottom-right': '↘' })) {
-    const button = corners.querySelector<HTMLButtonElement>(`button[data-value="${position}"]`)!;
-    button.dataset.i18nTitle = button.dataset.i18n;
-    button.dataset.i18nAriaLabel = button.dataset.i18n;
-    delete button.dataset.i18n;
-    button.textContent = arrow;
-    corners.append(button);
-  }
+
   document.body.classList.add('compact-options');
   activate(0);
   localizeElements(nav);

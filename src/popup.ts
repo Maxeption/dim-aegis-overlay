@@ -760,6 +760,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Handle Interactive Mockup Portrait Corner Hotspots click
+  const interactiveTile = document.getElementById('interactive-weapon-tile');
+  if (interactiveTile) {
+    interactiveTile.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const hotspot = target.closest('.corner-target') as HTMLElement;
+      if (hotspot) {
+        const pos = hotspot.getAttribute('data-pos');
+        if (pos) {
+          chrome.storage.local.set({ aegisBadgePosition: pos }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
   document.querySelectorAll<HTMLButtonElement>('#aegis-badge-color-segmented button').forEach(button => {
     button.addEventListener('click', () => {
       chrome.storage.local.set({ aegisBadgeColor: resolveBadgeColor(button.dataset.value) }, updateUI);
