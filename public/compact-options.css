@@ -1,0 +1,558 @@
+.compact-options { height: 600px; overflow: hidden; }
+.compact-options #error-container.hidden { display: none; }
+.compact-options .popup-container { display: flex; flex-direction: column; box-sizing: border-box; height: 100%; max-height: 100dvh; padding: 12px 12px 0; }
+.compact-options .popup-header { flex-shrink: 0; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; }
+.compact-options .logo-wrapper { flex: 1; gap: 5px; }
+.compact-options .shield-logo { width: 18px; height: 18px; flex-shrink: 0; }
+.compact-options .header-actions { width: auto; gap: 2px; }
+.compact-options .header-actions :is(.github-link-btn, .aegis-help-icon-btn, .kofi-link-btn) { width: 22px; height: 24px; padding: 2px; box-sizing: border-box; }
+.compact-options .header-actions svg { width: 13px; height: 13px; }
+.compact-options .popup-header h1 { font-size: 12px; white-space: nowrap; }
+.compact-options .popup-main { position: relative; flex: 1; min-height: 0; margin-inline: -12px; overflow: hidden; gap: 0; --options-surface: #15151d; }
+.options-tabs { display: grid; flex-shrink: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 12px; border-bottom: 1px solid #343440; }
+.options-tabs button { position: relative; margin-bottom: -1px; border: 1px solid transparent; border-bottom-color: #343440; border-radius: 6px 6px 0 0; background: transparent; color: #aaaab5; font: 600 12px/1.3 system-ui; padding: 10px 2px; cursor: pointer; }
+.options-tabs button[aria-selected="true"] { background: var(--options-surface); color: #ffc04a; border-color: #343440; border-bottom-color: var(--options-surface); box-shadow: inset 0 2px #ad813a; }
+.options-tabs button:hover { color: white; }
+.compact-options button:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }
+.options-panel[hidden] { display: none !important; }
+.options-panel { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #727282 transparent; background: var(--options-surface); padding: 10px 12px 12px; }
+.options-panel.option-tab-exiting { position: absolute; left: 0; right: 0; z-index: 2; box-sizing: border-box; overflow: hidden; pointer-events: none; }
+.options-panel > .input-group, .options-section > .input-group { margin: 0 !important; padding: 7px 0; }
+.options-section + .options-section { border-top: 1px solid #343440; margin-top: 8px; padding-top: 10px; }
+.options-section > h2 { font-size: 11px; font-weight: 700; color: #88c0d0; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+.options-panel > .input-group:first-child { padding-top: 2px; }
+.options-panel > .input-group:last-child { border-bottom: 0; }
+#aegis-visibility-options { border-top: 1px solid #343440; margin-top: 8px; padding-top: 10px; }
+#badge-visibility-title { font-size: 11px; font-weight: 700; color: #88c0d0; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+#aegis-visibility-options .input-group { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 8px; margin: 0; padding: 5px 0; }
+#aegis-visibility-options label { margin: 0; white-space: nowrap; }
+#aegis-badge-size-slider { min-width: 0; width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px; }
+.options-panel .input-group label { color: #c4c4cf; font-size: 11px; line-height: 15px; font-weight: 600; margin: 0; white-space: nowrap; }
+.options-panel .segmented-control { background: #18181f; border-color: #303039; }
+.options-panel .segmented-control button { flex-basis: 0; min-width: 0; font-size: 10px; line-height: 14px; font-weight: 600; min-height: 25px; padding: 3px 2px; color: #a9a9b6; }
+.options-panel .segmented-control button.active { background: #332918; color: #ffc04a; border-color: #705023; font-weight: 600; }
+.options-panel .segmented-control-two-line button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 36px; }
+.options-panel .segmented-control button > :is(span, small) { pointer-events: none; }
+.options-panel .segmented-control-two-line small { font-size: 9px; line-height: 11px; font-weight: 400; font-style: italic; color: #868694; }
+.options-panel .segmented-control-two-line button.active small { color: #c4a46e; }
+.options-panel .settings-card,
+.options-panel .status-card,
+.options-panel .info-card,
+.options-panel .grade-settings,
+.options-panel .options-section {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid #343440 !important;
+  border-radius: 0 !important;
+  padding: 10px 0 2px !important;
+  margin-top: 10px !important;
+  box-shadow: none !important;
+}
+.options-panel > :first-child,
+.options-panel > .settings-card:first-child,
+.options-panel > .grade-settings:first-child,
+.options-panel > .options-section:first-child {
+  border-top: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.options-panel .grade-editor-card {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+.options-panel .settings-card h2,
+.options-panel .status-card h2,
+.options-panel .grade-editor-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #88c0d0;
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border: 0;
+  padding: 0;
+}
+.options-panel .settings-card input[type="text"],
+.options-panel input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  background: #18181f;
+  border: 1px solid #303039;
+  border-radius: 5px;
+  color: #eef0f5;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.options-panel .settings-card input[type="text"]:focus,
+.options-panel input[type="text"]:focus {
+  border-color: #ffd700;
+  outline: none;
+}
+.options-panel .settings-card .input-group {
+  margin: 0 0 8px 0 !important;
+  padding: 0;
+}
+.options-panel .btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.options-panel .btn-secondary {
+  background: rgba(79, 172, 254, 0.08);
+  border: 1px solid rgba(79, 172, 254, 0.3);
+  color: #00f2fe;
+}
+.options-panel .btn-secondary:hover:not(:disabled) {
+  background: rgba(79, 172, 254, 0.15);
+  box-shadow: 0 0 8px rgba(79, 172, 254, 0.2);
+}
+.options-panel .btn-primary {
+  background: rgba(255, 179, 0, 0.08);
+  border: 1px solid rgba(255, 179, 0, 0.3);
+  color: #ffb300;
+}
+.options-panel .btn-primary:hover:not(:disabled) {
+  background: rgba(255, 179, 0, 0.15);
+  box-shadow: 0 0 8px rgba(255, 179, 0, 0.2);
+}
+.options-panel .btn-danger {
+  background: rgba(255, 69, 58, 0.08);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+}
+.options-panel .btn-danger:hover:not(:disabled) {
+  background: rgba(255, 69, 58, 0.15);
+  box-shadow: 0 0 8px rgba(255, 69, 58, 0.2);
+}
+.options-panel .btn-muted {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d1d1d6;
+}
+.options-panel .btn-muted:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.options-panel .info-card .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.options-panel .info-card .info-row:last-child {
+  border-bottom: 0;
+}
+.options-panel .info-card .info-row .label {
+  color: #9295a2;
+}
+.options-panel .info-card .info-row .value {
+  color: #eef0f5;
+  font-weight: 600;
+}
+.options-panel .warning-banner {
+  background: rgba(255, 179, 0, 0.08);
+  border: 1px solid rgba(255, 179, 0, 0.25);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  color: #ffb300;
+  margin-bottom: 8px;
+}
+.options-panel .description { font-size: 11px; line-height: 1.45; color: #868694; margin: 0 0 8px 0; }
+.options-panel .input-group:has(> .interactive-portrait-container) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 8px 0 !important;
+}
+.options-panel .input-group:has(> .interactive-portrait-container) > label {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 11px !important;
+  line-height: 15px !important;
+  font-weight: 600 !important;
+  color: #c4c4cf !important;
+  white-space: nowrap !important;
+}
+.options-panel .interactive-portrait-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  padding: 14px 12px !important;
+  margin: 0 !important;
+  background: rgba(18, 18, 26, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+.options-panel .interactive-weapon-tile {
+  position: relative !important;
+  width: 72px !important;
+  height: 84px !important;
+  background: #11141c !important;
+  border: 1.5px solid #84cc16 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 10px rgba(132, 204, 22, 0.25) !important;
+  user-select: none !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+.options-panel .interactive-weapon-tile:hover {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 14px rgba(132, 204, 22, 0.45) !important;
+}
+.options-panel .interactive-weapon-tile:has(> .aegis-style-footer),
+.options-panel .interactive-weapon-tile.aegis-tile-footer {
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+  min-height: 84px !important;
+}
+.options-panel .interactive-weapon-tile:has(> .aegis-style-footer) .mock-weapon-img,
+.options-panel .interactive-weapon-tile.aegis-tile-footer .mock-weapon-img {
+  height: 84px !important;
+  flex-shrink: 0 !important;
+}
+.options-panel .portrait-pos-label-row {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 280px !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+.options-panel #aegis-badge-position-segmented {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 2px !important;
+  width: 100% !important;
+  background: #08080c !important;
+  border: 1px solid #2c2c35 !important;
+  border-radius: 6px !important;
+  padding: 2px !important;
+  box-sizing: border-box !important;
+}
+.options-panel #aegis-badge-position-segmented button {
+  min-height: 34px !important;
+  height: auto !important;
+  padding: 4px 2px !important;
+  font-size: 10px !important;
+  line-height: 12px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  color: #88888d !important;
+  background: transparent !important;
+  transition: all 0.15s ease !important;
+}
+.options-panel #aegis-badge-position-segmented button:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.options-panel #aegis-badge-position-segmented button.active {
+  color: #ffc04a !important;
+  font-weight: 600 !important;
+}
+.options-panel #aegis-badge-position-segmented:not(.has-option-selection) button.active {
+  background: #332918 !important;
+  border-color: #705023 !important;
+}
+.options-panel .interactive-portrait-container:has(.aegis-style-footer) :is(.corner-target, .portrait-pos-label-row),
+.options-panel .interactive-portrait-container:has(.aegis-tile-footer) :is(.corner-target, .portrait-pos-label-row) {
+  display: none !important;
+}
+.options-panel .popup-footer {
+  margin-top: 16px;
+  padding-top: 10px;
+  padding-bottom: 4px;
+  border-top: 1px solid #343440;
+  flex-shrink: 0;
+}
+.options-panel .popup-footer .footer-links {
+  margin-top: 0 !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.options-panel .popup-footer a {
+  color: #88c0d0;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 10.5px;
+}
+.options-panel .popup-footer a:hover {
+  text-decoration: underline;
+}
+.options-panel .popup-footer .footer-divider {
+  color: #555566;
+}
+
+.options-panel > .input-group:has(+ .option-dependent), .options-section > .input-group:has(+ .option-dependent) { padding-bottom: 3px; }
+.options-panel > .option-dependent, .options-section > .option-dependent { padding-block: 3px; }
+.options-panel #aegis-two-tier-options { padding: 0; }
+.options-panel #aegis-two-tier-options > .input-group { margin: 0; padding: 3px 0; }
+
+.options-panel .input-group:has(> .segmented-control),
+.options-panel .input-group:has(> .popup-dropdown-wrapper),
+.options-panel .input-group:has(> select),
+.options-panel .inline-range { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; column-gap: 8px; }
+.options-panel .input-group:has(> .segmented-control) > label,
+.options-panel .input-group:has(> .popup-dropdown-wrapper) > label,
+.options-panel .input-group:has(> select) > label,
+.options-panel .inline-range > label { margin: 0; white-space: nowrap; }
+.options-panel #aegis-tile-glow { width: 100%; min-width: 0; height: 27px; padding: 3px 5px; background: #18181f; border: 1px solid #303039; border-radius: 5px; color: #a9a9b6; font: 10px system-ui; color-scheme: dark; }
+.options-panel .inline-range { grid-template-columns: 82px minmax(0, 1fr) 36px; }
+#aegis-tooltip-width-slider { grid-column: 2; }
+#aegis-tooltip-width-slider-group > label { display: none; }
+.options-panel .inline-range > span { text-align: right; font-size: 11px; font-weight: 700; color: #ffd700; }
+
+.upgrade-option-preview { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 16px; vertical-align: middle; pointer-events: none; }
+.upgrade-option-none { position: relative; display: block; box-sizing: border-box; width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 50%; opacity: .65; }
+.upgrade-option-none::after { content: ''; position: absolute; top: 50%; left: -1px; right: -1px; height: 1.5px; background: currentColor; transform: translateY(-50%) rotate(-60deg); }
+.upgrade-option-preview .aegis-badge-upgrade-arrow { position: static !important; width: 16px !important; height: 16px !important; flex: 0 0 16px !important; margin: 0 !important; pointer-events: none; }
+.upgrade-option-preview .aegis-badge-upgrade-arrow.aegis-upgrade-circle { width: 16px !important; height: 16px !important; flex-basis: 16px !important; font-size: 8px !important; }
+
+.options-panel .segmented-control { position: relative; }
+.options-panel .segmented-control button { position: relative; z-index: 1; border: 1px solid transparent; }
+.options-panel .has-option-selection button.active { background: transparent; border-color: transparent; }
+.option-selection { position: absolute; top: 0; left: 0; pointer-events: none; box-sizing: border-box; border: 1px solid #705023; border-radius: 4px; background: #332918; }
+.options-panel .option-revealing { box-sizing: border-box; overflow: hidden; }
+.options-panel [hidden] { display: none !important; }
+/* Customize Grades and Colors Styling */
+.options-panel .grade-rules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.options-panel .grade-rules-header .grade-editor-title {
+  margin: 0;
+}
+.options-panel .grade-settings .grade-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.options-panel .grade-settings .grade-profile-row label {
+  margin: 0;
+  flex: none;
+}
+.options-panel .grade-profile-row [data-context] {
+  width: 82px;
+  flex-shrink: 0;
+}
+.options-panel [data-context][aria-disabled="true"] { opacity: .5; }
+.options-panel [data-context] button:disabled { cursor: default; }
+
+.options-panel .grade-settings .grade-pills {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 3px;
+  margin: 8px 0;
+}
+.options-panel .grade-settings .grade-pills button {
+  padding: 2px 0;
+  height: 24px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.options-panel .grade-pills [data-grade-inactive] { filter: grayscale(1); opacity: .3; }
+.options-panel .grade-pills [data-grade-inactive][aria-pressed="true"] { opacity: .5; }
+
+.options-panel .grade-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.options-panel .grade-summary-row .grade-check {
+  flex-shrink: 0;
+  min-height: 0;
+  line-height: 16px;
+  white-space: nowrap;
+  color: #c4c4cf;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.options-panel .grade-settings [data-rule-summary] {
+  min-width: 0;
+  margin: 0;
+  font-style: italic;
+  font-size: 11px;
+  line-height: 16px;
+  color: #9295a2;
+}
+
+.options-panel .grade-rule-fields {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.options-panel .grade-rule-fields[aria-disabled="true"] { opacity: .5; }
+.options-panel .grade-rule-fields[aria-disabled="true"] :disabled { opacity: 1; }
+.options-panel .grade-rule-fields[aria-disabled="true"] label { cursor: default; }
+.options-panel .grade-rule-select {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c4c4cf;
+  margin: 0;
+  white-space: nowrap;
+}
+.options-panel .grade-rule-select select {
+  background: #18181f;
+  border: 1px solid #303039;
+  border-radius: 5px;
+  color: #eef0f5;
+  padding: 4px 6px;
+  font-size: 11px;
+  height: 27px;
+}
+.options-panel .grade-rule-checks {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.options-panel .grade-settings .grade-check {
+  font-size: 11px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.options-panel .grade-settings .grade-color-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  margin: 8px 0;
+  gap: 8px;
+}
+.options-panel .grade-settings .grade-color-sliders {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+.options-panel .grade-settings .grade-color-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 8px;
+}
+.options-panel .grade-settings .grade-hsv-field {
+  display: flex;
+  align-items: center;
+  background: #18181f;
+  border: 1px solid #303039;
+  border-radius: 5px;
+  padding: 0 4px;
+}
+.options-panel .grade-settings .grade-hsv-field input {
+  background: transparent;
+  border: 0;
+  color: #eef0f5;
+  font-size: 11px;
+  text-align: right;
+  width: 100%;
+  outline: none;
+  padding: 3px 0;
+}
+.options-panel .grade-settings .grade-hsv-field span {
+  color: #858894;
+  font-size: 10px;
+}
+.options-panel .grade-hex-field {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  border: 1px solid #303039;
+  border-radius: 5px;
+  background: #18181f;
+}
+.options-panel .grade-hex-field > span {
+  color: #858894;
+  pointer-events: none;
+  user-select: none;
+}
+.options-panel .grade-hex-field:focus-within {
+  border-color: #ffd700;
+  outline: none;
+}
+.options-panel .grade-settings .grade-hex-field input {
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: #eef0f5;
+  font-size: 11px;
+  text-align: right;
+  width: 100%;
+}
+
+.options-panel .grade-settings .grade-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.options-panel .grade-settings .grade-color-actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  white-space: normal;
+}
+.options-panel .grade-settings .grade-warning {
+  color: #ffcb7b;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 6px 0 0;
+}
+.options-panel .grade-settings [data-status],
+.options-panel .grade-settings [data-color-status] {
+  font-size: 11px;
+  color: #88c0d0;
+  margin: 6px 0 0;
+}
