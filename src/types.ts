@@ -75,6 +75,7 @@ export interface LocalStorageSchema {
   aegisAutoMaxHeight?: boolean;
   aegisTooltipWidthMode?: 'auto' | 'fixed';
   aegisTooltipWidth?: number;
+  aegisArmoryEnabled?: boolean;
   aegisSheetLastSync?: number;
   aegisChaseList?: Record<string, AegisChaseItem>;
 }

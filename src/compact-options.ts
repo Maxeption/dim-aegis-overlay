@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. Details tab setup (Analysis & Tooltips)
   const analysisSections: [string, string[]][] = [
     ['analysisPerkCard', ['aegis-perk-order-segmented', 'aegis-matrix-segmented', 'aegis-auto-max-height-segmented', 'aegis-tooltip-width-mode-segmented', 'aegis-tooltip-width-slider-group']],
-    ['analysisDetailsPopup', ['aegis-layout-segmented', 'aegis-popup-summary-segmented']],
+    ['analysisDetailsPopup', ['aegis-layout-segmented', 'aegis-popup-summary-segmented', 'aegis-armory-enabled-segmented']],
     ['inlineHover', ['aegis-hover-enabled-segmented']]
   ];
   for (const [key, ids] of analysisSections) {
@@ -209,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     badgeExoticWeapons: 'compactExotic', badgeOtherWeapons: 'compactOther',
     scoringEngine: 'inlineEngine', perksLayout: 'inlineLayout', recPerkOrder: 'inlinePerkOrder',
     hoverCard: 'inlineHover', compactPerksMatrix: 'inlineMatrix', popupSummaryTitle: 'inlineSummary',
+    armoryCardTitle: 'inlineArmory',
     autoMaxHeightTitle: 'inlineHeight', tooltipWidthMode: 'inlineWidthMode',
     tooltipWidthSlider: 'inlineWidth', fadeOnHover: 'inlinePeek', displayLanguage: 'inlineLanguage',
     engineAegis: 'inlineAegis', engineLightgg: 'inlineLightgg',

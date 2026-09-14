@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisHoverEnabled',
         'aegisCompactPerksMatrix',
         'aegisPopupSummaryMode',
+        'aegisArmoryEnabled',
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
         'aegisTooltipWidth',
@@ -407,6 +408,19 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
+        // Set Aegis Armory Enabled segmented control
+        const armoryEnabledVal = res.aegisArmoryEnabled !== false ? 'true' : 'false';
+        const armoryEnabledSegmented = document.getElementById('aegis-armory-enabled-segmented');
+        if (armoryEnabledSegmented) {
+          armoryEnabledSegmented.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-value') === armoryEnabledVal) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+
         // Set Aegis Auto Max-Height segmented control
         const autoMaxHeightVal = res.aegisAutoMaxHeight !== false ? 'true' : 'false';
         const autoMaxHeightSegmented = document.getElementById('aegis-auto-max-height-segmented');
@@ -668,6 +682,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisPopupSummaryMode: val }, () => {
+            updateUI();
+          });
+        }
+      }
+    });
+  }
+
+  // Handle Armory Enabled segmented control click
+  const armoryEnabledSegmented = document.getElementById('aegis-armory-enabled-segmented');
+  if (armoryEnabledSegmented) {
+    armoryEnabledSegmented.addEventListener('click', (e) => {
+      const target = e.target as HTMLButtonElement;
+      if (target && target.tagName === 'BUTTON') {
+        const val = target.getAttribute('data-value');
+        if (val) {
+          chrome.storage.local.set({ aegisArmoryEnabled: val === 'true' }, () => {
             updateUI();
           });
         }

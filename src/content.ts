@@ -244,6 +244,7 @@ let aegisPopupSummaryMode: 'full' | 'badge' | 'hidden' = 'full';
 let aegisAutoMaxHeight = true;
 let aegisTooltipWidthMode: 'auto' | 'fixed' = 'fixed';
 let aegisTooltipWidth = 280;
+let aegisArmoryEnabled = true;
 
 function applyTooltipWidthStyles() {
   if (aegisTooltipWidthMode === 'auto') {
@@ -3731,7 +3732,7 @@ function showWinnowerWelcomeModal() {
   bindWelcomeModal(backdrop);
 }
 
-chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDb', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisTwoTierColors', 'aegisBadgeColor', 'aegisMaxTierGlow', 'aegisTileGlow', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisUpgradeStyle', 'aegisBadgeScale', 'aegisBadgeSize', 'aegisBadgeVisibility', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisPopupSummaryMode', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage', 'aegisGradeSettings', 'aegisGradeColors'], (res) => {
+chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', 'lightggData', 'aegisSheetDb', 'aegisSheetDbPvE', 'aegisSheetDbPvP', 'aegisShoppingDb', 'aegisShoppingDbPvE', 'aegisShoppingDbPvP', 'perkRegistry', 'aegisLayoutSide', 'aegisPerkOrder', 'aegisDbMode', 'aegisMode', 'aegisTwoTier', 'aegisTwoTierColors', 'aegisBadgeColor', 'aegisMaxTierGlow', 'aegisTileGlow', 'aegisBadgePosition', 'aegisBadgeStyle', 'aegisUpgradeStyle', 'aegisBadgeScale', 'aegisBadgeSize', 'aegisBadgeVisibility', 'aegisFadeHover', 'aegisGradeDisplayMode', 'aegisHoverEnabled', 'aegisCompactPerksMatrix', 'aegisPopupSummaryMode', 'aegisArmoryEnabled', 'aegisAutoMaxHeight', 'aegisTooltipWidthMode', 'aegisTooltipWidth', 'aegisArmorSource', 'aegisCompletedWeapons', 'aegisChaseList', 'aegisWelcomeDismissed', 'aegisLanguage', 'aegisGradeSettings', 'aegisGradeColors'], (res) => {
   initLanguage(res.aegisLanguage);
   storedGradeSettings = res.aegisGradeSettings;
   gradePalette = res.aegisGradeColors;
@@ -3764,6 +3765,7 @@ chrome.storage.local.get(['wishlistData', 'enhancedToNormal', 'scoringSource', '
   aegisHoverEnabled = res.aegisHoverEnabled !== false;
   aegisCompactPerksMatrix = res.aegisCompactPerksMatrix === true;
   aegisPopupSummaryMode = res.aegisPopupSummaryMode || 'full';
+  aegisArmoryEnabled = res.aegisArmoryEnabled !== false;
   aegisAutoMaxHeight = res.aegisAutoMaxHeight !== false;
   aegisTooltipWidthMode = res.aegisTooltipWidthMode || 'fixed';
   aegisTooltipWidth = typeof res.aegisTooltipWidth === 'number' ? res.aegisTooltipWidth : 280;
@@ -3973,6 +3975,25 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     if (changes.aegisPopupSummaryMode) {
       aegisPopupSummaryMode = changes.aegisPopupSummaryMode.newValue || 'full';
       changed = true;
+    }
+    if (changes.aegisArmoryEnabled) {
+      aegisArmoryEnabled = changes.aegisArmoryEnabled.newValue !== false;
+      if (!aegisArmoryEnabled) {
+        document.querySelectorAll('.aegis-armory-banner, .aegis-armory-details-card, [data-aegis-armory-section]').forEach(el => el.remove());
+        document.querySelectorAll('.aegis-armory-perks-row').forEach(row => {
+          while (row.firstChild) {
+            const child = row.firstChild;
+            if ((child as HTMLElement).classList?.contains('aegis-armory-details-card')) {
+              row.removeChild(child);
+            } else {
+              row.parentElement?.insertBefore(child, row);
+            }
+          }
+          row.remove();
+        });
+      } else {
+        changed = true;
+      }
     }
     if (changes.aegisAutoMaxHeight) {
       aegisAutoMaxHeight = changes.aegisAutoMaxHeight.newValue !== false;
@@ -5110,8 +5131,12 @@ function injectArmoryEnhancements(
   equippedMasterwork?: string,
   dualInfo?: DualSheetInfo
 ) {
+  if (!aegisArmoryEnabled) return;
+
   // 1. Meta Category Rank Banner (Option 3)
-  const headerContainer = armoryContainer.querySelector<HTMLElement>('.wYPsYK5B') || armoryContainer.querySelector('h1')?.parentElement;
+  const headerContainer = armoryContainer.querySelector<HTMLElement>('.wYPsYK5B') 
+    || armoryContainer.querySelector('h1')?.parentElement
+    || armoryContainer.querySelector('[class*="title" i], [class*="header" i]') as HTMLElement | null;
   if (headerContainer) {
     let banner = headerContainer.querySelector<HTMLElement>('.aegis-armory-banner');
     if (!banner) {
@@ -6144,7 +6169,7 @@ function processElement(el: HTMLElement) {
 
         // Inject Armory page enhancements (Meta category rank banner & integrated recommendations)
         const armoryContainer = el.closest('.armory, [class*="armory" i]') as HTMLElement | null;
-        if (armoryContainer) {
+        if (armoryContainer && aegisArmoryEnabled) {
           injectArmoryEnhancements(
             armoryContainer,
             result,
