@@ -7060,19 +7060,108 @@ function scheduleOpacityUpdate() {
   requestAnimationFrame(tryRun);
 }
 
+// Height animation updates get a trailing check, while search-fade changes
+// keep their normal frame scheduling. Compare declarations without forcing layout.
+const previousDimmingStyle = document.createElement('div').style;
+
+function isHeightOnlyChange(target: HTMLElement, oldValue: string | null): 'none' | 'height' | 'other' {
+  const currentAttr = target.getAttribute('style') ?? '';
+  const oldAttr = oldValue ?? '';
+  if (currentAttr === oldAttr) return 'none';
+
+  previousDimmingStyle.cssText = oldAttr;
+  const currentStyle = target.style;
+
+  // Fast-path: 1 property on each side, both 'height'
+  if (
+    previousDimmingStyle.length === 1 &&
+    currentStyle.length === 1 &&
+    previousDimmingStyle[0] === 'height' &&
+    currentStyle[0] === 'height'
+  ) {
+    return 'height';
+  }
+
+  let heightChanged = false;
+
+  // Check all properties in previousDimmingStyle
+  for (let j = 0; j < previousDimmingStyle.length; j++) {
+    const prop = previousDimmingStyle[j];
+    if (
+      previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop) ||
+      previousDimmingStyle.getPropertyPriority(prop) !== currentStyle.getPropertyPriority(prop)
+    ) {
+      if (prop !== 'height' && prop !== 'max-height' && prop !== 'min-height') return 'other';
+      heightChanged = true;
+    }
+  }
+
+  // Check any newly added properties in currentStyle
+  for (let j = 0; j < currentStyle.length; j++) {
+    const prop = currentStyle[j];
+    if (previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop)) {
+      if (prop !== 'height' && prop !== 'max-height' && prop !== 'min-height') return 'other';
+      heightChanged = true;
+    }
+  }
+
+  return heightChanged ? 'height' : 'none';
+}
+
+let heightQuietTimer: ReturnType<typeof setTimeout> | undefined;
+let heightDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
+
+function flushHeightDimmingCheck() {
+  clearTimeout(heightQuietTimer);
+  clearTimeout(heightDeadlineTimer);
+  heightQuietTimer = undefined;
+  heightDeadlineTimer = undefined;
+  scheduleOpacityUpdate();
+}
+
+function scheduleHeightDimmingCheck() {
+  clearTimeout(heightQuietTimer);
+  heightQuietTimer = setTimeout(flushHeightDimmingCheck, 120);
+  // Keep checking occasionally if something changes height continuously.
+  heightDeadlineTimer ??= setTimeout(flushHeightDimmingCheck, 1000);
+}
+
 const dimmingObserver = new MutationObserver((mutations) => {
+  let heightChanged = false;
+  let needsImmediateCheck = false;
+
   for (let i = 0; i < mutations.length; i++) {
     const target = mutations[i].target as HTMLElement;
     // Ignore our own badge style writes
-    if (target.classList && target.classList.contains('aegis-badge')) continue;
-    // Only care about changes on or around annotated item containers
-    if (
-      target.closest('[data-aegis-item-hash]') ||
-      (target.querySelector && target.querySelector('.aegis-badge'))
-    ) {
-      scheduleOpacityUpdate();
-      return;
+    if (target.classList?.contains('aegis-badge')) continue;
+
+    // Check element relevance FIRST before any CSS parsing
+    const isRelevant =
+      target.closest?.('[data-aegis-item-hash]') ||
+      (target.querySelector && target.querySelector('.aegis-badge'));
+    if (!isRelevant) continue;
+
+    // Class mutations always trigger immediate checks (e.g. search-fade classes)
+    if (mutations[i].attributeName === 'class') {
+      needsImmediateCheck = true;
+      break;
     }
+
+    // Style mutation diffing
+    const change = isHeightOnlyChange(target, mutations[i].oldValue);
+    if (change === 'none') continue;
+    if (change === 'height') {
+      heightChanged = true;
+    } else {
+      needsImmediateCheck = true;
+      break;
+    }
+  }
+
+  if (needsImmediateCheck) {
+    scheduleOpacityUpdate();
+  } else if (heightChanged) {
+    scheduleHeightDimmingCheck();
   }
 });
 
@@ -7087,6 +7176,7 @@ function startDimmingObserver() {
   dimmingObserver.observe(document.body, {
     attributes: true,
     attributeFilter: ['class', 'style'],
+    attributeOldValue: true,
     subtree: true,
   });
   const onFadeFinished = (event: TransitionEvent) => {
