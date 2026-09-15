@@ -1,3 +1,5 @@
+import { createItemQueue } from './item-queue';
+import { outermostElements } from './dom-utils';
 /**
  * DIM Aegis Overlay - MAIN World Content Script
  *
@@ -30,6 +32,21 @@ function sendDiagnosticLog(msg: string) {
 
 // Global cache for weapon instances to store full perk sets (e.g. from popups)
 const instanceCache: Record<string, { perkHashes: number[]; activePerkHashes: number[]; perksDataMap: Record<number, PerkInfo>; equippedMasterwork?: string }> = {};
+const weaponReadCache = new WeakMap<object, { inputs: unknown[]; attributes: [string, string | null][] }>();
+
+function weaponReadInputs(item: any): unknown[] {
+  const mw = item.masterworkInfo;
+  const inputs: unknown[] = [instanceCache[item.id], item.id, item.hash, item.name,
+    masterworkStatName(mw?.stats), mw?.statName, mw?.stat?.displayProperties?.name, mw?.name, mw?.typeName];
+  const addPlug = (def: any) => inputs.push(!!def, def?.hash, def?.displayProperties?.name,
+    def?.displayProperties?.icon, def?.plug?.plugCategoryIdentifier, def?.itemTypeDisplayName);
+  for (const socket of item.sockets?.allSockets || []) {
+    inputs.push(!!socket, socket?.plugOptions?.length);
+    addPlug(socket?.plugged?.plugDef);
+    for (const option of socket?.plugOptions || []) addPlug(option.plugDef);
+  }
+  return inputs;
+}
 
 // Manifest database state variables for fast offline lookups
 let manifestDbName: string | null = null;
@@ -768,8 +785,8 @@ function processElement(el: HTMLElement) {
 
     // Verify that this element actually represents the item by matching the icon image src.
     // This prevents annotating mod/socket slots that climb up to the parent item in the fiber tree.
-    // Skip this check for main popup containers, which contain various sub-images (emblems, stats, class icons).
-    if (!isPopupContainer) {
+    // Popups contain other images; inventory tiles can still show a placeholder after regrouping.
+    if (!isPopupContainer && !el.matches('.item-drag-container > .item')) {
       const imgEl = el.querySelector('img');
       if (imgEl && item.icon) {
         const imgPath = imgEl.getAttribute('src') || '';
@@ -838,6 +855,15 @@ function processElement(el: HTMLElement) {
       setItemAttribute(el, 'data-aegis-perk-hashes', null);
       setItemAttribute(el, 'data-aegis-perks-data', null);
       setItemAttribute(el, 'data-aegis-active-perk-hashes', null);
+      return;
+    }
+
+    // Compare consumed values, since socket data can change on the same item object.
+    const inputs = weaponReadInputs(item);
+    const saved = weaponReadCache.get(item);
+    if (saved && inputs.length === saved.inputs.length && inputs.every((value, i) => value === saved.inputs[i])) {
+      registerPerks({});
+      for (const [name, value] of saved.attributes) setItemAttribute(el, name, value);
       return;
     }
 
@@ -1000,11 +1026,6 @@ function processElement(el: HTMLElement) {
       equippedMasterwork = mwNormMap[mwLower];
     }
 
-    console.debug(
-      `[Aegis MW] ${item.name}: equipped="${equippedMasterwork}"`,
-      'masterworkInfo:', item.masterworkInfo
-    );
-
     // Instance ID cache logic (handles async loading and popup-to-grid sync)
     const instanceId = item.id;
     if (instanceId) {
@@ -1040,6 +1061,11 @@ function processElement(el: HTMLElement) {
 
     const newHash = String(item.hash);
     const newPerks = perkHashes.join(',');
+    const attributes: [string, string | null][] = [];
+    const writeAttribute = (name: string, value: string | null) => {
+      attributes.push([name, value]);
+      setItemAttribute(el, name, value);
+    };
 
     if (possiblePerk1s.length > 0 || possiblePerk2s.length > 0 || possibleBarrels.length > 0) {
       const possiblePerksData = {
@@ -1049,22 +1075,24 @@ function processElement(el: HTMLElement) {
         perk2s: possiblePerk2s.sort(),
         origins: possibleOrigins.sort(),
       };
-      setItemAttribute(el, 'data-aegis-weapon-possible-perks', JSON.stringify(possiblePerksData));
+      writeAttribute('data-aegis-weapon-possible-perks', JSON.stringify(possiblePerksData));
     }
 
     if (equippedMasterwork) {
-      setItemAttribute(el, 'data-aegis-masterwork', equippedMasterwork);
+      writeAttribute('data-aegis-masterwork', equippedMasterwork);
     } else {
-      setItemAttribute(el, 'data-aegis-masterwork', null);
+      writeAttribute('data-aegis-masterwork', null);
     }
 
-    setItemAttribute(el, 'data-aegis-item-hash', newHash);
-    setItemAttribute(el, 'data-aegis-item-name', item.name || 'Unknown Weapon');
-    setItemAttribute(el, 'data-aegis-perk-hashes', newPerks);
-    setItemAttribute(el, 'data-aegis-perks-data', JSON.stringify(perksDataMap));
-    setItemAttribute(el, 'data-aegis-active-perk-hashes', activePerkHashes.join(','));
-    setItemAttribute(el, 'data-aegis-instance-id', instanceId ? String(instanceId) : null);
-    setItemAttribute(el, 'data-aegis-item-type', null);
+    writeAttribute('data-aegis-item-hash', newHash);
+    writeAttribute('data-aegis-item-name', item.name || 'Unknown Weapon');
+    writeAttribute('data-aegis-perk-hashes', newPerks);
+    writeAttribute('data-aegis-perks-data', JSON.stringify(perksDataMap));
+    writeAttribute('data-aegis-active-perk-hashes', activePerkHashes.join(','));
+    writeAttribute('data-aegis-instance-id', instanceId ? String(instanceId) : null);
+    writeAttribute('data-aegis-item-type', null);
+    inputs[0] = instanceCache[item.id];
+    weaponReadCache.set(item, { inputs, attributes });
 
   } catch (e) {
     console.debug('Aegis Overlay: Element scan failed', e);
@@ -1091,7 +1119,7 @@ const SELECTORS = [
 function scanPage() {
   const candidates = document.querySelectorAll<HTMLElement>(SELECTORS);
   for (let i = 0; i < candidates.length; i++) {
-    processElement(candidates[i]);
+    queueItem(candidates[i]);
   }
 }
 
@@ -1102,21 +1130,31 @@ setInterval(scanPage, 10000);
 // 2. Immediate scan on DOM modifications using MutationObserver.
 // Mutations are batched and processed once per animation frame to avoid
 // running selector queries + fiber walks for every single mutation record.
+const itemQueue = createItemQueue(item => {
+  if (item.matches(SELECTORS)) processElement(item);
+  if (!item.matches('.item-drag-container > .item')) {
+    item.querySelectorAll<HTMLElement>(SELECTORS).forEach(processElement);
+  }
+});
+function queueItem(item: HTMLElement) {
+  const tile = item.closest('.item-drag-container')?.querySelector<HTMLElement>(':scope > .item');
+  itemQueue.add(tile || item);
+}
 const pendingNodes = new Set<HTMLElement>();
 let scanScheduled = false;
 
 function flushPendingNodes() {
   scanScheduled = false;
-  const nodes = Array.from(pendingNodes);
+  const nodes = outermostElements(pendingNodes);
   pendingNodes.clear();
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (!node.isConnected) continue;
     if (node.matches && node.matches(SELECTORS)) {
-      processElement(node);
+      queueItem(node);
     }
     const children = node.querySelectorAll<HTMLElement>(SELECTORS);
-    children.forEach(processElement);
+    children.forEach(queueItem);
   }
 }
 
@@ -1775,4 +1813,3 @@ function startObserver() {
   initManifestDatabase();
 }
 startObserver();
-

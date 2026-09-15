@@ -8,6 +8,7 @@ let settings = defaultGradeSettings();
 let badgeColor: BadgeColor = 'perk';
 let tileGlow: TileGlow = 'archetype';
 const originals = new WeakMap<HTMLElement, [string, string, string][]>();
+const appliedColors = new WeakMap<HTMLElement, { background: string; style: string }>();
 const colorProperties = ['background', 'color', 'text-shadow'];
 const badgeSelector = '.aegis-badge, .aegis-split-half, .aegis-title-badge, .aegis-popup-grade-badge, .aegis-tooltip-grade, .aegis-shopping-item-badge, [data-aegis-grade]';
 
@@ -72,6 +73,14 @@ export function twoTierGradient(text: string, palette = settings): string | null
 export function applyGradeColors(root: HTMLElement, palette = settings) {
   const badges = [...(root.matches(badgeSelector) ? [root] : []), ...root.querySelectorAll<HTMLElement>(badgeSelector)];
   for (const badge of badges) {
+    const text = badge.dataset.aegisGrade || badge.textContent || '';
+    const gradient = badgeColor === 'gradient' ? twoTierGradient(text, palette) : null;
+    const grade = colorGrade(text);
+    const color = palette.colorsEnabled && palette.colors[grade as Grade] || defaultGradeColors[grade as Grade];
+    const background = badge.querySelector('.aegis-split-half') ? '' : gradient || (color ? gradeGradient(color) : '');
+    const applied = appliedColors.get(badge);
+    if (background && applied?.background === background && applied.style === badge.style.cssText) continue;
+    appliedColors.delete(badge);
     if (originals.has(badge)) {
       for (const [property, value, priority] of originals.get(badge)!) {
         if (value) badge.style.setProperty(property, value, priority);
@@ -79,16 +88,12 @@ export function applyGradeColors(root: HTMLElement, palette = settings) {
       }
       originals.delete(badge);
     }
-    if (badge.querySelector('.aegis-split-half')) continue;
-    const text = badge.dataset.aegisGrade || badge.textContent || '';
-    const gradient = badgeColor === 'gradient' ? twoTierGradient(text, palette) : null;
-    const grade = colorGrade(text);
-    const color = palette.colorsEnabled && palette.colors[grade as Grade] || defaultGradeColors[grade as Grade];
-    if (!gradient && !color) continue;
+    if (!background) continue;
     originals.set(badge, colorProperties.map(property => [property, badge.style.getPropertyValue(property), badge.style.getPropertyPriority(property)]));
-    badge.style.setProperty('background', gradient || gradeGradient(color as string), 'important');
+    badge.style.setProperty('background', background, 'important');
     badge.style.setProperty('color', '#ffffff', 'important');
     badge.style.setProperty('text-shadow', '0 1px 2px rgba(0, 0, 0, 0.8)', 'important');
+    appliedColors.set(badge, { background, style: badge.style.cssText });
   }
 }
 
@@ -129,14 +134,20 @@ function gradeGlowImage(text: string): string {
 }
 
 export function applyGradeGlow(target: HTMLElement, grade: string) {
-  target.classList.toggle('aegis-gold-glow', shouldGlow(grade, tileGlow));
+  const glowing = shouldGlow(grade, tileGlow);
+  if (target.classList.contains('aegis-gold-glow') !== glowing) target.classList.toggle('aegis-gold-glow', glowing);
   const color = settings.colorsEnabled && settings.colors[colorGrade(grade) as Grade];
-  if (color) target.style.setProperty('--aegis-glow-color', color);
+  if (color) {
+    if (target.style.getPropertyValue('--aegis-glow-color') !== color) target.style.setProperty('--aegis-glow-color', color);
+  }
   else target.style.removeProperty('--aegis-glow-color');
   const parent = target.parentElement;
   if (target.matches('.item') && parent?.matches('.item-drag-container')) {
-    parent.toggleAttribute('data-aegis-gradient-glow', target.classList.contains('aegis-gold-glow'));
-    if (target.classList.contains('aegis-gold-glow')) parent.style.setProperty('--aegis-glow-image', gradeGlowImage(grade));
+    if (parent.hasAttribute('data-aegis-gradient-glow') !== glowing) parent.toggleAttribute('data-aegis-gradient-glow', glowing);
+    if (glowing) {
+      const image = gradeGlowImage(grade);
+      if (parent.style.getPropertyValue('--aegis-glow-image') !== image) parent.style.setProperty('--aegis-glow-image', image);
+    }
     else parent.style.removeProperty('--aegis-glow-image');
   }
 }

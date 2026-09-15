@@ -1,5 +1,6 @@
 import { computeGrade, defaultGradeSettings, normalizeGradeSettings, evaluateCustomRoll, gradeValue as getGradeValue, Slots } from './grading';
 import { setGradeColors, setBadgeColor, resolveBadgeColor, setTileGlow, resolveTileGlow, applyGradeColors, applyGradeGlow, displayGrade, rollGradeDisplay } from './grade-colors';
+import { createItemQueue } from './item-queue';
 import { scoreWeapon } from './scorer';
 import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, TooltipPerk, AegisArmorSet, SheetPerksGroup, AegisShoppingDatabase, AegisShoppingItem, DualSheetInfo, ManifestWeapon, AegisChaseItem, WeaponEvaluationPayload } from './types';
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, getRecommendedMasterworks, renderViabilityMatrix, formatFormattedNotes, renderShoppingBannerHtml } from './tooltip';
@@ -8,12 +9,21 @@ import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedF
 import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getLocalizedStatName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
 import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText, getLocalizedSource, getLocalizedSourceText } from './evaluation-i18n';
 import { renderLocalizedName, refreshLocalizedNames } from './localized-display';
-import { safeSetInnerHTML } from './dom-utils';
+import { outermostElements, safeSetInnerHTML, withoutTileReorders } from './dom-utils';
 import { applyBadgePresentation, badgeCategory, normalizeBadgeSize, normalizeBadgeVisibility } from './badge-presentation';
 import { measurePerkCardWidth } from './card-width';
 
 /** Strongly typed, GC-safe storage for weapon/armor evaluation data attached to DOM tiles */
 export const weaponDataMap = new WeakMap<HTMLElement, WeaponEvaluationPayload>();
+const inventoryEvaluations = new Map<string, {
+  signature: (string | number | null)[];
+  value: ReturnType<typeof evaluateWeapon>;
+  perkHashes: number[];
+  perksMap: Record<number, { name: string; icon: string }>;
+  perkNames: string[];
+  activeHashes: number[];
+  perkIcons: [string, string][];
+}>();
 const winnowerPinBoundBadges = new WeakSet<HTMLElement>();
 const hoverBoundItems = new WeakSet<HTMLElement>();
 const boundPopupTitles = new WeakSet<HTMLElement>();
@@ -623,18 +633,20 @@ function setupRegistryObserver() {
   const registryEl = document.getElementById('aegis-global-perk-registry');
   if (!registryEl) {
     // Wait for the main world script to create the registry element
-    const bodyObserver = new MutationObserver(() => {
+    registryObserver = new MutationObserver(() => {
       const el = document.getElementById('aegis-global-perk-registry');
       if (el) {
-        bodyObserver.disconnect();
+        registryObserver!.disconnect();
+        registryObserver = null;
         setupRegistryObserver();
       }
     });
-    bodyObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+    registryObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
     return;
   }
 
   const syncNames = () => {
+    inventoryEvaluations.clear();
     try {
       const perks = JSON.parse(registryEl.getAttribute('data-registry') || '{}');
       const weapons = JSON.parse(document.getElementById('aegis-global-weapon-registry')?.getAttribute('data-registry') || '{}');
@@ -783,6 +795,20 @@ function cleanWeaponNameBase(name: string): string {
     .trim();
 }
 
+let weaponFallbackCache = new WeakMap<AegisSheetDatabase, Map<string, AegisSheetWeapon | null>>();
+
+function weaponLookupName(name: string, itemHash?: number): string {
+  let lookupName = name.split('\n')[0].trim().toLowerCase();
+  if (itemHash) {
+    const canonicalEnglish = getEnglishWeaponNameFromHash(itemHash);
+    if (canonicalEnglish) {
+      lookupName = canonicalEnglish.toLowerCase().trim();
+    }
+  }
+
+  return lookupName;
+}
+
 function findAegisWeapon(
   name: string,
   perksMap?: Record<number, { name: string; icon: string }>,
@@ -794,14 +820,7 @@ function findAegisWeapon(
   const db = targetDb || aegisSheetDb;
   if (!db || !db.weapons) return null;
 
-  let lookupName = name.split('\n')[0].trim().toLowerCase();
-  if (itemHash) {
-    const canonicalEnglish = getEnglishWeaponNameFromHash(itemHash);
-    if (canonicalEnglish) {
-      lookupName = canonicalEnglish.toLowerCase().trim();
-    }
-  }
-
+  const lookupName = weaponLookupName(name, itemHash);
   const normalized = lookupName;
   const baseNormalized = cleanWeaponNameBase(normalized);
 
@@ -932,13 +951,22 @@ function findAegisWeapon(
   if (variants.length > 0 && variants[0]) return variants[0];
 
   // 4. Fuzzy fallback across all weapons in the sheet
+  let fallbacks = weaponFallbackCache.get(db);
+  if (!fallbacks) {
+    fallbacks = new Map();
+    weaponFallbackCache.set(db, fallbacks);
+  }
+  if (fallbacks.has(normalized)) return fallbacks.get(normalized)!;
+  if (fallbacks.size >= 1000) fallbacks.delete(fallbacks.keys().next().value!);
   for (const [sheetKey, weapon] of Object.entries(db.weapons)) {
     const cleanKey = cleanWeaponNameBase(sheetKey);
     if (cleanKey === baseNormalized || sheetKey.toLowerCase().trim() === normalized) {
+      fallbacks.set(normalized, weapon);
       return weapon;
     }
   }
 
+  fallbacks.set(normalized, null);
   return null;
 }
 
@@ -1064,6 +1092,31 @@ interface EvaluatedPerk {
   status: 'active' | 'selectable' | 'missing';
 }
 
+type AvailablePerk = { hash: number; name: string; icon: string; active: boolean };
+
+function prepareAvailablePerks(perksMap: Record<number, { name: string; icon: string }>, activeHashes: number[]): AvailablePerk[] {
+  return Object.entries(perksMap).flatMap(([hashStr, p]) => {
+    const hash = parseInt(hashStr, 10);
+    return isNaN(hash) ? [] : [{ hash, name: p.name.toLowerCase().trim(), icon: p.icon, active: activeHashes.includes(hash) }];
+  });
+}
+
+// Cache only string preparation; manifest lookups and localized details stay current.
+const recommendationCache = new Map<string, { rawRec: string; rec: string }[]>();
+
+function prepareRecommendations(recString: string) {
+  let recs = recommendationCache.get(recString);
+  if (!recs) {
+    recs = recString.split(/[\/\n]+/).map(raw => {
+      const rawRec = raw.trim();
+      return { rawRec, rec: cleanPerkName(rawRec) };
+    }).filter(({ rawRec, rec }) => rawRec && rec);
+    if (recommendationCache.size >= 1500) recommendationCache.delete(recommendationCache.keys().next().value!);
+    recommendationCache.set(recString, recs);
+  }
+  return recs;
+}
+
 function evaluateCategoryPerks(
   recString: string,
   availablePerks: { hash: number; name: string; icon: string; active: boolean }[],
@@ -1073,17 +1126,9 @@ function evaluateCategoryPerks(
     return [];
   }
 
-  // Split by slashes or newlines
-  const recs = recString
-    .split(/[\/\n]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
-
   const results: EvaluatedPerk[] = [];
 
-  for (const rawRec of recs) {
-    const rec = cleanPerkName(rawRec);
-    if (!rec) continue;
+  for (const { rawRec, rec } of prepareRecommendations(recString)) {
 
     const recHash = getPerkHashFromEnglish(rawRec);
     let foundPerk: { hash: number; name: string; icon: string; active: boolean } | null = null;
@@ -1171,7 +1216,8 @@ function scoreSheetWeapon(
   perksMap: Record<number, { name: string; icon: string }>,
   activeHashes: number[],
   context: 'pve' | 'pvp' = aegisMode === 'pvp' ? 'pvp' : 'pve',
-  equippedMasterwork = ''
+  equippedMasterwork = '',
+  availablePerks?: AvailablePerk[],
 ): {
   result: ScoringResult;
   potentialGrade: string;
@@ -1195,18 +1241,7 @@ function scoreSheetWeapon(
     };
   }
 
-  const availablePerks: { hash: number; name: string; icon: string; active: boolean }[] = [];
-  for (const [hashStr, p] of Object.entries(perksMap)) {
-    const hash = parseInt(hashStr, 10);
-    if (!isNaN(hash)) {
-      availablePerks.push({
-        hash,
-        name: p.name.toLowerCase().trim(),
-        icon: p.icon,
-        active: activeHashes.includes(hash),
-      });
-    }
-  }
+  availablePerks ??= prepareAvailablePerks(perksMap, activeHashes);
 
   const barrelEvals = evaluateCategoryPerks(sheetWeapon.barrel, availablePerks, perksMap);
   const magEvals = evaluateCategoryPerks(sheetWeapon.mag, availablePerks, perksMap);
@@ -4036,6 +4071,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       changed = true;
     }
     if (changes.perkRegistry) {
+      inventoryEvaluations.clear();
       updatePerkNameToIcon(changes.perkRegistry.newValue || {});
       updatePerkNameToHash(changes.perkRegistry.newValue || {});
       // NOTE: do NOT set changed=true here. The perk registry updates
@@ -5317,66 +5353,34 @@ function injectArmoryEnhancements(
 /**
  * Injects or updates the Aegis rank badge overlay inside a weapon tile.
  */
-function injectBadge(el: HTMLElement, result: ScoringResult) {
-  // Never inject badges inside popup toolbars, tag controls, or stat rows.
-  // DIM-only: on Winnower an ancestor class containing "sheet" would false-positive.
-  if (!IS_WINNOWER_HOST &&
-      el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
-      !el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item')) {
-    removeBadge(el);
-    return;
+const badgeTemplates = new Map<string, HTMLDivElement>();
+const renderedBadges = new WeakMap<HTMLDivElement, { template: HTMLDivElement; html: string }>();
+const pendingFooterBadges = new Map<HTMLElement, { target: HTMLElement; badge: HTMLDivElement; grade: string }>();
+let footerFrame = 0;
+
+function flushFooterBadges() {
+  footerFrame = 0;
+  const items: HTMLElement[] = [];
+  for (const [item, { target, badge, grade }] of pendingFooterBadges) {
+    if (!item.isConnected || !item.contains(target)) continue;
+    applyGradeColors(badge);
+    applyGradeGlow(target, grade);
+    target.appendChild(badge);
+    items.push(item);
   }
+  pendingFooterBadges.clear();
+  if (items.length) scheduleOpacityUpdate(items);
+}
 
-  // Deduplicate: Find root item container to ensure EXACTLY 1 badge per item tile in DIM Stable and Beta
-  const itemContainer = (el.closest('[data-aegis-item-hash]') as HTMLElement) || el;
-  let badgeTarget: HTMLElement | null;
-  const visibility = aegisBadgeVisibility[badgeCategory(itemContainer)];
-  if (visibility === 'off') {
-    removeBadge(el);
-    return;
-  }
-
-  if (IS_WINNOWER_HOST) {
-    // Without a slot there is no badge, and never the absolute-overlay
-    // fallback (a <div> child of a React-managed <tr> is invalid table DOM).
-    badgeTarget = itemContainer.querySelector<HTMLElement>('[data-aegis-badge-slot]');
-    if (!badgeTarget) {
-      removeBadge(el);
-      return;
-    }
-  } else {
-    badgeTarget = itemContainer.matches('.item, .item-tile')
-      ? itemContainer
-      : itemContainer.querySelector<HTMLElement>('.item, .item-tile') || itemContainer.querySelector<HTMLElement>('[class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]');
-    if (!badgeTarget) {
-      badgeTarget = itemContainer;
-    }
-    // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
-    badgeTarget.style.setProperty('position', 'relative', 'important');
-  }
-
-  // S-tier gold glow is DIM-only; Winnower styles its chip in its own CSS.
-  if (!IS_WINNOWER_HOST) {
-    applyGradeGlow(badgeTarget, result.grade || '');
-  }
-
-  // Purge any duplicate badges within itemContainer and reuse the primary badge
-  const existingBadges = Array.from(itemContainer.querySelectorAll('.aegis-badge'));
-  let badge: HTMLDivElement;
-
-  if (existingBadges.length > 0) {
-    badge = existingBadges[0] as HTMLDivElement;
-    if (badge.parentElement !== badgeTarget) badgeTarget.appendChild(badge);
-    for (let i = 1; i < existingBadges.length; i++) {
-      existingBadges[i].remove();
-    }
-  } else {
-    badge = document.createElement('div');
-    badge.className = 'aegis-badge';
-    badgeTarget.appendChild(badge);
-  }
-
-  // Remove existing grade classes
+function getBadgeTemplate(result: ScoringResult, styleKey: string): HTMLDivElement {
+  const key = JSON.stringify([
+    result.grade, result.isOmniRoll, result.isPerfect5of5, result.upgradeAvailable,
+    aegisBadgePosition, aegisBadgeStyle, styleKey, aegisFadeHover, aegisUpgradeStyle,
+  ]);
+  const template = badgeTemplates.get(key);
+  if (template) return template;
+  const badge = document.createElement('div');
+  if (!IS_WINNOWER_HOST) badge.dataset.aegisDimmed = '0';
   badge.className = 'aegis-badge';
 
   // Set grade class and text (normalizing S+ / A- etc. to the first letter class)
@@ -5420,7 +5424,6 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
   badge.classList.add(`aegis-pos-${posKey}`);
 
   // Style class
-  const styleKey = aegisBadgeStyle === 'footer' && (IS_WINNOWER_HOST || !badgeTarget.matches('.item-drag-container > .item')) ? 'notch' : aegisBadgeStyle;
   badge.classList.add(`aegis-style-${styleKey}`);
 
   // Fade on hover
@@ -5482,9 +5485,83 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
     badge.appendChild(upgradeArrow);
   }
 
+
+  if (badgeTemplates.size >= 128) badgeTemplates.delete(badgeTemplates.keys().next().value!);
+  badgeTemplates.set(key, badge);
+  return badge;
+}
+
+function injectBadge(el: HTMLElement, result: ScoringResult) {
+  // Never inject badges inside popup toolbars, tag controls, or stat rows.
+  // DIM-only: on Winnower an ancestor class containing "sheet" would false-positive.
+  if (!IS_WINNOWER_HOST &&
+      el.closest('[class*="ItemPopup"], [class*="item-popup"], [class*="Sheet"], [class*="sheet"], .item-popup') &&
+      !el.matches('[id^="item-"], [class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"], [class*="item-tile"], .item-tile, .item')) {
+    removeBadge(el);
+    return;
+  }
+
+  // Deduplicate: Find root item container to ensure EXACTLY 1 badge per item tile in DIM Stable and Beta
+  const itemContainer = (el.closest('[data-aegis-item-hash]') as HTMLElement) || el;
+  let badgeTarget: HTMLElement | null;
+  const visibility = aegisBadgeVisibility[badgeCategory(itemContainer)];
+  if (visibility === 'off') {
+    removeBadge(el);
+    return;
+  }
+
+  if (IS_WINNOWER_HOST) {
+    // Without a slot there is no badge, and never the absolute-overlay
+    // fallback (a <div> child of a React-managed <tr> is invalid table DOM).
+    badgeTarget = itemContainer.querySelector<HTMLElement>('[data-aegis-badge-slot]');
+    if (!badgeTarget) {
+      removeBadge(el);
+      return;
+    }
+  } else {
+    badgeTarget = itemContainer.matches('.item, .item-tile')
+      ? itemContainer
+      : itemContainer.querySelector<HTMLElement>('.item, .item-tile') || itemContainer.querySelector<HTMLElement>('[class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]');
+    if (!badgeTarget) {
+      badgeTarget = itemContainer;
+    }
+    // Ensure the badge target is relatively positioned so the absolute badge is anchored to it
+    if (badgeTarget.style.getPropertyValue('position') !== 'relative' || badgeTarget.style.getPropertyPriority('position') !== 'important') {
+      badgeTarget.style.setProperty('position', 'relative', 'important');
+    }
+  }
+
+  // S-tier gold glow is DIM-only; Winnower styles its chip in its own CSS.
+  if (!IS_WINNOWER_HOST) {
+    applyGradeGlow(badgeTarget, result.grade || '');
+  }
+
+  // Render off-document, then update the existing badge only where needed.
+  const existingBadges = Array.from(itemContainer.querySelectorAll('.aegis-badge'));
+  const pendingBadge = pendingFooterBadges.get(itemContainer)?.badge;
+  pendingFooterBadges.delete(itemContainer);
+  if (!existingBadges.length && pendingBadge) existingBadges.push(pendingBadge);
+  const styleKey = aegisBadgeStyle === 'footer' && (IS_WINNOWER_HOST || !badgeTarget.matches('.item-drag-container > .item')) ? 'notch' : aegisBadgeStyle;
+  const template = getBadgeTemplate(result, styleKey);
+  const badge = (existingBadges[0] || template.cloneNode(true)) as HTMLDivElement;
+  const rendered = renderedBadges.get(badge);
+  if (existingBadges.length) {
+    if (badge.className !== template.className) badge.className = template.className;
+    if (rendered?.template !== template || badge.innerHTML !== rendered.html) {
+      badge.replaceChildren(...Array.from(template.childNodes, child => child.cloneNode(true)));
+    }
+  }
   applyGradeColors(badge);
   applyBadgePresentation(badge, visibility);
   badge.title = result.customGrading ? t('customPerkGrading') : '';
+  renderedBadges.set(badge, { template, html: badge.innerHTML });
+  if (badge.parentElement !== badgeTarget) {
+    if (styleKey === 'footer' && pendingProcessTargets.hasWork()) {
+      pendingFooterBadges.set(itemContainer, { target: badgeTarget, badge, grade: result.grade || '' });
+      footerFrame ||= requestAnimationFrame(flushFooterBadges);
+    } else badgeTarget.appendChild(badge);
+  }
+  for (const duplicate of existingBadges.slice(1)) duplicate.remove();
 
   // Winnower: click the badge to pin its tooltip (hover-only tooltips can't
   // be moused into for reading long notes or the perk checklist).
@@ -5506,6 +5583,7 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
  */
 function removeBadge(el: HTMLElement) {
   const itemContainer = (el.closest('[data-aegis-item-hash]') as HTMLElement) || el;
+  pendingFooterBadges.delete(itemContainer);
   itemContainer.classList.remove('aegis-gold-glow');
   const badgeTarget = itemContainer.querySelector('.item, .item-tile') || itemContainer.querySelector('[class*="StoreItem"], [class*="InventoryItem"], [class*="ItemTile"]');
   if (badgeTarget) {
@@ -5517,6 +5595,292 @@ function removeBadge(el: HTMLElement) {
 /**
  * Evaluates a single weapon tile element, calculates its grade, and applies overlay UI.
  */
+function evaluateWeapon(
+  weaponName: string, itemHash: number, perkHashes: number[],
+  perksMap: Record<number, { name: string; icon: string }>, activeHashes: number[],
+  elText: string, rawInstanceId: string, equippedMasterwork: string,
+) {
+  let result: ScoringResult;
+  let sheetPerks = undefined;
+  const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
+  let bestAlternative = undefined;
+  let isBestInClass = false;
+
+  let sheetWeaponPvE: AegisSheetWeapon | null = null;
+  let sheetWeaponPvP: AegisSheetWeapon | null = null;
+  let sheetPerksPvE: SheetPerksGroup | undefined = undefined;
+  let sheetPerksPvP: SheetPerksGroup | undefined = undefined;
+  let pveResult: ScoringResult | null = null;
+  let pvpResult: ScoringResult | null = null;
+  let bestAlternativePvE: string | undefined = undefined;
+  let isBestInClassPvE = false;
+  let bestAlternativePvP: string | undefined = undefined;
+  let isBestInClassPvP = false;
+
+  if (scoringSource === 'lightgg') {
+    const instanceId = rawInstanceId.replace(/^[^0-9]+/, '');
+    const grade = lightggDb[instanceId];
+    if (grade) {
+      let aegisResult: ScoringResult;
+      const useSheet = sheetWeapon && aegisDbMode !== 'wishlist';
+      const useWishlist = aegisDbMode !== 'spreadsheet';
+
+      let wishlistResult: ScoringResult | null = null;
+      if (useWishlist && wishlistDb && wishlistDb[itemHash]) {
+        wishlistResult = scoreWeapon(itemHash, perkHashes, wishlistDb, enhancedToNormalMap);
+      }
+
+      if (useSheet) {
+        const sheetScore = scoreSheetWeapon(sheetWeapon!, perksMap, activeHashes, undefined, equippedMasterwork);
+        aegisResult = sheetScore.result;
+        sheetPerks = sheetScore.sheetPerks;
+        aegisResult.upgradeAdvice = sheetScore.upgradeAdvice;
+        aegisResult.potentialGrade = sheetScore.potentialGrade;
+        if (wishlistResult && wishlistResult.grade) {
+          aegisResult.wishlistNotes = wishlistResult.notes;
+        }
+      } else if (useWishlist && wishlistResult) {
+        aegisResult = wishlistResult;
+      } else {
+        aegisResult = {
+          grade: null,
+          matchPercentage: 0,
+          matchedPerks: [],
+          missingPerks: [],
+          notes: '',
+          wishlistPerks: [],
+        };
+      }
+      result = {
+        grade: grade as any,
+        matchPercentage: aegisResult.grade ? aegisResult.matchPercentage : 100,
+        matchedPerks: aegisResult.matchedPerks,
+        missingPerks: aegisResult.missingPerks,
+        notes: aegisResult.notes || 'Community popularity rating from Light.gg Roll Appraiser.',
+        wishlistPerks: aegisResult.wishlistPerks,
+        upgradeAdvice: aegisResult.upgradeAdvice,
+        potentialGrade: aegisResult.potentialGrade,
+        wishlistNotes: aegisResult.wishlistNotes,
+      };
+    } else {
+      result = {
+        grade: null,
+        matchPercentage: 0,
+        matchedPerks: [],
+        missingPerks: [],
+        notes: '',
+        wishlistPerks: [],
+      };
+    }
+  } else if (aegisMode === 'both') {
+    sheetWeaponPvE = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvE);
+    sheetWeaponPvP = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvP);
+
+    const availablePerks = sheetWeaponPvE && sheetWeaponPvP &&
+      !sheetWeaponPvE.exoticViability && sheetWeaponPvE.source !== 'Exotic' &&
+      !sheetWeaponPvP.exoticViability && sheetWeaponPvP.source !== 'Exotic'
+      ? prepareAvailablePerks(perksMap, activeHashes) : undefined;
+    let pveGradeRaw = '';
+    if (sheetWeaponPvE) {
+      const scorePvE = scoreSheetWeapon(sheetWeaponPvE, perksMap, activeHashes, 'pve', equippedMasterwork,
+        availablePerks);
+      pveResult = scorePvE.result;
+      sheetPerksPvE = scorePvE.sheetPerks;
+      pveResult.potentialGrade = scorePvE.potentialGrade;
+      pveResult.upgradeAdvice = scorePvE.upgradeAdvice;
+
+      const isExoticPvE = sheetWeaponPvE.exoticViability || sheetWeaponPvE.source === 'Exotic';
+      if (isExoticPvE && sheetWeaponPvE.tier) {
+        pveGradeRaw = sheetWeaponPvE.tier.trim();
+      } else {
+        const activeGradePvE = pveResult.grade || '';
+        const potentialGradePvE = pveResult.potentialGrade || '';
+        const hasHigherPvE = !!(potentialGradePvE && potentialGradePvE !== activeGradePvE && getGradeValue(potentialGradePvE) > getGradeValue(activeGradePvE));
+
+        if (hasHigherPvE) {
+          pveResult.upgradeAvailable = true;
+        }
+
+        let displayRollGradePvE = activeGradePvE;
+        if (hasHigherPvE && aegisGradeDisplayMode === 'dual') {
+          displayRollGradePvE = `${activeGradePvE}➔${potentialGradePvE}`;
+        } else if (hasHigherPvE && aegisGradeDisplayMode === 'potential') {
+          displayRollGradePvE = potentialGradePvE;
+        }
+
+        if (aegisTwoTier && sheetWeaponPvE.tier && displayRollGradePvE) {
+          pveGradeRaw = `${sheetWeaponPvE.tier.trim()}${displayRollGradePvE}`;
+        } else {
+          pveGradeRaw = displayRollGradePvE;
+        }
+      }
+
+      const catPvE = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvE);
+      const superiorsPvE = findSuperiors(catPvE, sheetWeaponPvE.energy, sheetWeaponPvE.frame, aegisSheetDbPvE);
+      const bestWPvE = superiorsPvE.byBoth || superiorsPvE.byFrame || superiorsPvE.byEnergy;
+      if (bestWPvE) {
+        if (bestWPvE.name.toLowerCase() === sheetWeaponPvE.name.toLowerCase()) {
+          isBestInClassPvE = true;
+        } else {
+          bestAlternativePvE = `${bestWPvE.name} (${bestWPvE.tier} #${bestWPvE.rank})`;
+        }
+      }
+    }
+
+    let pvpGradeRaw = '';
+    if (sheetWeaponPvP) {
+      const scorePvP = scoreSheetWeapon(sheetWeaponPvP, perksMap, activeHashes, 'pvp', equippedMasterwork,
+        availablePerks);
+      pvpResult = scorePvP.result;
+      sheetPerksPvP = scorePvP.sheetPerks;
+      pvpResult.potentialGrade = scorePvP.potentialGrade;
+      pvpResult.upgradeAdvice = scorePvP.upgradeAdvice;
+
+      const isExoticPvP = sheetWeaponPvP.exoticViability || sheetWeaponPvP.source === 'Exotic';
+      if (isExoticPvP && sheetWeaponPvP.tier) {
+        pvpGradeRaw = sheetWeaponPvP.tier.trim();
+      } else {
+        const activeGradePvP = pvpResult.grade || '';
+        const potentialGradePvP = pvpResult.potentialGrade || '';
+        const hasHigherPvP = !!(potentialGradePvP && potentialGradePvP !== activeGradePvP && getGradeValue(potentialGradePvP) > getGradeValue(activeGradePvP));
+
+        if (hasHigherPvP) {
+          pvpResult.upgradeAvailable = true;
+        }
+
+        let displayRollGradePvP = activeGradePvP;
+        if (hasHigherPvP && aegisGradeDisplayMode === 'dual') {
+          displayRollGradePvP = `${activeGradePvP}➔${potentialGradePvP}`;
+        } else if (hasHigherPvP && aegisGradeDisplayMode === 'potential') {
+          displayRollGradePvP = potentialGradePvP;
+        }
+
+        if (aegisTwoTier && sheetWeaponPvP.tier && displayRollGradePvP) {
+          pvpGradeRaw = `${sheetWeaponPvP.tier.trim()}${displayRollGradePvP}`;
+        } else {
+          pvpGradeRaw = displayRollGradePvP;
+        }
+      }
+
+      const catPvP = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvP);
+      const superiorsPvP = findSuperiors(catPvP, sheetWeaponPvP.energy, sheetWeaponPvP.frame, aegisSheetDbPvP);
+      const bestWPvP = superiorsPvP.byBoth || superiorsPvP.byFrame || superiorsPvP.byEnergy;
+      if (bestWPvP) {
+        if (bestWPvP.name.toLowerCase() === sheetWeaponPvP.name.toLowerCase()) {
+          isBestInClassPvP = true;
+        } else {
+          bestAlternativePvP = `${bestWPvP.name} (${bestWPvP.tier} #${bestWPvP.rank})`;
+        }
+      }
+    }
+
+    if (pveGradeRaw || pvpGradeRaw) {
+      const pveDisplay = pveGradeRaw || '—';
+      const pvpDisplay = pvpGradeRaw || '—';
+      result = {
+        grade: `${pveDisplay} | ${pvpDisplay}`,
+        customGrading: !!(pveResult?.customGrading || pvpResult?.customGrading),
+        matchPercentage: Math.max(pveResult?.matchPercentage || 0, pvpResult?.matchPercentage || 0),
+        matchedPerks: [...(pveResult?.matchedPerks || []), ...(pvpResult?.matchedPerks || [])],
+        missingPerks: [],
+        notes: pveResult?.notes || pvpResult?.notes || '',
+        wishlistPerks: [],
+        pveGrade: pveDisplay,
+        pvpGrade: pvpDisplay,
+        upgradeAvailable: !!(pveResult?.upgradeAvailable || pvpResult?.upgradeAvailable),
+        isPerfect5of5: !!(pveResult?.isPerfect5of5 && pvpResult?.isPerfect5of5),
+        isOmniRoll: !!(pveResult?.isOmniRoll || pvpResult?.isOmniRoll),
+      };
+    } else {
+      result = {
+        grade: null,
+        matchPercentage: 0,
+        matchedPerks: [],
+        missingPerks: [],
+        notes: '',
+        wishlistPerks: [],
+      };
+    }
+  } else {
+    const useSheet = sheetWeapon && aegisDbMode !== 'wishlist';
+    const useWishlist = aegisDbMode !== 'spreadsheet';
+
+    let wishlistResult: ScoringResult | null = null;
+    if (useWishlist && wishlistDb && wishlistDb[itemHash]) {
+      wishlistResult = scoreWeapon(itemHash, perkHashes, wishlistDb, enhancedToNormalMap);
+    }
+
+    if (useSheet) {
+      const sheetScore = scoreSheetWeapon(sheetWeapon!, perksMap, activeHashes, undefined, equippedMasterwork);
+      result = sheetScore.result;
+      sheetPerks = sheetScore.sheetPerks;
+      result.upgradeAdvice = sheetScore.upgradeAdvice;
+      result.potentialGrade = sheetScore.potentialGrade;
+      if (wishlistResult && wishlistResult.grade) {
+        result.wishlistNotes = wishlistResult.notes;
+      }
+    } else if (useWishlist && wishlistResult) {
+      result = wishlistResult;
+    } else {
+      // Spreadsheet only mode but weapon is not in the spreadsheet
+      result = {
+        grade: null,
+        matchPercentage: 0,
+        matchedPerks: [],
+        missingPerks: [],
+        notes: '',
+        wishlistPerks: [],
+      };
+    }
+  }
+
+  const hasSheetData = sheetWeapon && aegisDbMode !== 'wishlist';
+  if (hasSheetData) {
+    const categoryTab = findWeaponCategory(weaponName, itemHash);
+    const superiors = findSuperiors(categoryTab, sheetWeapon!.energy, sheetWeapon!.frame);
+    const bestW = superiors.byBoth || superiors.byFrame || superiors.byEnergy;
+    if (bestW) {
+      if (bestW.name.toLowerCase() === sheetWeapon!.name.toLowerCase()) {
+        isBestInClass = true;
+      } else {
+        bestAlternative = `${bestW.name} (${bestW.tier} #${bestW.rank})`;
+      }
+    }
+  }
+
+  const canonicalEnglish = itemHash ? getEnglishWeaponNameFromHash(itemHash) : null;
+  const normWName = normName(canonicalEnglish || weaponName);
+  const { item: shoppingItem, alt: shoppingAlt } = resolveShoppingItem(aegisShoppingDb, null, normWName, itemHash);
+  const { item: shoppingItemPvE, alt: shoppingAltPvE } = resolveShoppingItem(aegisShoppingDbPvE, aegisShoppingDb, normWName, itemHash);
+  const { item: shoppingItemPvP, alt: shoppingAltPvP } = resolveShoppingItem(aegisShoppingDbPvP, null, normWName, itemHash);
+
+  const dualInfo: DualSheetInfo | undefined = aegisMode === 'both' ? {
+    sheetWeaponPvE,
+    sheetWeaponPvP,
+    sheetPerksPvE,
+    sheetPerksPvP,
+    pveResult,
+    pvpResult,
+    bestAlternativePvE,
+    bestAlternativePvP,
+    isBestInClassPvE,
+    isBestInClassPvP,
+    shoppingItemPvE,
+    shoppingAltPvE,
+    shoppingItemPvP,
+    shoppingAltPvP,
+  } : undefined;
+
+  return {
+    result, sheetPerks, sheetWeapon, bestAlternative,
+    isBestInClass, sheetWeaponPvE, sheetWeaponPvP, sheetPerksPvE,
+    sheetPerksPvP, pveResult, pvpResult, bestAlternativePvE,
+    bestAlternativePvP, isBestInClassPvE, isBestInClassPvP, hasSheetData,
+    normWName, shoppingItem, shoppingAlt, shoppingItemPvE,
+    shoppingAltPvE, shoppingItemPvP, shoppingAltPvP, dualInfo,
+  };
+}
+
 function processElement(el: HTMLElement) {
   // If an ancestor is also annotated, this is a nested child element.
   // Skip it — the parent element handles badge injection for this item.
@@ -5700,27 +6064,42 @@ function processElement(el: HTMLElement) {
 
   try {
     const itemHash = parseInt(itemHashStr, 10);
-    const perkHashes = perkHashesStr
+    const instanceId = el.getAttribute('data-aegis-instance-id');
+    const activePerksDataStr = el.getAttribute('data-aegis-active-perk-hashes');
+    // Winnower's name cell excludes the surrounding verdict and perk text.
+    const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
+    const rawInstanceId = instanceId || el.id.replace('item-', '');
+    const inventoryId = !IS_WINNOWER_HOST && el.closest('.sub-bucket .item-drag-container') ? instanceId : null;
+    // Tile text only affects evaluation when choosing between weapon versions.
+    const lookupName = weaponLookupName(weaponName, itemHash);
+    const baseName = cleanWeaponNameBase(lookupName);
+    const hasVariants = [aegisSheetDb, aegisSheetDbPvE, aegisSheetDbPvP].some(db =>
+      (db?.variants?.[baseName] || db?.variants?.[lookupName] || []).length > 1);
+    const textSignals = hasVariants ? elText : '';
+    const signature = [itemHashStr, weaponName, perkHashesStr, perksDataStr, activePerksDataStr, equippedMasterwork, textSignals];
+    let cached = inventoryId ? inventoryEvaluations.get(inventoryId) : undefined;
+    if (cached && !signature.every((value, i) => value === cached!.signature[i])) cached = undefined;
+
+    const perkHashes = cached?.perkHashes || perkHashesStr
       .split(',')
       .map((h) => parseInt(h.trim(), 10))
       .filter((h) => !isNaN(h));
 
-    const instanceId = el.getAttribute('data-aegis-instance-id');
-
-    let perksMap: Record<number, { name: string; icon: string }> = {};
-    if (perksDataStr) {
+    let perksMap: Record<number, { name: string; icon: string }> = cached?.perksMap || {};
+    const perkIcons: [string, string][] = cached?.perkIcons || [];
+    if (!cached && perksDataStr) {
       try { perksMap = JSON.parse(perksDataStr); } catch (e) { /* ignore */ }
       for (const p of Object.values(perksMap)) {
         if (p && p.name && p.icon) {
           const cleanName = cleanPerkName(p.name);
-          perkNameToIcon[cleanName] = p.icon;
-          perkNameToIcon[p.name.toLowerCase().trim()] = p.icon;
+          perkIcons.push([cleanName, p.icon], [p.name.toLowerCase().trim(), p.icon]);
         }
       }
     }
+    for (const [name, icon] of perkIcons) perkNameToIcon[name] = icon;
 
     // Build perkNames from the perksDataMap (all hashes → names) for name-based matching fallback
-    const perkNames = Object.values(perksMap)
+    const perkNames = cached?.perkNames || Object.values(perksMap)
       .map(p => p?.name?.toLowerCase().trim())
       .filter(Boolean) as string[];
 
@@ -5750,280 +6129,28 @@ function processElement(el: HTMLElement) {
       } catch (e) { /* ignore */ }
     }
 
-    const activePerksDataStr = el.getAttribute('data-aegis-active-perk-hashes');
-    let activeHashes: number[] = [];
-    if (activePerksDataStr) {
+    let activeHashes: number[] = cached?.activeHashes || [];
+    if (!cached && activePerksDataStr) {
       activeHashes = activePerksDataStr.split(',').map(Number).filter(h => !isNaN(h) && h > 0);
     }
 
-    let result: ScoringResult;
-    let sheetPerks = undefined;
-    // A Winnower row's textContent is the whole row (verdict prose, perk
-    // lists), so the variant-disambiguation text is scoped to the name cell.
-    const elText = IS_WINNOWER_HOST ? winnowerNameCell(el)?.textContent || '' : el.textContent || '';
-    const sheetWeapon = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash);
-    let bestAlternative = undefined;
-    let isBestInClass = false;
-
-    let sheetWeaponPvE: AegisSheetWeapon | null = null;
-    let sheetWeaponPvP: AegisSheetWeapon | null = null;
-    let sheetPerksPvE: SheetPerksGroup | undefined = undefined;
-    let sheetPerksPvP: SheetPerksGroup | undefined = undefined;
-    let pveResult: ScoringResult | null = null;
-    let pvpResult: ScoringResult | null = null;
-    let bestAlternativePvE: string | undefined = undefined;
-    let isBestInClassPvE = false;
-    let bestAlternativePvP: string | undefined = undefined;
-    let isBestInClassPvP = false;
-
-    if (scoringSource === 'lightgg') {
-      const rawInstanceId = el.getAttribute('data-aegis-instance-id') || el.id.replace('item-', '');
-      const instanceId = rawInstanceId.replace(/^[^0-9]+/, '');
-      const grade = lightggDb[instanceId];
-      if (grade) {
-        let aegisResult: ScoringResult;
-        const useSheet = sheetWeapon && aegisDbMode !== 'wishlist';
-        const useWishlist = aegisDbMode !== 'spreadsheet';
-
-        let wishlistResult: ScoringResult | null = null;
-        if (useWishlist && wishlistDb && wishlistDb[itemHash]) {
-          wishlistResult = scoreWeapon(itemHash, perkHashes, wishlistDb, enhancedToNormalMap);
-        }
-
-        if (useSheet) {
-          const sheetScore = scoreSheetWeapon(sheetWeapon!, perksMap, activeHashes, undefined, equippedMasterwork);
-          aegisResult = sheetScore.result;
-          sheetPerks = sheetScore.sheetPerks;
-          aegisResult.upgradeAdvice = sheetScore.upgradeAdvice;
-          aegisResult.potentialGrade = sheetScore.potentialGrade;
-          if (wishlistResult && wishlistResult.grade) {
-            aegisResult.wishlistNotes = wishlistResult.notes;
-          }
-        } else if (useWishlist && wishlistResult) {
-          aegisResult = wishlistResult;
-        } else {
-          aegisResult = {
-            grade: null,
-            matchPercentage: 0,
-            matchedPerks: [],
-            missingPerks: [],
-            notes: '',
-            wishlistPerks: [],
-          };
-        }
-        result = {
-          grade: grade as any,
-          matchPercentage: aegisResult.grade ? aegisResult.matchPercentage : 100,
-          matchedPerks: aegisResult.matchedPerks,
-          missingPerks: aegisResult.missingPerks,
-          notes: aegisResult.notes || 'Community popularity rating from Light.gg Roll Appraiser.',
-          wishlistPerks: aegisResult.wishlistPerks,
-          upgradeAdvice: aegisResult.upgradeAdvice,
-          potentialGrade: aegisResult.potentialGrade,
-          wishlistNotes: aegisResult.wishlistNotes,
-        };
-      } else {
-        result = {
-          grade: null,
-          matchPercentage: 0,
-          matchedPerks: [],
-          missingPerks: [],
-          notes: '',
-          wishlistPerks: [],
-        };
-      }
-    } else if (aegisMode === 'both') {
-      sheetWeaponPvE = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvE);
-      sheetWeaponPvP = findAegisWeapon(weaponName, perksMap, activeHashes, elText, itemHash, aegisSheetDbPvP);
-
-      let pveGradeRaw = '';
-      if (sheetWeaponPvE) {
-        const scorePvE = scoreSheetWeapon(sheetWeaponPvE, perksMap, activeHashes, 'pve', equippedMasterwork);
-        pveResult = scorePvE.result;
-        sheetPerksPvE = scorePvE.sheetPerks;
-        pveResult.potentialGrade = scorePvE.potentialGrade;
-        pveResult.upgradeAdvice = scorePvE.upgradeAdvice;
-
-        const isExoticPvE = sheetWeaponPvE.exoticViability || sheetWeaponPvE.source === 'Exotic';
-        if (isExoticPvE && sheetWeaponPvE.tier) {
-          pveGradeRaw = sheetWeaponPvE.tier.trim();
-        } else {
-          const activeGradePvE = pveResult.grade || '';
-          const potentialGradePvE = pveResult.potentialGrade || '';
-          const hasHigherPvE = !!(potentialGradePvE && potentialGradePvE !== activeGradePvE && getGradeValue(potentialGradePvE) > getGradeValue(activeGradePvE));
-
-          if (hasHigherPvE) {
-            pveResult.upgradeAvailable = true;
-          }
-
-          let displayRollGradePvE = activeGradePvE;
-          if (hasHigherPvE && aegisGradeDisplayMode === 'dual') {
-            displayRollGradePvE = `${activeGradePvE}➔${potentialGradePvE}`;
-          } else if (hasHigherPvE && aegisGradeDisplayMode === 'potential') {
-            displayRollGradePvE = potentialGradePvE;
-          }
-
-          if (aegisTwoTier && sheetWeaponPvE.tier && displayRollGradePvE) {
-            pveGradeRaw = `${sheetWeaponPvE.tier.trim()}${displayRollGradePvE}`;
-          } else {
-            pveGradeRaw = displayRollGradePvE;
-          }
-        }
-
-        const catPvE = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvE);
-        const superiorsPvE = findSuperiors(catPvE, sheetWeaponPvE.energy, sheetWeaponPvE.frame, aegisSheetDbPvE);
-        const bestWPvE = superiorsPvE.byBoth || superiorsPvE.byFrame || superiorsPvE.byEnergy;
-        if (bestWPvE) {
-          if (bestWPvE.name.toLowerCase() === sheetWeaponPvE.name.toLowerCase()) {
-            isBestInClassPvE = true;
-          } else {
-            bestAlternativePvE = `${bestWPvE.name} (${bestWPvE.tier} #${bestWPvE.rank})`;
-          }
-        }
-      }
-
-      let pvpGradeRaw = '';
-      if (sheetWeaponPvP) {
-        const scorePvP = scoreSheetWeapon(sheetWeaponPvP, perksMap, activeHashes, 'pvp', equippedMasterwork);
-        pvpResult = scorePvP.result;
-        sheetPerksPvP = scorePvP.sheetPerks;
-        pvpResult.potentialGrade = scorePvP.potentialGrade;
-        pvpResult.upgradeAdvice = scorePvP.upgradeAdvice;
-
-        const isExoticPvP = sheetWeaponPvP.exoticViability || sheetWeaponPvP.source === 'Exotic';
-        if (isExoticPvP && sheetWeaponPvP.tier) {
-          pvpGradeRaw = sheetWeaponPvP.tier.trim();
-        } else {
-          const activeGradePvP = pvpResult.grade || '';
-          const potentialGradePvP = pvpResult.potentialGrade || '';
-          const hasHigherPvP = !!(potentialGradePvP && potentialGradePvP !== activeGradePvP && getGradeValue(potentialGradePvP) > getGradeValue(activeGradePvP));
-
-          if (hasHigherPvP) {
-            pvpResult.upgradeAvailable = true;
-          }
-
-          let displayRollGradePvP = activeGradePvP;
-          if (hasHigherPvP && aegisGradeDisplayMode === 'dual') {
-            displayRollGradePvP = `${activeGradePvP}➔${potentialGradePvP}`;
-          } else if (hasHigherPvP && aegisGradeDisplayMode === 'potential') {
-            displayRollGradePvP = potentialGradePvP;
-          }
-
-          if (aegisTwoTier && sheetWeaponPvP.tier && displayRollGradePvP) {
-            pvpGradeRaw = `${sheetWeaponPvP.tier.trim()}${displayRollGradePvP}`;
-          } else {
-            pvpGradeRaw = displayRollGradePvP;
-          }
-        }
-
-        const catPvP = findWeaponCategory(weaponName, itemHash, aegisSheetDbPvP);
-        const superiorsPvP = findSuperiors(catPvP, sheetWeaponPvP.energy, sheetWeaponPvP.frame, aegisSheetDbPvP);
-        const bestWPvP = superiorsPvP.byBoth || superiorsPvP.byFrame || superiorsPvP.byEnergy;
-        if (bestWPvP) {
-          if (bestWPvP.name.toLowerCase() === sheetWeaponPvP.name.toLowerCase()) {
-            isBestInClassPvP = true;
-          } else {
-            bestAlternativePvP = `${bestWPvP.name} (${bestWPvP.tier} #${bestWPvP.rank})`;
-          }
-        }
-      }
-
-      if (pveGradeRaw || pvpGradeRaw) {
-        const pveDisplay = pveGradeRaw || '—';
-        const pvpDisplay = pvpGradeRaw || '—';
-        result = {
-          grade: `${pveDisplay} | ${pvpDisplay}`,
-          customGrading: !!(pveResult?.customGrading || pvpResult?.customGrading),
-          matchPercentage: Math.max(pveResult?.matchPercentage || 0, pvpResult?.matchPercentage || 0),
-          matchedPerks: [...(pveResult?.matchedPerks || []), ...(pvpResult?.matchedPerks || [])],
-          missingPerks: [],
-          notes: pveResult?.notes || pvpResult?.notes || '',
-          wishlistPerks: [],
-          pveGrade: pveDisplay,
-          pvpGrade: pvpDisplay,
-          upgradeAvailable: !!(pveResult?.upgradeAvailable || pvpResult?.upgradeAvailable),
-          isPerfect5of5: !!(pveResult?.isPerfect5of5 && pvpResult?.isPerfect5of5),
-          isOmniRoll: !!(pveResult?.isOmniRoll || pvpResult?.isOmniRoll),
-        };
-      } else {
-        result = {
-          grade: null,
-          matchPercentage: 0,
-          matchedPerks: [],
-          missingPerks: [],
-          notes: '',
-          wishlistPerks: [],
-        };
-      }
-    } else {
-      const useSheet = sheetWeapon && aegisDbMode !== 'wishlist';
-      const useWishlist = aegisDbMode !== 'spreadsheet';
-
-      let wishlistResult: ScoringResult | null = null;
-      if (useWishlist && wishlistDb && wishlistDb[itemHash]) {
-        wishlistResult = scoreWeapon(itemHash, perkHashes, wishlistDb, enhancedToNormalMap);
-      }
-
-      if (useSheet) {
-        const sheetScore = scoreSheetWeapon(sheetWeapon!, perksMap, activeHashes, undefined, equippedMasterwork);
-        result = sheetScore.result;
-        sheetPerks = sheetScore.sheetPerks;
-        result.upgradeAdvice = sheetScore.upgradeAdvice;
-        result.potentialGrade = sheetScore.potentialGrade;
-        if (wishlistResult && wishlistResult.grade) {
-          result.wishlistNotes = wishlistResult.notes;
-        }
-      } else if (useWishlist && wishlistResult) {
-        result = wishlistResult;
-      } else {
-        // Spreadsheet only mode but weapon is not in the spreadsheet
-        result = {
-          grade: null,
-          matchPercentage: 0,
-          matchedPerks: [],
-          missingPerks: [],
-          notes: '',
-          wishlistPerks: [],
-        };
-      }
+    const evaluation = cached ? cached.value : evaluateWeapon(
+      weaponName, itemHash, perkHashes, perksMap, activeHashes, elText, rawInstanceId, equippedMasterwork,
+    );
+    if (inventoryId && cached?.value !== evaluation) {
+      inventoryEvaluations.delete(inventoryId);
+      if (inventoryEvaluations.size >= 1500) inventoryEvaluations.delete(inventoryEvaluations.keys().next().value!);
+      inventoryEvaluations.set(inventoryId, { signature, value: evaluation, perkHashes, perksMap, perkNames, activeHashes, perkIcons });
     }
-
-    const hasSheetData = sheetWeapon && aegisDbMode !== 'wishlist';
-    if (hasSheetData) {
-      const categoryTab = findWeaponCategory(weaponName, itemHash);
-      const superiors = findSuperiors(categoryTab, sheetWeapon!.energy, sheetWeapon!.frame);
-      const bestW = superiors.byBoth || superiors.byFrame || superiors.byEnergy;
-      if (bestW) {
-        if (bestW.name.toLowerCase() === sheetWeapon!.name.toLowerCase()) {
-          isBestInClass = true;
-        } else {
-          bestAlternative = `${bestW.name} (${bestW.tier} #${bestW.rank})`;
-        }
-      }
-    }
-
-    const canonicalEnglish = itemHash ? getEnglishWeaponNameFromHash(itemHash) : null;
-    const normWName = normName(canonicalEnglish || weaponName);
-    const { item: shoppingItem, alt: shoppingAlt } = resolveShoppingItem(aegisShoppingDb, null, normWName, itemHash);
-    const { item: shoppingItemPvE, alt: shoppingAltPvE } = resolveShoppingItem(aegisShoppingDbPvE, aegisShoppingDb, normWName, itemHash);
-    const { item: shoppingItemPvP, alt: shoppingAltPvP } = resolveShoppingItem(aegisShoppingDbPvP, null, normWName, itemHash);
-
-    const dualInfo: DualSheetInfo | undefined = aegisMode === 'both' ? {
-      sheetWeaponPvE,
-      sheetWeaponPvP,
-      sheetPerksPvE,
-      sheetPerksPvP,
-      pveResult,
-      pvpResult,
-      bestAlternativePvE,
-      bestAlternativePvP,
-      isBestInClassPvE,
-      isBestInClassPvP,
-      shoppingItemPvE,
-      shoppingAltPvE,
-      shoppingItemPvP,
-      shoppingAltPvP,
-    } : undefined;
+    // Display grades are adjusted below; keep the saved evaluation unchanged.
+    const {
+      result, sheetPerks, sheetWeapon, bestAlternative,
+      isBestInClass, sheetWeaponPvE, sheetWeaponPvP, sheetPerksPvE,
+      sheetPerksPvP, pveResult, pvpResult, bestAlternativePvE,
+      bestAlternativePvP, isBestInClassPvE, isBestInClassPvP, hasSheetData,
+      normWName, shoppingItem, shoppingAlt, shoppingItemPvE,
+      shoppingAltPvE, shoppingItemPvP, shoppingAltPvP, dualInfo,
+    } = { ...evaluation, result: { ...evaluation.result } };
 
     // Store evaluation payload in GC-safe, strongly typed WeakMap
     weaponDataMap.set(el, {
@@ -6567,9 +6694,9 @@ function renderAegisFilterPill() {
   });
 }
 
-function evaluateAegisFiltering() {
+function evaluateAegisFiltering(items?: HTMLElement[] | NodeListOf<HTMLElement>) {
   if (IS_WINNOWER_HOST) return; // DIM-only aegis: filter UI
-  const items = document.querySelectorAll<HTMLElement>('[data-aegis-item-hash]');
+  items ??= document.querySelectorAll<HTMLElement>('[data-aegis-item-hash]');
   
   if (!activeAegisFilter) {
     items.forEach(item => {
@@ -6837,6 +6964,8 @@ function setupSearchFilterObserver() {
  * Scans the page DOM for annotated item elements and processes them.
  */
 function reprocessAllElements() {
+  inventoryEvaluations.clear();
+  weaponFallbackCache = new WeakMap();
   setupRegistryObserver();
   setupSearchFilterObserver();
 
@@ -6877,27 +7006,15 @@ const ITEM_ATTRIBUTES = [
   'data-aegis-armor-perks',
   'data-aegis-armor-stats',
 ];
-const pendingProcessTargets = new Set<HTMLElement>();
-let processFlushScheduled = false;
-
-function flushPendingProcessTargets() {
-  processFlushScheduled = false;
+const pendingProcessTargets = createItemQueue(item => processElement(item), items => {
   setupRegistryObserver();
   setupSearchFilterObserver();
-  const targets = Array.from(pendingProcessTargets);
-  pendingProcessTargets.clear();
-  for (let i = 0; i < targets.length; i++) {
-    if (targets[i].isConnected) {
-      processElement(targets[i]);
-    }
-  }
-  evaluateAegisFiltering();
-  scheduleOpacityUpdate();
-}
+  evaluateAegisFiltering(items);
+  scheduleOpacityUpdate(items);
+});
 
 const observer = new MutationObserver((mutations) => {
-  for (let i = 0; i < mutations.length; i++) {
-    const mutation = mutations[i];
+  for (const mutation of withoutTileReorders(mutations)) {
 
     // Check if the custom data attributes were modified
     if (mutation.type === 'attributes') {
@@ -6927,10 +7044,6 @@ const observer = new MutationObserver((mutations) => {
         scheduleTooltipAnchorCheck();
       }
     }
-  }
-  if (pendingProcessTargets.size > 0 && !processFlushScheduled) {
-    processFlushScheduled = true;
-    requestAnimationFrame(flushPendingProcessTargets);
   }
 });
 
@@ -6973,9 +7086,13 @@ function getItemContainer(badge: HTMLElement): HTMLElement | null {
   return null;
 }
 
-function updateBadgesOpacity() {
-  const badges = document.querySelectorAll<HTMLElement>('.aegis-badge');
+function updateBadgesOpacity(roots: Iterable<HTMLElement> = [document.body]) {
+  const badges = new Set<HTMLElement>();
+  for (const root of outermostElements(roots)) {
+    root.querySelectorAll<HTMLElement>('.aegis-badge').forEach(badge => badges.add(badge));
+  }
   const cache = new Map<HTMLElement, boolean>();
+  const updates: [HTMLElement, boolean][] = [];
 
   const checkElementOrAncestorDimmed = (el: HTMLElement | null): boolean => {
     if (!el || el === document.body) return false;
@@ -7040,10 +7157,12 @@ function updateBadgesOpacity() {
       }
     }
 
-    // Apply or remove style overrides accordingly (skip DOM writes when the
-    // state didn't change — each setProperty call forces a style recalc)
+    if (badge.dataset.aegisDimmed !== (isDimmed ? '1' : '0')) updates.push([badge, isDimmed]);
+  });
+
+  // Finish all style reads before writing, so one badge cannot force a recalc for the next.
+  for (const [badge, isDimmed] of updates) {
     const newState = isDimmed ? '1' : '0';
-    if (badge.dataset.aegisDimmed === newState) return;
     badge.dataset.aegisDimmed = newState;
     if (isDimmed) {
       badge.style.setProperty('opacity', '0.25', 'important');
@@ -7052,7 +7171,7 @@ function updateBadgesOpacity() {
       badge.style.removeProperty('opacity');
       badge.style.removeProperty('filter');
     }
-  });
+  }
 }
 
 // Run initial scan once script loads
@@ -7066,9 +7185,17 @@ setupRegistryObserver();
 // DIM dims items by mutating class/style attributes, so watch for those changes
 // near annotated items and recompute once per frame when they occur.
 let opacityUpdateScheduled = false;
+const opacityUpdateRoots = new Set<HTMLElement>();
 
-function scheduleOpacityUpdate() {
+function flushPendingOpacity() {
+  if (!opacityUpdateRoots.size || Date.now() - lastScrollTime < TOOLTIP_SCROLL_SUPPRESS_MS) return;
+  updateBadgesOpacity(opacityUpdateRoots);
+  opacityUpdateRoots.clear();
+}
+
+function scheduleOpacityUpdate(roots: Iterable<HTMLElement> = [document.body]) {
   if (IS_WINNOWER_HOST) return; // DIM-only: mirrors DIM's search-fade
+  for (const root of roots) opacityUpdateRoots.add(root);
   if (opacityUpdateScheduled) return;
   opacityUpdateScheduled = true;
   const tryRun = () => {
@@ -7079,8 +7206,12 @@ function scheduleOpacityUpdate() {
       setTimeout(() => requestAnimationFrame(tryRun), 150);
       return;
     }
+    if (footerFrame) {
+      cancelAnimationFrame(footerFrame);
+      flushFooterBadges();
+    }
     opacityUpdateScheduled = false;
-    updateBadgesOpacity();
+    flushPendingOpacity();
   };
   requestAnimationFrame(tryRun);
 }
@@ -7112,6 +7243,7 @@ function isHeightOnlyChange(target: HTMLElement, oldValue: string | null): 'none
   // Check all properties in previousDimmingStyle
   for (let j = 0; j < previousDimmingStyle.length; j++) {
     const prop = previousDimmingStyle[j];
+    if (prop === '--aegis-glow-color' || prop === '--aegis-glow-image') continue;
     if (
       previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop) ||
       previousDimmingStyle.getPropertyPriority(prop) !== currentStyle.getPropertyPriority(prop)
@@ -7124,6 +7256,7 @@ function isHeightOnlyChange(target: HTMLElement, oldValue: string | null): 'none
   // Check any newly added properties in currentStyle
   for (let j = 0; j < currentStyle.length; j++) {
     const prop = currentStyle[j];
+    if (prop === '--aegis-glow-color' || prop === '--aegis-glow-image') continue;
     if (previousDimmingStyle.getPropertyValue(prop) !== currentStyle.getPropertyValue(prop)) {
       if (prop !== 'height' && prop !== 'max-height' && prop !== 'min-height') return 'other';
       heightChanged = true;
@@ -7153,39 +7286,44 @@ function scheduleHeightDimmingCheck() {
 
 const dimmingObserver = new MutationObserver((mutations) => {
   let heightChanged = false;
-  let needsImmediateCheck = false;
+  const immediateRoots = new Set<HTMLElement>();
+  const seenClasses = new Set<HTMLElement>();
+  const seenStyles = new Set<HTMLElement>();
 
   for (let i = 0; i < mutations.length; i++) {
     const target = mutations[i].target as HTMLElement;
     // Ignore our own badge style writes
     if (target.classList?.contains('aegis-badge')) continue;
+    const seen = mutations[i].attributeName === 'class' ? seenClasses : seenStyles;
+    if (seen.has(target)) continue;
+    seen.add(target);
 
     // Check element relevance FIRST before any CSS parsing
-    const isRelevant =
-      target.closest?.('[data-aegis-item-hash]') ||
-      (target.querySelector && target.querySelector('.aegis-badge'));
-    if (!isRelevant) continue;
+    const item = target.closest<HTMLElement>('[data-aegis-item-hash]');
+    if (!item && !target.querySelector('.aegis-badge')) continue;
 
-    // Class mutations always trigger immediate checks (e.g. search-fade classes)
+    // Ignore only our glow class; simultaneous search-fade changes still count.
     if (mutations[i].attributeName === 'class') {
-      needsImmediateCheck = true;
-      break;
+      const previous = new Set((mutations[i].oldValue || '').split(/\s+/).filter(name => name && name !== 'aegis-gold-glow'));
+      const current = Array.from(target.classList).filter(name => name !== 'aegis-gold-glow');
+      if (previous.size === current.length && current.every(name => previous.has(name))) continue;
+      immediateRoots.add(item || target);
+      continue;
     }
 
-    // Style mutation diffing
+    // The first old value and current style cover all changes in this delivery.
     const change = isHeightOnlyChange(target, mutations[i].oldValue);
     if (change === 'none') continue;
     if (change === 'height') {
       heightChanged = true;
     } else {
-      needsImmediateCheck = true;
-      break;
+      immediateRoots.add(item || target);
+      continue;
     }
   }
 
-  if (needsImmediateCheck) {
-    scheduleOpacityUpdate();
-  } else if (heightChanged) {
+  if (immediateRoots.size) scheduleOpacityUpdate(immediateRoots);
+  if (heightChanged) {
     scheduleHeightDimmingCheck();
   }
 });
@@ -7209,7 +7347,7 @@ function startDimmingObserver() {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target.closest('.aegis-badge')) return;
     if (target.closest('[data-aegis-item-hash]') || target.querySelector('.aegis-badge')) {
-      scheduleOpacityUpdate();
+      scheduleOpacityUpdate([target.closest<HTMLElement>('[data-aegis-item-hash]') || target]);
     }
   };
   document.body.addEventListener('transitionend', onFadeFinished);
