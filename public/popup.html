@@ -31,7 +31,7 @@
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
           </svg>
         </a>
-        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.9.0 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
+        <button type="button" id="open-changelog-btn" class="github-link-btn" title="View v1.9.5 Changelog" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.15); color: #d8dee9;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -150,7 +150,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span id="update-check-status" style="font-size: 9px; font-weight: 600; text-transform: uppercase;"></span>
-          <span class="version" id="version-text" title="Click to check for updates">v1.9.0</span>
+          <span class="version" id="version-text" title="Click to check for updates">v1.9.5</span>
         </div>
       </div>
     </header>
@@ -158,7 +158,7 @@
     <main class="popup-main">
       <div id="extension-update-banner" class="update-banner hidden">
         <div class="update-banner-content">
-          <span>Update available: Version <strong id="new-version-text">v1.9.0</strong> is ready on GitHub.</span>
+          <span>Update available: Version <strong id="new-version-text">v1.9.5</strong> is ready on GitHub.</span>
           <button id="update-banner-dismiss" type="button" class="dismiss-btn">&times;</button>
         </div>
       </div>
@@ -516,10 +516,10 @@
     <div class="changelog-modal-card">
       <div class="changelog-modal-header">
         <div class="changelog-badge-row">
-          <span class="changelog-version-tag">v1.9.0</span>
+          <span class="changelog-version-tag">v1.9.5</span>
           <span class="changelog-date-tag">Changelog</span>
         </div>
-        <h2 class="changelog-title">v1.9.0 Release Notes</h2>
+        <h2 class="changelog-title">v1.9.5 Release Notes</h2>
         <button type="button" id="changelog-close-btn" class="changelog-close-x">&times;</button>
       </div>
 
@@ -527,46 +527,46 @@
         
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Simultaneous Dual Mode (PvE + PvP)</span>
+            <span class="changelog-feature-name">Redesigned Options Menu & Custom Grade Colors</span>
           </div>
           <p class="changelog-feature-desc">
-            Evaluate weapons simultaneously against both Aegis and Finnald spreadsheets with native two-tone fused split badges (<code>S+ / A</code>), side-by-side dual tooltips, and dual upgrade arrows.
+            Sleek tabbed layout with live preview cards, custom grading threshold rules, and hex color pickers for every grade tier with custom gradient support.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">DIM Armory Weapon Card Integration</span>
+            <span class="changelog-feature-name">Bottom Strip Badge Style & S-Tier Frames</span>
           </div>
           <p class="changelog-feature-desc">
-            Injected Meta Category Rank banners and embedded a side-by-side Recommended Perks & Strategic Analysis card right next to DIM's interactive Armory perk grid.
+            Clean horizontal footer badge running along the bottom of item tiles without covering weapon icons, plus external S-tier gold frame alignment.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Popup Summary Modes & Wishlist Reset</span>
+            <span class="changelog-feature-name">Custom Upgrade Indicators (Circle, Triangle, Chevron)</span>
           </div>
           <p class="changelog-feature-desc">
-            Customizable popup header modes (<code>Full Details</code>, <code>Badge Only</code>, <code>Hidden</code>), wishlist reset button, top-aligned sidepanel, custom gold scrollbar, and selectable text.
+            Choose between Classic Circle, Triangle (▲), or Chevron (❯) icons to spot rolls with higher potential perks in your vault at a glance.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Bungie Manifest & Chase List Overhaul</span>
+            <span class="changelog-feature-name">DIM Armory Recommendations Toggle</span>
           </div>
           <p class="changelog-feature-desc">
-            Search and chase any weapon in Destiny 2 via Bungie Manifest integration, with custom god roll overrides, instant progressive rendering, and Finnald PvP armor ratings.
+            Added an on/off switch in settings to enable or disable the Aegis recommendation card inside DIM's Armory view.
           </p>
         </div>
 
         <div class="changelog-feature-card">
           <div class="changelog-feature-header">
-            <span class="changelog-feature-name">Remote Evaluation Locales & Full Korean Suite</span>
+            <span class="changelog-feature-name">Major Vault Performance & 60 FPS Scrolling</span>
           </div>
           <p class="changelog-feature-desc">
-            Remotely updatable evaluation translations via cloud mirror with offline fallback, complete Korean localization suite, and enhanced security and memory hardening.
+            Optimized queue slicing, deferred badge dimming during height animations, batched opacity updates, and fixed evaluation caching mutations.
           </p>
         </div>
 

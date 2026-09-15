@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DIM Aegis & PvP Roll Overlay",
-  "version": "1.9.0",
+  "version": "1.9.5",
   "description": "Display Aegis wishlist rankings directly inside Destiny Item Manager (DIM).",
   "permissions": [
     "storage",
@@ -13,12 +13,12 @@
     "https://raw.githubusercontent.com/*",
     "https://app.destinyitemmanager.com/*",
     "https://beta.destinyitemmanager.com/*",
-    "https://winnower.garden/*",
-    "https://www.light.gg/*"
+    "https://www.light.gg/*",
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
-    "scripts": ["background.js"],
-    "type": "module"
+    "scripts": ["background.js"]
   },
   "icons": {
     "16": "Pouka_Logo_64.png",
@@ -88,18 +88,14 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "scoring_engine_and_layout.png",
-        "aegis_recommended_perks.png",
-        "database_explorer_tab.png",
-        "chase_list_tab.png",
-        "two-tier-demo.png",
-        "database_explorer_btn.png",
-        "armor_set_bonus_example.png",
-        "wishlist_configuration.png"
+        "data/manifest-weapons.json",
+        "data/locales/*.json",
+        "*.png"
       ],
       "matches": [
         "https://app.destinyitemmanager.com/*",
-        "https://beta.destinyitemmanager.com/*"
+        "https://beta.destinyitemmanager.com/*",
+        "https://winnower.garden/*"
       ]
     }
   ],
