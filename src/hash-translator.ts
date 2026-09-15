@@ -20,6 +20,11 @@ function requestNames(hash: number, weapon = false) {
   registryEl.setAttribute(attribute, [...pending].join(','));
 }
 
+export function resetRequestedNames() {
+  requestedPerks.clear();
+  requestedWeapons.clear();
+}
+
 const ENGLISH_WEAPON_TO_HASH: Record<string, number> = {};
 for (const [hashStr, name] of Object.entries(HASH_TO_ENGLISH_WEAPON)) {
   const hash = Number(hashStr);
@@ -49,6 +54,7 @@ export function updateLocalizedRegistries(
       const hash = Number(hashStr);
       if (!isNaN(hash) && p && p.name) {
         localizedPerkRegistry[hash] = p;
+        requestedPerks.delete(hash);
       }
     }
   }
@@ -58,6 +64,7 @@ export function updateLocalizedRegistries(
       const hash = Number(hashStr);
       if (!isNaN(hash) && name) {
         localizedWeaponRegistry[hash] = name;
+        requestedWeapons.delete(hash);
       }
     }
   }

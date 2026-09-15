@@ -6,7 +6,7 @@ import { WishlistDatabase, ScoringResult, AegisSheetDatabase, AegisSheetWeapon, 
 import { showTooltip, hideTooltip, extractRecommendedMasterwork, getRecommendedMasterworks, renderViabilityMatrix, formatFormattedNotes, renderShoppingBannerHtml } from './tooltip';
 import { masterworkMatches } from './masterwork';
 import { initLanguage, t, getCurrentLanguage, getLocalizedElement, getLocalizedFrame, getLocalizedCategory, getLocalizedArchetypeLabel, getLocalizedRole } from './i18n';
-import { updateLocalizedRegistries, getLocalizedPerkName, getLocalizedWeaponName, getLocalizedStatName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
+import { updateLocalizedRegistries, resetRequestedNames, getLocalizedPerkName, getLocalizedWeaponName, getLocalizedStatName, getPerkIcon, getPerkHashFromEnglish, getEnglishWeaponNameFromHash, getEnglishPerkNameFromHash } from './hash-translator';
 import { applyEvaluationLocale, EvaluationLocaleBundle, getOriginalEvaluationText, getLocalizedSource, getLocalizedSourceText } from './evaluation-i18n';
 import { renderLocalizedName, refreshLocalizedNames } from './localized-display';
 import { outermostElements, safeSetInnerHTML, withoutTileReorders } from './dom-utils';
@@ -305,8 +305,10 @@ async function refreshEvaluationLocale(force = false, reprocess = true): Promise
       new Set([aegisSheetDb, aegisSheetDbPvE, aegisSheetDbPvP].filter((db): db is AegisSheetDatabase => db !== null && db !== undefined))
     );
     const shoppingDbs = [aegisShoppingDb, aegisShoppingDbPvE, aegisShoppingDbPvP];
+    let isFirst = true;
     for (const db of uniqueDbs) {
-      await applyEvaluationLocale(db, bundle, shoppingDbs);
+      await applyEvaluationLocale(db, bundle, isFirst ? shoppingDbs : undefined);
+      isFirst = false;
     }
     if (uniqueDbs.length === 0) await applyEvaluationLocale(null, bundle, shoppingDbs);
     if (token === evaluationLocaleRequestToken && reprocess) reprocessAllElements();
@@ -3873,6 +3875,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     let evaluationLocaleRefreshNeeded = false;
     let forceEvaluationLocaleRefresh = false;
     if (changes.aegisLanguage) {
+      resetRequestedNames();
       initLanguage(changes.aegisLanguage.newValue);
       const existingPanel = document.querySelector('.aegis-explorer-panel');
       const existingFab = document.querySelector('.aegis-fab');
@@ -5169,10 +5172,8 @@ function injectArmoryEnhancements(
 ) {
   if (!aegisArmoryEnabled) return;
 
-  // 1. Meta Category Rank Banner (Option 3)
-  const headerContainer = armoryContainer.querySelector<HTMLElement>('.wYPsYK5B') 
-    || armoryContainer.querySelector('h1')?.parentElement
-    || armoryContainer.querySelector('[class*="title" i], [class*="header" i]') as HTMLElement | null;
+  const headerContainer = armoryContainer.querySelector('h1')?.parentElement
+    || armoryContainer.querySelector<HTMLElement>('[class*="title" i], [class*="header" i]');
   if (headerContainer) {
     let banner = headerContainer.querySelector<HTMLElement>('.aegis-armory-banner');
     if (!banner) {
@@ -6143,15 +6144,16 @@ function processElement(el: HTMLElement) {
       if (inventoryEvaluations.size >= 1500) inventoryEvaluations.delete(inventoryEvaluations.keys().next().value!);
       inventoryEvaluations.set(inventoryId, { signature, value: evaluation, perkHashes, perksMap, perkNames, activeHashes, perkIcons });
     }
-    // Display grades are adjusted below; keep the saved evaluation unchanged.
+    // Clone result so display-tier formatting does not mutate the cached evaluation
+    const result: ScoringResult = { ...evaluation.result };
     const {
-      result, sheetPerks, sheetWeapon, bestAlternative,
+      sheetPerks, sheetWeapon, bestAlternative,
       isBestInClass, sheetWeaponPvE, sheetWeaponPvP, sheetPerksPvE,
       sheetPerksPvP, pveResult, pvpResult, bestAlternativePvE,
       bestAlternativePvP, isBestInClassPvE, isBestInClassPvP, hasSheetData,
       normWName, shoppingItem, shoppingAlt, shoppingItemPvE,
       shoppingAltPvE, shoppingItemPvP, shoppingAltPvP, dualInfo,
-    } = { ...evaluation, result: { ...evaluation.result } };
+    } = evaluation;
 
     // Store evaluation payload in GC-safe, strongly typed WeakMap
     weaponDataMap.set(el, {
@@ -6970,9 +6972,9 @@ function reprocessAllElements() {
   setupRegistryObserver();
   setupSearchFilterObserver();
 
-  // Prune uninstanced detached items to prevent memory leaks across route changes
+  // Prune detached items to prevent memory leaks across route changes
   for (const [key, items] of playerVaultInventory.entries()) {
-    const valid = items.filter(item => item.instanceId || item.element.isConnected);
+    const valid = items.filter(item => item.element?.isConnected);
     if (valid.length === 0) {
       playerVaultInventory.delete(key);
     } else {

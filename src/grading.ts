@@ -79,7 +79,7 @@ export function evaluateRules(slots: Slots, rules: Rules, masterworkMatched = tr
   for (const grade of GRADES) {
     if (grade === 'F') return grade;
     const r = rules[grade];
-    if (!r.enabled) continue;
+    if (!r || !r.enabled) continue;
     const traits = { both: active === 2, mixed: active === 1 && selectable === 1, one: active === 1, available: active === 1 || selectable === 1 }[r.traits];
     const extras = { none: true, mag: mag === 'active', barrel: barrel === 'active', either: mag === 'active' || barrel === 'active', both: mag === 'active' && barrel === 'active' }[r.extras];
     if (traits && extras && (!r.origin || origin === 'active') && (!r.masterwork || masterworkMatched)) return grade;

@@ -19,12 +19,16 @@ if (fs.existsSync(publicDir)) {
   fs.cpSync(publicDir, distDir, { recursive: true });
 }
 
-// Copy locales to dist/data
+// Copy locales and manifest data to dist/data
 const dataDir = path.join(distDir, 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 const localesSource = path.join(root, 'data', 'locales');
 if (fs.existsSync(localesSource)) {
   fs.cpSync(localesSource, path.join(dataDir, 'locales'), { recursive: true });
+}
+const manifestWeaponsSource = path.join(root, 'data', 'manifest-weapons.json');
+if (fs.existsSync(manifestWeaponsSource)) {
+  fs.copyFileSync(manifestWeaponsSource, path.join(dataDir, 'manifest-weapons.json'));
 }
 
 const entries = {

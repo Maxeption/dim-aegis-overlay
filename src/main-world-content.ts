@@ -862,7 +862,6 @@ function processElement(el: HTMLElement) {
     const inputs = weaponReadInputs(item);
     const saved = weaponReadCache.get(item);
     if (saved && inputs.length === saved.inputs.length && inputs.every((value, i) => value === saved.inputs[i])) {
-      registerPerks({});
       for (const [name, value] of saved.attributes) setItemAttribute(el, name, value);
       return;
     }

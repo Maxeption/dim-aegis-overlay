@@ -48,8 +48,9 @@ export function showOptionTab(previous: HTMLElement | undefined, next: HTMLEleme
 }
 
 export function refreshOptionHighlights(animate = true) {
-  if (!highlights.size && !animate) return;
-  const measurements = Array.from(document.querySelectorAll<HTMLElement>('.options-panel .segmented-control')).map(control => {
+  const controls = document.querySelectorAll<HTMLElement>('.options-panel .segmented-control');
+  if (!controls.length) return;
+  const measurements = Array.from(controls).map(control => {
     const button = control.querySelector<HTMLElement>('button.active');
     return { control, visible: !!button?.getClientRects().length,
       x: button?.offsetLeft ?? 0, y: button?.offsetTop ?? 0,

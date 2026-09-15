@@ -465,19 +465,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (armorSourceSegmented) {
           const armorAegisBtn = armorSourceSegmented.querySelector<HTMLButtonElement>('button[data-value="aegis"]');
           if (armorAegisBtn) {
-            const heading = armorAegisBtn.querySelector('span')!;
-            if (aegisModeVal === 'pvp') {
-              heading.textContent = t('inlineFinnald');
-              armorAegisBtn.title = t('armorFinnald');
-            } else if (aegisModeVal === 'both') {
-              heading.textContent = t('sourceBoth');
-              armorAegisBtn.title = t('armorDual');
+            const heading = armorAegisBtn.querySelector('span');
+            const label = aegisModeVal === 'pvp' ? t('inlineFinnald') : aegisModeVal === 'both' ? t('sourceBoth') : t('inlineAegis');
+            if (heading) {
+              heading.textContent = label;
             } else {
-              heading.textContent = t('inlineAegis');
-              armorAegisBtn.title = t('armorAegis');
+              armorAegisBtn.textContent = label;
             }
+            armorAegisBtn.title = aegisModeVal === 'pvp' ? t('armorFinnald') : aegisModeVal === 'both' ? t('armorDual') : t('armorAegis');
+            armorAegisBtn.setAttribute('aria-label', armorAegisBtn.title);
           }
-          armorAegisBtn?.setAttribute('aria-label', armorAegisBtn.title);
           armorSourceSegmented.querySelectorAll('button').forEach(btn => {
             if (btn.getAttribute('data-value') === armorSourceVal) {
               btn.classList.add('active');
@@ -632,7 +629,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisLayoutSide: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis layout changed to: ${val}`);
             updateUI();
           });
         }
@@ -649,7 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisPerkOrder: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis perk order changed to: ${val}`);
             updateUI();
           });
         }
@@ -765,7 +760,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisTwoTier: val === 'true' }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Two-Tier grade changed to: ${val === 'true'}`);
             updateUI();
           });
         }
@@ -782,7 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisBadgePosition: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Badge Position changed to: ${val}`);
             updateUI();
           });
         }
@@ -827,7 +820,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisBadgeStyle: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Badge Style changed to: ${val}`);
             updateUI();
           });
         }
@@ -844,7 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisUpgradeStyle: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Upgrade Style changed to: ${val}`);
             updateUI();
           });
         }
@@ -885,7 +876,6 @@ document.addEventListener('DOMContentLoaded', () => {
     scaleSlider.addEventListener('change', () => {
       const val = parseInt(scaleSlider.value, 10) || 100;
       chrome.storage.local.set({ aegisBadgeScale: val }, () => {
-        console.log(`[DIM Aegis Overlay] Aegis Badge Scale changed to: ${val}%`);
         updateUI();
       });
     });
@@ -900,7 +890,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisFadeHover: val === 'true' }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Fade Hover changed to: ${val === 'true'}`);
             updateUI();
           });
         }
@@ -917,7 +906,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisGradeDisplayMode: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Grade Display Mode changed to: ${val}`);
             updateUI();
           });
         }
@@ -934,7 +922,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisHoverEnabled: val === 'true' }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Hover Enabled changed to: ${val === 'true'}`);
             updateUI();
           });
         }
@@ -951,7 +938,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = target.getAttribute('data-value');
         if (val) {
           chrome.storage.local.set({ aegisArmorSource: val }, () => {
-            console.log(`[DIM Aegis Overlay] Aegis Armor Source changed to: ${val}`);
             updateUI();
           });
         }
