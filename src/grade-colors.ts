@@ -140,7 +140,7 @@ export function applyGradeGlow(target: HTMLElement, grade: string) {
   if (color) {
     if (target.style.getPropertyValue('--aegis-glow-color') !== color) target.style.setProperty('--aegis-glow-color', color);
   }
-  else target.style.removeProperty('--aegis-glow-color');
+  else if (target.style.getPropertyValue('--aegis-glow-color')) target.style.removeProperty('--aegis-glow-color');
   const parent = target.parentElement;
   if (target.matches('.item') && parent?.matches('.item-drag-container')) {
     if (parent.hasAttribute('data-aegis-gradient-glow') !== glowing) parent.toggleAttribute('data-aegis-gradient-glow', glowing);
@@ -148,6 +148,6 @@ export function applyGradeGlow(target: HTMLElement, grade: string) {
       const image = gradeGlowImage(grade);
       if (parent.style.getPropertyValue('--aegis-glow-image') !== image) parent.style.setProperty('--aegis-glow-image', image);
     }
-    else parent.style.removeProperty('--aegis-glow-image');
+    else if (parent.style.getPropertyValue('--aegis-glow-image')) parent.style.removeProperty('--aegis-glow-image');
   }
 }

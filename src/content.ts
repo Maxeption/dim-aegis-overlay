@@ -5354,7 +5354,7 @@ function injectArmoryEnhancements(
  * Injects or updates the Aegis rank badge overlay inside a weapon tile.
  */
 const badgeTemplates = new Map<string, HTMLDivElement>();
-const renderedBadges = new WeakMap<HTMLDivElement, { template: HTMLDivElement; html: string }>();
+const renderedBadges = new WeakMap<HTMLDivElement, HTMLDivElement>();
 const pendingFooterBadges = new Map<HTMLElement, { target: HTMLElement; badge: HTMLDivElement; grade: string }>();
 let footerFrame = 0;
 
@@ -5544,17 +5544,18 @@ function injectBadge(el: HTMLElement, result: ScoringResult) {
   const styleKey = aegisBadgeStyle === 'footer' && (IS_WINNOWER_HOST || !badgeTarget.matches('.item-drag-container > .item')) ? 'notch' : aegisBadgeStyle;
   const template = getBadgeTemplate(result, styleKey);
   const badge = (existingBadges[0] || template.cloneNode(true)) as HTMLDivElement;
-  const rendered = renderedBadges.get(badge);
   if (existingBadges.length) {
     if (badge.className !== template.className) badge.className = template.className;
-    if (rendered?.template !== template || badge.innerHTML !== rendered.html) {
+    if (renderedBadges.get(badge) !== template || !badge.hasChildNodes()) {
       badge.replaceChildren(...Array.from(template.childNodes, child => child.cloneNode(true)));
+      renderedBadges.set(badge, template);
     }
+  } else {
+    renderedBadges.set(badge, template);
   }
   applyGradeColors(badge);
   applyBadgePresentation(badge, visibility);
   badge.title = result.customGrading ? t('customPerkGrading') : '';
-  renderedBadges.set(badge, { template, html: badge.innerHTML });
   if (badge.parentElement !== badgeTarget) {
     if (styleKey === 'footer' && pendingProcessTargets.hasWork()) {
       pendingFooterBadges.set(itemContainer, { target: badgeTarget, badge, grade: result.grade || '' });

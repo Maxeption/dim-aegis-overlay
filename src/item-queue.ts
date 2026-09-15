@@ -10,7 +10,12 @@ export function createItemQueue(
 
   function flush() {
     const start = performance.now();
-    const currentViewport = `${scrollX},${scrollY},${innerWidth},${innerHeight}`;
+    const doc = typeof document !== 'undefined' ? (document.scrollingElement || document.documentElement) : null;
+    const sx = typeof scrollX !== 'undefined' ? scrollX : (doc?.scrollLeft ?? 0);
+    const sy = typeof scrollY !== 'undefined' ? scrollY : (doc?.scrollTop ?? 0);
+    const w = typeof innerWidth !== 'undefined' ? innerWidth : 0;
+    const h = typeof innerHeight !== 'undefined' ? innerHeight : 0;
+    const currentViewport = `${sx},${sy},${w},${h}`;
     if (viewport !== currentViewport) {
       visible.forEach(item => pending.add(item));
       background.forEach(item => pending.add(item));
@@ -23,15 +28,15 @@ export function createItemQueue(
       if (!item.isConnected) continue;
       const rect = item.getBoundingClientRect();
       const inView = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0
-        && rect.top < innerHeight && rect.left < innerWidth;
+        && rect.top < h && rect.left < w;
       (inView ? visible : background).add(item);
     }
     pending.clear();
     const processed: HTMLElement[] = [];
     try {
-      for (const queue of [visible, background]) {
+      processQueues: for (const queue of [visible, background]) {
         for (const item of queue) {
-          if (processed.length && performance.now() - start >= 8) break;
+          if (processed.length && performance.now() - start >= 8) break processQueues;
           queue.delete(item);
           if (!item.isConnected) continue;
           process(item);

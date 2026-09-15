@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && node scripts/build.mjs",
+    "test": "node tests/item-queue.test.cjs && node tests/dom-utils.test.cjs && node tests/grading.test.cjs && node tests/i18n.test.cjs",
     "package": "node scripts/package.mjs",
     "build:all": "tsc && node scripts/build.mjs && node scripts/package.mjs",
     "preview": "vite preview"
