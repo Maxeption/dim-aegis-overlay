@@ -819,19 +819,65 @@
   color: #ffffff;
 }
 
-.version {
-  font-size: 10px;
-  color: #6e6e73;
-  background: #1c1c24;
-  padding: 2px 6px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.version-slot {
+  position: relative;
+  flex: none;
+  height: 24px;
+  font: 500 10px/16px system-ui, sans-serif;
 }
 
-.version:hover {
-  background: #2a2a35;
+.version-anchor {
+  display: block;
+  visibility: hidden;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.version-slot .version {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  font: inherit;
   color: #88c0d0;
+  background: #1c1c24;
+  border: 1px solid transparent;
+  padding: 0 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: width 260ms cubic-bezier(.22, 1, .36, 1), box-shadow 260ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.version-slot .version:hover {
+  background: #2a2a35;
+}
+
+.version-slot .version:focus-visible { outline: 2px solid #88c0d0; outline-offset: 2px; }
+.version-slot .version:not([data-state="idle"]) {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #252a34;
+  border-color: #444c5d;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .55), -5px 0 12px rgba(0, 0, 0, .3);
+}
+.version[data-state="checking"] { color: #88888d; cursor: progress; }
+.version[data-state="current"] { color: #4caf50; }
+.version[data-state="available"] { color: #ffb300; }
+.version[data-state="error"] { color: #f44336; }
+.version-label { flex: none; transition: opacity 160ms ease, transform 160ms ease; }
+.version-changing .version-label { opacity: 0; transform: translateY(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .version-slot .version, .version-label { transition: none; }
+  .version-changing .version-label { transform: none; }
 }
 
 /* Main Content */
@@ -1823,6 +1869,16 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 }
 
 /* Side-panel details summary card */
+/* DIM's masterwork header uses cover, which scales its texture with the height
+   of our summary. Keep the image at the top, scaled only to the header width;
+   the native rarity background color fills any added height. Scope this to
+   expanded headers so hiding the summary restores DIM's own styling. */
+button:has(> .aegis-popup-summary) {
+  background-size: 100% auto !important;
+  background-repeat: no-repeat !important;
+  background-position: top center !important;
+}
+
 .aegis-popup-summary {
   margin-top: 10px !important;
   margin-bottom: 12px !important;
@@ -5491,17 +5547,68 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   max-width: 680px !important;
 }
 
-.item-drag-container > .item:has(> .aegis-style-footer) {
-  height: auto !important;
-  /* Let the footer determine height while retaining native paint clipping. */
-  contain: layout paint style !important;
-  display: flex !important;
-  flex-direction: column !important;
+/* DIM also renders these tiles without drag wrappers in Compare, Armory, vendors, and pickers. */
+.aegis-compare-rating-panel {
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--theme-tooltip-border, #555);
+  background: rgba(255, 196, 70, 0.06);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+}
+.aegis-compare-rating-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.aegis-compare-rating-heading strong { color: #ffc85a; }
+.aegis-compare-rating-tier {
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.aegis-compare-rating-tier[data-tier="S"] { color: #ffce5c; }
+.aegis-compare-rating-tier[data-tier="A"] { color: #ce9dff; }
+.aegis-compare-rating-tier[data-tier="B"] { color: #74cdff; }
+.aegis-compare-rating-tier[data-tier="C"] { color: #a6dcad; }
+.aegis-compare-rating-panel p { margin: 6px 0 0 !important; }
+
+.item:has(> .aegis-style-footer),
+.aegis-badge.aegis-style-footer {
+  /* Like Top Notch, text size changes the space around the lettering;
+     only badge size scales the strip itself. Share dimensions with previews. */
+  --aegis-footer-height: 16px;
 }
 
-.item-drag-container > .item:has(> .aegis-style-footer) > .item-img {
-  /* Match DIM's loaded tile height, including the one-pixel border overlap. */
-  max-height: calc(1.2 * var(--item-size) + 3px);
+.item:has(> .aegis-style-footer) {
+  /* Keep DIM's explicit height and size containment. Padding adds a strip
+     below the native icon/power label without sizing the tile from its
+     lazily loaded children. Current/potential grades use the same strip height.
+     The badge's zoom scales its box; reserve that scaled height on the tile
+     without measuring children or changing DIM's containment. */
+  box-sizing: content-box !important;
+  padding-bottom: calc(var(--aegis-footer-height) * var(--aegis-badge-size, 1)) !important;
+}
+
+/* Only the two side-by-side PvE/PvP columns need room for wrapped grades. */
+.item:has(> .aegis-style-footer.aegis-badge-split),
+.aegis-badge.aegis-style-footer.aegis-badge-split {
+  --aegis-footer-height: 25px;
+}
+
+.item:has(> .aegis-style-footer.aegis-color-only),
+.aegis-badge.aegis-style-footer.aegis-color-only {
+  --aegis-footer-height: 3px;
+}
+
+/* DIMSUM's legacy height rule excludes Bottom Strip. Honor its empty-bar
+   marker here too: the content box is just the icon, plus our strip padding.
+   Removing the marker restores DIM's native height without JS measurements. */
+.item[data-dimsum-empty-bar]:has(> .aegis-style-footer) {
+  height: var(--item-size) !important;
 }
 
 .aegis-badge.aegis-style-footer,
@@ -5512,8 +5619,8 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100% !important;
-  height: auto !important;
-  min-height: calc(14px * var(--aegis-badge-scale, 1)) !important;
+  height: var(--aegis-footer-height) !important;
+  min-height: 0 !important;
   margin: 0 !important;
   padding: 1px 2px !important;
   box-sizing: border-box !important;
@@ -5527,6 +5634,13 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
   text-align: center !important;
   gap: 2px !important;
   transform: none !important;
+}
+
+.item > .aegis-badge.aegis-style-footer {
+  position: absolute !important;
+  inset: auto 0 0 !important;
+  height: var(--aegis-footer-height) !important;
+  min-height: 0 !important;
 }
 
 .aegis-style-footer .aegis-grade-text,
@@ -5737,24 +5851,75 @@ body.aegis-scrolling div[id^="item-"][data-aegis-item-hash]:hover {
 .item-drag-container[data-aegis-gradient-glow]:has(> .item > .aegis-badge[data-aegis-dimmed="1"])::after {
   opacity: .15;
 }
-.aegis-compare-panel { margin-top: 10px; color: #e5e9f0; background: #191c23; font-size: 12px; }
-.aegis-compare-panel[hidden] { display: none; }
-.aegis-compare-panel .aegis-compare-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px 4px; border-top: 1px solid #696046; max-width: calc(100vw - 32px); }
+.aegis-compare-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 4px; color: #c6ceda; font-size: 11px; position: sticky; left: 0; width: fit-content; max-width: calc(100vw - 36px); }
+.aegis-compare-panel strong { color: #efc75a; font-weight: 600; }
 .aegis-compare-panel button { color: #bac7da; background: transparent; border: 0; padding: 3px 4px; cursor: pointer; font: inherit; }
 .aegis-compare-panel button:focus-visible { outline: 2px solid #efbf51; outline-offset: 1px; }
-.aegis-compare-panel button[data-compare-action="collapse"] { color: #efc75a; font-weight: 600; }
 .aegis-compare-panel button[aria-pressed="true"] { color: #ffd700; background: #403721; border-radius: 3px; }
-.aegis-compare-panel table { table-layout: fixed; width: 100%; border-collapse: collapse; color: inherit; font: inherit; }
-.aegis-compare-panel td,.aegis-compare-panel th { padding: 5px 4px; vertical-align: top; text-align: left; font-weight: normal; overflow-wrap: anywhere; border-right: 1px solid #383e47; }
-.aegis-compare-panel th { color: #b3bac5; position: sticky; left: 0; background: #191c23; z-index: 1; }
-.aegis-compare-panel td:last-child { border-right: 0; }
-.aegis-compare-panel .aegis-compare-perks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.aegis-compare-panel .aegis-compare-chip { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; padding: 2px 4px; border: 1px solid; border-radius: 3px; line-height: 1.3; }
-.aegis-compare-panel .aegis-compare-chip > span:last-child { min-width: 0; }
-.aegis-compare-panel .aegis-compare-chip img { width: 14px; height: 14px; align-self: center; flex-shrink: 0; }
-.aegis-compare-panel .aegis-compare-active { color: #70e7ab; border-color: #285f44; background: #1b3128; }
-.aegis-compare-panel .aegis-compare-selectable { color: #82d1f3; border-color: #416679; border-style: dashed; background: #1b2a35; }
-.aegis-compare-panel .aegis-compare-missing { color: #d69b92; border-color: #533631; background: #291e20; }
-.aegis-compare-panel .aegis-compare-grade { display: inline-block; padding: 2px 6px; border-radius: 3px; color: white; font-weight: 600; }
-.aegis-compare-panel .aegis-compare-legend { padding: 7px 4px; color: #b3bac5; font-size: 11px; max-width: calc(100vw - 32px); }
-.aegis-compare-panel .aegis-compare-legend > span { border: 0; background: none; }
+
+/* Extend native Compare sockets without moving React-owned nodes. */
+[data-aegis-compare-layout="list"] { grid-auto-columns: max-content 1px !important; }
+[data-aegis-compare-slot] { display: flex; flex-direction: column; }
+.aegis-overview-panel { position: static; width: auto; padding: 8px 10px 4px; gap: 4px 8px; font-size: 10px; }
+[data-aegis-overview-grid] { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 8px 10px !important; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot] { align-items: center; padding: 0 !important; border: 0 !important; min-width: 0; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot="barrel"] { order: 0; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot="mag"] { order: 1; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot="perk1"] { order: 2; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot="perk2"] { order: 3; }
+[data-aegis-overview-grid] > [data-aegis-compare-slot="origin"] { order: 4; }
+[data-aegis-overview-grid] [data-aegis-compare-state] { width: 40px; max-width: 100%; min-height: 0; margin: 0 !important; padding: 0 !important; }
+[data-aegis-overview-grid] [data-aegis-compare-state] > div:not(:has(svg)) { display: none; }
+[data-aegis-overview-grid] > button { display: none; }
+.aegis-perk-label, .aegis-perk-name-sizer { display: none; }
+.aegis-perk-layout-controls { display: inline-flex; gap: 2px; }
+:has(> [data-aegis-overview-grid]) > button[title] { display: none; }
+/* Reserve the longest selectable name while keeping a compact gap to the bubbles. */
+[data-aegis-perk-layout="list"] { display: grid !important; grid-template-columns: max-content repeat(var(--aegis-perk-columns, 1), 28px) !important; gap: 6px 4px !important; }
+[data-aegis-compare-layout="list"] [data-aegis-perks-header] { align-self: start; align-items: center !important; box-sizing: border-box; height: 40px; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] { overflow-x: auto; }
+[data-aegis-perk-layout="list"] > [data-aegis-compare-slot] {
+  display: grid !important; grid-column: 1 / -1; grid-template-columns: subgrid;
+  grid-template-rows: 32px; gap: 4px; align-items: center; justify-items: start;
+  margin: 0 !important; padding: 0 !important; border: 0 !important;
+}
+[data-aegis-perk-layout="list"] [data-aegis-compare-state] {
+  grid-column: var(--aegis-perk-column); grid-row: 1;
+  width: 28px !important; height: 28px !important; min-height: 0; max-width: none;
+  margin: 0 !important; padding: 0 !important; display: block;
+}
+[data-aegis-perk-layout="list"] [data-aegis-compare-state] svg { display: block; width: 28px; height: 28px; }
+[data-aegis-perk-layout="list"] [data-aegis-compare-slot] > .aegis-perk-label {
+  grid-column: 1; grid-row: 1; align-self: center;
+  display: block; margin: 0; padding: 2.5px 6.5px; border: 1px solid #a7afbb; border-radius: 4px;
+  box-sizing: border-box; width: fit-content;
+  font-size: 12px; line-height: 16px; white-space: nowrap; color: var(--theme-text, #eee);
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease;
+}
+[data-aegis-perk-layout="list"] .aegis-perk-label[data-aegis-perk-status="active"] { background: rgba(46, 204, 113, .12); border-color: rgba(46, 204, 113, .4); color: #2ecc71; }
+[data-aegis-perk-layout="list"] .aegis-perk-label:empty { visibility: hidden; }
+.aegis-perk-label-outgoing { pointer-events: none; }
+[data-aegis-perk-layout="list"] .aegis-perk-name-sizer {
+  display: grid; grid-column: 1; grid-row: 1; align-self: start;
+  height: 0; visibility: hidden; pointer-events: none;
+  font-size: 12px; line-height: 16px; white-space: nowrap;
+}
+[data-aegis-perk-layout="list"] .aegis-perk-name-sizer > span { grid-area: 1 / 1; padding: 2.5px 6.5px; border: 1px solid transparent; }
+[data-aegis-compare-state] svg > circle { transition: fill .18s ease, stroke .18s ease, stroke-width .18s ease; }
+@media (prefers-reduced-motion: reduce) {
+  [data-aegis-compare-state] svg > circle, .aegis-perk-label { transition: none; }
+}
+[data-aegis-compare-state] { order: var(--aegis-compare-order); }
+[data-aegis-compare-state="active"], [data-aegis-compare-legend="active"] { --aegis-compare-fill: #216844; --aegis-compare-outline: #79e9aa; }
+[data-aegis-compare-state="selectable"], [data-aegis-compare-legend="selectable"] { --aegis-compare-fill: #234f89; --aegis-compare-outline: #80bfff; }
+[data-aegis-compare-state="missing"], [data-aegis-compare-legend="missing"] { --aegis-compare-fill: #782c37; --aegis-compare-outline: #ff9aa8; }
+[data-aegis-compare-state="other"], [data-aegis-compare-legend="other"] { --aegis-compare-fill: #444a54; --aegis-compare-outline: #a7afbb; }
+[data-aegis-compare-state] svg > circle:first-of-type { fill: var(--aegis-compare-fill) !important; stroke: none !important; }
+/* Style DIM's actual SVG outline so selection survives native hover/plug styles. */
+[data-aegis-compare-state] svg > circle:last-of-type { stroke: var(--aegis-compare-outline) !important; stroke-width: 3px !important; stroke-dasharray: 8 6 !important; }
+[data-aegis-compare-selected] svg > circle:last-of-type { stroke-width: 6px !important; stroke-dasharray: none !important; }
+[data-aegis-compare-state] svg > rect { display: none; }
+[data-aegis-compare-generated] { cursor: help !important; opacity: 1 !important; position: relative; }
+.aegis-compare-tooltip-mount { position: absolute; inset: 0; pointer-events: none; }
+[data-aegis-compare-generated]:focus-visible { outline: 2px solid var(--aegis-compare-outline); outline-offset: 2px; border-radius: 50%; }
+[data-aegis-compare-legend]::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; border: 1px solid var(--aegis-compare-outline); background: var(--aegis-compare-fill); }

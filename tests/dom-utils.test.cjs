@@ -57,7 +57,7 @@ const context = {
   Array,
 };
 vm.runInNewContext(source, context);
-const { outermostElements, withoutTileReorders } = context.exports;
+const { dimmingClassesChanged, outermostElements, withoutTileReorders } = context.exports;
 
 // Test 1: outermostElements
 {
@@ -140,4 +140,19 @@ const { outermostElements, withoutTileReorders } = context.exports;
   assert.equal(withoutTileReorders(transferMutations).length, 2);
 }
 
-console.log('Passed: outermostElements hierarchy pruning, disconnected node rejection, and withoutTileReorders in-place vs transfer/mutation filtering.');
+// Scroll flags never change badge opacity. Real fades in the same observer delivery still count.
+{
+  const changed = (before, after, isBody = false) => dimmingClassesChanged(before, new Set(after.split(/\s+/).filter(Boolean)), isBody);
+  assert.equal(changed(null, 'aegis-scrolling', true), false);
+  assert.equal(changed('theme aegis-scrolling', 'theme', true), false);
+  assert.equal(changed('theme', 'theme aegis-scrolling', true), false);
+  assert.equal(changed('theme aegis-scrolling', 'theme dimmed', true), true);
+  assert.equal(changed('theme dimmed', 'theme aegis-scrolling', true), true);
+  assert.equal(changed('item', 'item aegis-gold-glow'), false);
+  assert.equal(changed('item aegis-gold-glow', 'item dimmed'), true);
+  assert.equal(changed('item dimmed', 'item aegis-gold-glow'), true);
+  assert.equal(changed('theme', 'theme aegis-scrolling'), true, 'ignore the scroll flag only on body');
+  assert.equal(changed(' dimmed   item ', 'item dimmed'), false, 'class ordering and whitespace do not change dimming');
+}
+
+console.log('Passed: hierarchy pruning, tile reorder filtering, and scroll/glow class changes without suppressing real fades.');

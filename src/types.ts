@@ -40,7 +40,7 @@ export interface ScoringResult {
 }
 
 export type BadgeColor = 'perk' | 'archetype' | 'gradient';
-export type TileGlow = 'archetype' | 'perk' | 'max';
+export type TileGlow = 'off' | 'archetype' | 'perk' | 'max';
 
 export type AegisMode = 'pve' | 'pvp' | 'both';
 
@@ -76,6 +76,10 @@ export interface LocalStorageSchema {
   aegisTooltipWidthMode?: 'auto' | 'fixed';
   aegisTooltipWidth?: number;
   aegisArmoryEnabled?: boolean;
+  aegisPerkAnalysisEnabled?: boolean;
+  aegisCompareRecommendations?: boolean;
+  aegisOverviewRecommendations?: boolean;
+  aegisRecommendationLayout?: 'grid' | 'list';
   aegisSheetLastSync?: number;
   aegisChaseList?: Record<string, AegisChaseItem>;
 }

@@ -18,6 +18,12 @@ import { WEAPON_STAT_HASHES } from './weapon-stats';
 import { masterworkStatName } from './masterwork';
 import { COMPARE_BUCKET_SELECTOR } from './compare-selectors';
 import { getCompareItem } from './compare-item';
+import { annotateOverviewPerks } from './overview-perks';
+import { initCompareNativeTooltips } from './compare-native-tooltips';
+import { initPerkRatingTooltips } from './perk-rating-tooltips';
+
+initCompareNativeTooltips();
+initPerkRatingTooltips();
 
 interface PerkInfo {
   name: string;
@@ -785,11 +791,14 @@ function processElement(el: HTMLElement) {
     let item = findItemInFiber(fiber);
     if (!item || !item.hash) return;
     item = getCompareItem(el, item);
+    if (isPopupContainer) annotateOverviewPerks(el);
 
     // Verify that this element actually represents the item by matching the icon image src.
     // This prevents annotating mod/socket slots that climb up to the parent item in the fiber tree.
-    // Popups contain other images; inventory tiles can still show a placeholder after regrouping.
-    if (!isPopupContainer && !el.matches('.item-drag-container > .item')) {
+    // Native .item tiles use a CSS background for the weapon. Their first img
+    // can be a champion/status icon, including in Compare outside drag wrappers.
+    // Popups also contain unrelated images; neither is a reliable icon check.
+    if (!isPopupContainer && !el.matches('.item')) {
       const imgEl = el.querySelector('img');
       if (imgEl && item.icon) {
         const imgPath = imgEl.getAttribute('src') || '';
@@ -1173,7 +1182,7 @@ function flushPendingNodes() {
   }
 }
 
-const OVERLAY_SELECTOR = '.aegis-badge, .aegis-title-badge, .aegis-popup-summary, .aegis-compare-panel, [data-aegis-details], #aegis-tooltip';
+const OVERLAY_SELECTOR = '.aegis-badge, .aegis-title-badge, .aegis-popup-summary, .aegis-compare-panel, .aegis-perk-label, .aegis-perk-name-sizer, [data-aegis-compare-generated], [data-aegis-details], #aegis-tooltip';
 
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
