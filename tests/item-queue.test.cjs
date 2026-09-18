@@ -65,4 +65,21 @@ function harness(process) {
   assert.equal(h.queue.hasWork(), false);
 }
 
-console.log('Passed: visible items first, yielding, deduplication, current values, removed items, batch callbacks, and recovery after a failed item.');
+{
+  const processed = [], h = harness(item => processed.push(item.id));
+  const old = h.item('obsolete'), current = h.item('latest');
+  h.queue.add(old);
+  h.queue.clear();
+  h.queue.add(current);
+  h.drain();
+  assert.deepEqual(processed, ['latest']);
+  h.queue.add(old);
+  h.queue.add(current);
+  h.tasks.shift()(); // One item runs; supersede the unfinished slice.
+  h.queue.clear();
+  h.drain();
+  assert.deepEqual(processed, ['latest', 'obsolete']);
+  assert.equal(h.queue.hasWork(), false);
+}
+
+console.log('Passed: visible items first, yielding, deduplication, current values, cancellation, removed items, batch callbacks, and recovery after a failed item.');

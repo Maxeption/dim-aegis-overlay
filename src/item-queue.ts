@@ -59,6 +59,11 @@ export function createItemQueue(
   }
 
   return {
+    clear() {
+      pending.clear();
+      visible.clear();
+      background.clear();
+    },
     hasWork() {
       return scheduled;
     },
