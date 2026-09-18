@@ -127,6 +127,10 @@ export function recommendationStatus(anchor: HTMLElement): 'selected' | 'selecta
 }
 
 export function initPerkRatingTooltips() {
+  const host = window as Window & { __aegisPerkRatingTooltipsDispose?: () => void };
+  host.__aegisPerkRatingTooltipsDispose?.();
+  const listeners = new AbortController();
+  const listenerOptions = { signal: listeners.signal };
   let enabled = false;
   let labels = { rating: 'Aegis PvE perk rating', tier: '{tier} Tier', perks: 'Perks', origins: 'Origin Traits', selected: 'Selected', selectable: 'Selectable', missing: 'Missing' };
   let ratings: Record<number, PerkRating> = {};
@@ -168,6 +172,14 @@ export function initPerkRatingTooltips() {
     clearTooltip(); anchor = null;
   }
   function schedule() { if (!frame) frame = requestAnimationFrame(update); }
+  function adoptDecoration(current: HTMLElement | null, selector: string): HTMLElement | null {
+    const copies = [...tooltip!.querySelectorAll<HTMLElement>(selector)];
+    const retained = current && tooltip!.contains(current) ? current : copies[0] || null;
+    // DIM or another decorator can rebuild the card while copying our markup.
+    // Detached references do not mean that the decoration is absent from the DOM.
+    for (const copy of copies) if (copy !== retained) copy.remove();
+    return retained;
+  }
   function update() {
     frame = 0;
     const status = anchor && recommendationStatus(anchor);
@@ -179,6 +191,9 @@ export function initPerkRatingTooltips() {
       if (!tooltip) return;
       arrowAlignment = alignPerkTooltipArrow(tooltip, anchor);
     }
+    panel = adoptDecoration(panel, '.aegis-compare-rating-panel');
+    statusLabel = adoptDecoration(statusLabel, '.aegis-perk-tooltip-status');
+    signature = panel?.getAttribute('data-aegis-rating-signature') || '';
     const trait = tooltip.querySelector<HTMLElement>('h3 > div > span:first-child, h3 > span:first-child');
     if (status && trait) {
       if (!statusLabel) { statusLabel = document.createElement('span'); statusLabel.className = 'aegis-perk-tooltip-status'; }
@@ -198,6 +213,7 @@ export function initPerkRatingTooltips() {
       if (!/^[SABCDEF][+-]?$/.test(rating.tier) || !Number.isInteger(rating.rank) || rating.rank < 1) { stop(); return; }
       panel?.remove(); panel = document.createElement('section');
       panel.className = 'aegis-compare-rating-panel';
+      panel.setAttribute('data-aegis-rating-signature', nextSignature);
       panel.setAttribute('aria-label', labels.rating);
       const heading = document.createElement('div'); heading.className = 'aegis-compare-rating-heading';
       const source = document.createElement('strong'); source.textContent = 'Aegis PvE';
@@ -243,22 +259,29 @@ export function initPerkRatingTooltips() {
     } catch { enabled = false; ratings = {}; }
     if (anchor) schedule();
   }
-  document.addEventListener('aegis-perk-analysis-updated', readData);
+  const dispose = () => {
+    listeners.abort();
+    stop();
+    if (host.__aegisPerkRatingTooltipsDispose === dispose) delete host.__aegisPerkRatingTooltipsDispose;
+  };
+  host.__aegisPerkRatingTooltipsDispose = dispose;
+  document.addEventListener('aegis-perk-analysis-updated', readData, listenerOptions);
   readData();
-  document.addEventListener('pointerover', enter);
-  document.addEventListener('pointerdown', enter);
-  document.addEventListener('focusin', enter);
-  document.addEventListener('pointerout', leave);
-  document.addEventListener('focusout', leave);
-  document.addEventListener('pointercancel', stop);
-  document.addEventListener('pointerup', event => { if (event.pointerType === 'touch') stop(); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') stop(); });
-  document.addEventListener('scroll', stop, true);
+  document.addEventListener('pointerover', enter, listenerOptions);
+  document.addEventListener('pointerdown', enter, listenerOptions);
+  document.addEventListener('focusin', enter, listenerOptions);
+  document.addEventListener('pointerout', leave, listenerOptions);
+  document.addEventListener('focusout', leave, listenerOptions);
+  document.addEventListener('pointercancel', stop, listenerOptions);
+  document.addEventListener('pointerup', event => { if (event.pointerType === 'touch') stop(); }, listenerOptions);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') stop(); }, listenerOptions);
+  document.addEventListener('scroll', stop, { ...listenerOptions, capture: true });
   document.addEventListener('aegis-compare-tooltips-hide', () => {
     if (anchor?.closest('[data-aegis-compare-slot]')) stop();
-  });
-  window.addEventListener('resize', stop);
+  }, listenerOptions);
+  window.addEventListener('resize', stop, listenerOptions);
   document.addEventListener('aegis-popup-layer-changed', () => {
     if (anchor?.closest('[data-aegis-covered-by-armory]')) stop();
-  });
+  }, listenerOptions);
+  return dispose;
 }
