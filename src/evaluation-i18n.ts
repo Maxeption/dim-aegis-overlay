@@ -161,6 +161,12 @@ export function getOriginalEvaluationText(
   return originalEvaluationText.get(weapon)?.[field] ?? weapon[field] ?? '';
 }
 
+/** Use the same source-text keys and fallback as weapon evaluations. */
+export async function translateEvaluationText(source: string, bundle: EvaluationLocaleBundle | null): Promise<string> {
+  if (!source || !bundle) return source;
+  return bundle.entries[await sourceTextHash(source)] || source;
+}
+
 export async function applyEvaluationLocale(
   database: AegisSheetDatabase | null,
   bundle: EvaluationLocaleBundle | null,
@@ -176,8 +182,7 @@ export async function applyEvaluationLocale(
   if (!database && (!shoppingDbs || shoppingDbs.length === 0)) return;
 
   const translate = async (source: string): Promise<string> => {
-    if (!source || !bundle) return source;
-    return bundle.entries[await sourceTextHash(source)] || source;
+    return translateEvaluationText(source, bundle);
   };
 
   const weapons = database ? databaseWeapons(database) : [];

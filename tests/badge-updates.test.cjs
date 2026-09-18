@@ -15,6 +15,7 @@ const listener = badgeListeners[0].getText(sourceFile);
 const queue = fs.readFileSync('src/item-queue.ts', 'utf8').replace('export function', 'function');
 let onChanged, rescores = 0, now = 0, next = 0;
 const timers = new Map(), renders = [];
+const rootStyles = new Map();
 const items = Array.from({length: 120}, (_, id) => ({id, isConnected:true,
   getBoundingClientRect: () => ({top:0,bottom:60,left:0,right:60,width:60,height:60})}));
 const ctx = vm.createContext({
@@ -23,7 +24,8 @@ const ctx = vm.createContext({
   requestAnimationFrame: fn => {timers.set(++next,fn); return next;},
   performance:{now:()=>now}, innerWidth:800, innerHeight:600,
   chrome:{storage:{onChanged:{addListener:fn=>{onChanged=fn;}}}},
-  document:{querySelectorAll:()=>items,querySelector:()=>null},
+  document:{querySelectorAll:()=>items,querySelector:()=>null,
+    documentElement:{style:{setProperty:(key,value)=>rootStyles.set(key,value)}}},
   reprocessAllElements:()=>rescores++, scheduleOpacityUpdate:()=>{},
   aegisBadgeStyle:'classic', aegisBadgePosition:'bottom-left', aegisFadeHover:false,
   injectBadge:(item,result)=>{now+=2;renders.push([item.id,ctx.aegisBadgeStyle,result.grade]);},
@@ -51,6 +53,11 @@ assert.equal(renders.length-previous,120);
 assert.ok(renders.slice(previous).every(([,style])=>style==='notch'),'Old choices never replay');
 onChanged({aegisGradeDisplayMode:{newValue:'potential'}},'local');
 assert.equal(rescores,1,'Changes affecting the grade retain the full scoring path');
+for (const mode of ['equipped','dual','potential']) {
+  onChanged({aegisGradeDisplayMode:{newValue:mode}},'local');
+  assert.equal(rootStyles.get('--aegis-split-footer-height'),mode==='dual'?'25px':'16px');
+}
+assert.equal(rescores,4,'Every grade mode change retains the scoring path');
 console.log('Passed: 50 rapid style choices coalesce, cached grades reused, short slices, unfinished choices cancelled, grading changes preserved.');
 
 // Both settings must reach the inventory on every input event, before release.

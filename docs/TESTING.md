@@ -9,8 +9,8 @@ npm test
 npm run build
 ```
 
-`npm test` runs unit checks followed by all four browser suites: Compare/Overview,
-Bottom Strip, the version pill, and perk-tooltip geometry. Browser fixtures run
+`npm test` runs unit checks followed by browser suites for Compare/Overview,
+Bottom Strip, popup layers, the version pill, and perk-tooltip geometry. Browser fixtures run
 offline and close their browser processes on success or failure. They do not use
 your normal browser profile or require a fixed local port.
 
@@ -52,11 +52,39 @@ or Zen and Chromium, both with and without DIMSUM:
   Applying it is not necessary for a UI test.
 - Hover and focus owned and missing perks, including near viewport edges. Check
   the first visible frame, arrow alignment, late content, Escape, and scrolling.
-- Change language while the analysis feature is enabled. Spreadsheet commentary
-  remains source text; interface labels should use the selected language.
+- Change language while the analysis feature is enabled. Analyses with bundled
+  translations and interface labels should use the selected language. Missing
+  analysis translations should retain the source text.
 - Drag both badge sliders, switch badge styles rapidly, search, and scroll a large
   vault. Check for missing, duplicate, stale, or incorrectly dimmed badges.
 - Toggle DIMSUM's stats bar and check Bottom Strip spacing.
+
+## Review transitions and shared state
+
+When reviewing a UI change, inspect the live DIM structure before assuming that
+navigation removes a component. DIM can retain Overview underneath Armory. A
+connected element can still belong to an inactive layer.
+
+- Open Armory through the item-name text, the rest of the header button, and the
+  keyboard shortcut. Confirm that the underlying sidebar and tooltips disappear,
+  Armory's own analysis remains visible, and closing Armory restores Overview.
+- Open a new item popup from Armory. Confirm that its own overlays remain visible
+  above the older Armory layer. Test with Aegis Armory enhancements disabled too.
+- Close, cover, or replace a view while timers, animation frames, locale requests,
+  and resize callbacks are pending. Let that work finish and check for restored
+  cards, stale content, incorrect positioning, and writes to a newer view.
+- Change activity, layout, recommendation settings, and item selection with a
+  tooltip open. Include items that lack recommendations for one activity.
+- Check that Compare previews remain isolated from inventory grades, shopping
+  results, and cached selections, including when a preview opens another popup.
+- Check dimensions after content arrives and after it shrinks, including at
+  supported zoom and text sizes. Confirm that native positioning and styling are
+  restored when the feature is disabled.
+
+Turn confirmed failures into regression tests using the observed ownership and
+layer structure. A fixture that removes a popup cannot validate cleanup for a
+popup that DIM actually retains. Run the corresponding live transition after
+the fix; report fixture coverage separately from live verification.
 
 ## Builds and packaging
 

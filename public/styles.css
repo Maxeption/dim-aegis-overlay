@@ -5588,15 +5588,32 @@ button:has(> .aegis-popup-summary) {
      below the native icon/power label without sizing the tile from its
      lazily loaded children. Current/potential grades use the same strip height.
      The badge's zoom scales its box; reserve that scaled height on the tile
-     without measuring children or changing DIM's containment. */
+     without changing DIM's containment. Dual grades reserve their measured height. */
   box-sizing: content-box !important;
   padding-bottom: calc(var(--aegis-footer-height) * var(--aegis-badge-size, 1)) !important;
 }
 
-/* Only the two side-by-side PvE/PvP columns need room for wrapped grades. */
+/* Only Both + Dual needs extra room for equipped-to-potential grades. */
 .item:has(> .aegis-style-footer.aegis-badge-split),
 .aegis-badge.aegis-style-footer.aegis-badge-split {
-  --aegis-footer-height: 25px;
+  --aegis-footer-height: var(--aegis-split-footer-height, 16px);
+}
+
+.item:has(> .aegis-style-footer.aegis-badge-split[data-aegis-adaptive-footer]) {
+  --aegis-footer-height: var(--aegis-measured-footer-height, 25px);
+}
+
+.item > .aegis-badge.aegis-style-footer[data-aegis-adaptive-footer] {
+  height: auto !important;
+  min-height: 25px !important;
+}
+
+.aegis-style-footer[data-aegis-adaptive-footer] .aegis-grade-text {
+  text-box: normal;
+}
+
+.aegis-badge.aegis-style-footer[data-aegis-adaptive-footer] .aegis-split-half {
+  line-height: normal !important;
 }
 
 .item:has(> .aegis-style-footer.aegis-color-only),
@@ -5859,25 +5876,18 @@ button:has(> .aegis-popup-summary) {
 
 /* Extend native Compare sockets without moving React-owned nodes. */
 [data-aegis-compare-layout="list"] { grid-auto-columns: max-content 1px !important; }
-[data-aegis-compare-slot] { display: flex; flex-direction: column; }
-.aegis-overview-panel { position: static; width: auto; padding: 8px 10px 4px; gap: 4px 8px; font-size: 10px; }
-[data-aegis-overview-grid] { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 8px 10px !important; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot] { align-items: center; padding: 0 !important; border: 0 !important; min-width: 0; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot="barrel"] { order: 0; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot="mag"] { order: 1; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot="perk1"] { order: 2; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot="perk2"] { order: 3; }
-[data-aegis-overview-grid] > [data-aegis-compare-slot="origin"] { order: 4; }
-[data-aegis-overview-grid] [data-aegis-compare-state] { width: 40px; max-width: 100%; min-height: 0; margin: 0 !important; padding: 0 !important; }
-[data-aegis-overview-grid] [data-aegis-compare-state] > div:not(:has(svg)) { display: none; }
-[data-aegis-overview-grid] > button { display: none; }
+[data-aegis-compare-layout] [data-aegis-compare-slot] { display: flex; flex-direction: column; }
+.aegis-overview-panel { position: static; width: auto; min-height: 40px; box-sizing: border-box; padding: 8px 44px 8px 10px; gap: 4px 8px; font-size: 10px; }
+[data-aegis-overview-controls] { position: relative; }
+/* Keep the React-owned button in place while aligning it with the header. */
+[data-aegis-overview-layout-button] { position: absolute !important; right: 10px !important; top: calc((var(--aegis-overview-header-height) + 24px) / -2) !important; }
+[data-aegis-overview-resizable] { min-width: var(--aegis-overview-required-width); }
 .aegis-perk-label, .aegis-perk-name-sizer { display: none; }
-.aegis-perk-layout-controls { display: inline-flex; gap: 2px; }
-:has(> [data-aegis-overview-grid]) > button[title] { display: none; }
+/* Keep DIM's layout button in the Compare header's normal flow. */
+button.aegis-perk-layout-toggle { position: static; flex-shrink: 0; }
 /* Reserve the longest selectable name while keeping a compact gap to the bubbles. */
 [data-aegis-perk-layout="list"] { display: grid !important; grid-template-columns: max-content repeat(var(--aegis-perk-columns, 1), 28px) !important; gap: 6px 4px !important; }
-[data-aegis-compare-layout="list"] [data-aegis-perks-header] { align-self: start; align-items: center !important; box-sizing: border-box; height: 40px; }
-[data-aegis-overview-grid][data-aegis-perk-layout="list"] { overflow-x: auto; }
+[data-aegis-perks-header] { display: flex; flex-direction: column; align-self: start; align-items: flex-start !important; justify-content: flex-start !important; box-sizing: border-box; gap: 8px; }
 [data-aegis-perk-layout="list"] > [data-aegis-compare-slot] {
   display: grid !important; grid-column: 1 / -1; grid-template-columns: subgrid;
   grid-template-rows: 32px; gap: 4px; align-items: center; justify-items: start;
@@ -5923,3 +5933,66 @@ button:has(> .aegis-popup-summary) {
 .aegis-compare-tooltip-mount { position: absolute; inset: 0; pointer-events: none; }
 [data-aegis-compare-generated]:focus-visible { outline: 2px solid var(--aegis-compare-outline); outline-offset: 2px; border-radius: 50%; }
 [data-aegis-compare-legend]::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; border: 1px solid var(--aegis-compare-outline); background: var(--aegis-compare-fill); }
+
+/* Overview uses DIM's grid and the same compact list as Compare. */
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] { overflow-x: auto; padding: 8px 10px; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] > [data-aegis-compare-slot="barrel"] { order: 0; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] > [data-aegis-compare-slot="mag"] { order: 1; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] > [data-aegis-compare-slot="perk1"] { order: 2; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] > [data-aegis-compare-slot="perk2"] { order: 3; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] > [data-aegis-compare-slot="origin"] { order: 4; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] [data-aegis-compare-state] > div:not(:has(svg)) { display: none; }
+[data-aegis-overview-grid][data-aegis-perk-layout="list"] [data-aegis-compare-state] > div:has(svg) { padding: 0; }
+
+/* Overview already shows perk recommendations; retain the rest of its details card. */
+.aegis-details-analysis-title { display: none; }
+.item-popup[data-aegis-covered-by-armory] .aegis-popup-details-card:not(.aegis-armory-details-card) {
+  display: none !important;
+}
+[data-aegis-overview-recommendations] .item-popup[data-aegis-overview-enhanced] .aegis-popup-details-card:not(.aegis-armory-details-card) .aegis-details-perk-recommendations,
+[data-aegis-overview-recommendations] .item-popup[data-aegis-overview-enhanced] .aegis-popup-details-card:not(.aegis-armory-details-card) .aegis-details-masterwork-recommendations,
+[data-aegis-overview-recommendations] .item-popup[data-aegis-overview-enhanced] .aegis-popup-details-card:not(.aegis-armory-details-card) .aegis-details-recommendation-title { display: none !important; }
+[data-aegis-overview-recommendations] .item-popup[data-aegis-overview-enhanced] .aegis-popup-details-card:not(.aegis-armory-details-card) .aegis-details-analysis-title { display: inline; }
+
+.aegis-masterwork-recommendations { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; padding: 6px 10px; font-size: 11px; }
+.aegis-masterwork-chip { font-weight: 800; letter-spacing: .3px; padding: 2px 6px; border: 1px dashed rgba(255, 191, 0, .4); border-radius: 4px; color: #ebcb8b; background: rgba(255, 191, 0, .05); white-space: nowrap; }
+.aegis-masterwork-matched {
+  border: 1.5px solid #ffd700; color: #fff;
+  background: linear-gradient(135deg, rgba(255, 215, 0, .38), rgba(255, 140, 0, .28));
+  text-shadow: 0 0 6px rgba(255, 215, 0, .8);
+  box-shadow: 0 0 10px rgba(255, 191, 0, .65);
+}
+[data-aegis-masterwork-cell] { display: flex !important; flex-direction: column; align-items: flex-start; gap: 8px; }
+[data-aegis-masterwork-cell] > .aegis-masterwork-recommendations {
+  padding: 0; flex-wrap: nowrap;
+}
+
+/* Match the options menu's sliding selection marker. */
+.aegis-compare-context { position: relative; display: inline-flex; gap: 0; isolation: isolate; }
+.aegis-compare-context::before {
+  content: ''; position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 2);
+  box-sizing: border-box; border: 1px solid #705023; border-radius: 4px; background: #332918;
+  pointer-events: none; z-index: -1; transition: transform 150ms cubic-bezier(.2, .8, .2, 1);
+}
+.aegis-compare-context[data-context="pvp"]::before { transform: translateX(100%); }
+.aegis-compare-panel .aegis-compare-context button { flex: 1; padding: 4px 10px; color: #88888d; font-size: 10px; font-weight: 700; }
+.aegis-compare-panel .aegis-compare-context button[aria-pressed="true"] { background: transparent; color: #ffb300; }
+.aegis-compare-panel .aegis-compare-context button:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .aegis-compare-context::before { transition: none; } }
+
+.aegis-compare-panel strong { text-transform: uppercase; }
+.aegis-perk-tooltip-status { white-space: nowrap; }
+.aegis-perk-tooltip-status::before { content: ' · '; color: #8f8f94; }
+.aegis-perk-tooltip-status[data-status="selected"] { color: #2ecc71; }
+.aegis-perk-tooltip-status[data-status="selectable"] { color: #80bfff; }
+.aegis-perk-tooltip-status[data-status="missing"] { color: #ff9aa8; }
+
+.aegis-compare-panel:not(.aegis-overview-panel) { position: static; padding: 0; max-width: none; }
+.aegis-compare-panel:empty { display: none; }
+.aegis-overview-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; }
+.aegis-overview-footer > .aegis-masterwork-recommendations { padding: 0; }
+.aegis-overview-footer > .aegis-compare-context { margin-left: auto; flex-shrink: 0; }
+.aegis-overview-footer:empty { display: none; }
+.aegis-overview-footer .aegis-compare-context button { padding: 4px 10px; }
+.aegis-overview-footer .aegis-compare-context button[aria-pressed="true"] { background: transparent; color: #ffb300; }
+.aegis-overview-footer .aegis-compare-context button:focus-visible { outline: 2px solid #efbf51; outline-offset: -2px; }

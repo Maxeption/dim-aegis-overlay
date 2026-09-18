@@ -118,14 +118,23 @@ export function alignPerkTooltipArrow(tooltip: HTMLElement, anchor: HTMLElement)
   };
 }
 
+/** Recommendation status belongs to the hovered bubble, never to the perk globally. */
+export function recommendationStatus(anchor: HTMLElement): 'selected' | 'selectable' | 'missing' | undefined {
+  const bubble = anchor.closest<HTMLElement>('[data-aegis-compare-state]');
+  if (!bubble?.closest('[data-aegis-compare-slot]') || bubble.dataset.aegisCompareState === 'other') return;
+  if (bubble.hasAttribute('data-aegis-compare-selected')) return 'selected';
+  return bubble.dataset.aegisCompareState === 'missing' ? 'missing' : 'selectable';
+}
+
 export function initPerkRatingTooltips() {
   let enabled = false;
-  let labels = { rating: 'Aegis PvE perk rating', tier: '{tier} Tier', perks: 'Perks', origins: 'Origin Traits' };
+  let labels = { rating: 'Aegis PvE perk rating', tier: '{tier} Tier', perks: 'Perks', origins: 'Origin Traits', selected: 'Selected', selectable: 'Selectable', missing: 'Missing' };
   let ratings: Record<number, PerkRating> = {};
   let activeHash = 0;
   let anchor: HTMLElement | null = null;
   let tooltip: HTMLElement | null = null;
   let panel: HTMLElement | null = null;
+  let statusLabel: HTMLElement | null = null;
   let frame = 0;
   let arrowAlignment: ReturnType<typeof alignPerkTooltipArrow> | undefined;
   let positioning: ReturnType<typeof createPerkTooltipPositioning> | undefined;
@@ -137,7 +146,7 @@ export function initPerkRatingTooltips() {
       // cross-axis writes must not start a competing positioning pass.
       if (record.type === 'attributes' && record.target === tooltip?.lastElementChild) return false;
       return (
-      record.target === anchor || record.target === tooltip || tooltip?.contains(record.target) ||
+      (record.target instanceof Element && record.target.contains(anchor)) || record.target === tooltip || tooltip?.contains(record.target) ||
       (!tooltip && (record.type === 'childList' || record.attributeName === 'data-popper-placement'))
       );
     })) {
@@ -151,6 +160,7 @@ export function initPerkRatingTooltips() {
     arrowAlignment?.destroy(); arrowAlignment = undefined;
     positioning?.destroy(); positioning = undefined;
     panel?.remove(); panel = null;
+    statusLabel?.remove(); statusLabel = null;
     tooltip = null; signature = '';
   }
   function stop() {
@@ -160,17 +170,29 @@ export function initPerkRatingTooltips() {
   function schedule() { if (!frame) frame = requestAnimationFrame(update); }
   function update() {
     frame = 0;
-    if (!enabled || !anchor?.isConnected || !ratings[activeHash]) { stop(); return; }
+    const status = anchor && recommendationStatus(anchor);
+    if (!anchor?.isConnected || anchor.closest('[data-aegis-covered-by-armory]') || (!status && (!enabled || !ratings[activeHash]))) { stop(); return; }
     if (!tooltip?.isConnected) {
       clearTooltip();
       tooltip = [...document.querySelectorAll<HTMLElement>('[data-popper-placement]')]
-        .find(node => tooltipBelongsTo(node, anchor!)) || null;
+        .find(node => tooltipBelongsTo(node, anchor!) || (node.hasAttribute('data-aegis-compare-native-tooltip') && node.id && (anchor!.getAttribute('aria-describedby') || '').split(' ').includes(node.id))) || null;
       if (!tooltip) return;
       arrowAlignment = alignPerkTooltipArrow(tooltip, anchor);
     }
-    const data = JSON.stringify(ratings[activeHash]);
+    const trait = tooltip.querySelector<HTMLElement>('h3 > div > span:first-child, h3 > span:first-child');
+    if (status && trait) {
+      if (!statusLabel) { statusLabel = document.createElement('span'); statusLabel.className = 'aegis-perk-tooltip-status'; }
+      if (statusLabel.dataset.status !== status) statusLabel.dataset.status = status;
+      if (statusLabel.textContent !== labels[status]) statusLabel.textContent = labels[status];
+      if (statusLabel.parentElement !== trait) trait.append(statusLabel);
+    } else { statusLabel?.remove(); statusLabel = null; }
+    const rating = enabled ? ratings[activeHash] : undefined;
+    const validRating = rating && /^[SABCDEF][+-]?$/.test(rating.tier) && Number.isInteger(rating.rank) && rating.rank >= 1;
+    if (!validRating) { panel?.remove(); panel = null; signature = ''; }
+    const data = JSON.stringify(rating);
+
     const nextSignature = data + JSON.stringify(labels);
-    if (!panel?.isConnected || signature !== nextSignature) {
+    if (validRating && (!panel?.isConnected || signature !== nextSignature)) {
       let rating: PerkRating;
       try { rating = JSON.parse(data); } catch { stop(); return; }
       if (!/^[SABCDEF][+-]?$/.test(rating.tier) || !Number.isInteger(rating.rank) || rating.rank < 1) { stop(); return; }
@@ -191,20 +213,20 @@ export function initPerkRatingTooltips() {
     }
     // DIM may mount its customized header after the tooltip's first render.
     const header = tooltip.querySelector('h2')?.parentElement;
-    if (header?.parentElement === tooltip && header.nextElementSibling !== panel) header.after(panel!);
+    if (panel && header?.parentElement === tooltip && header.nextElementSibling !== panel) header.after(panel);
     // The native initial measurement precedes ratings and Community Insight.
     // Recompute the whole card and arrow together; never translate over its owner.
     if (!positioning) positioning = createPerkTooltipPositioning(tooltip, anchor, () => arrowAlignment?.update());
     else positioning.update();
   }
   function enter(event: Event) {
-    if (!enabled || !(event.target instanceof Element)) return;
+    if (!(event.target instanceof Element)) return;
     let next;
     try { next = findPerkTooltipAnchor(event.target); } catch { return; }
-    if (!next || !ratings[next.hash] || (next.anchor === anchor && next.hash === activeHash)) return;
+    if (!next || (!recommendationStatus(next.anchor) && (!enabled || !ratings[next.hash])) || (next.anchor === anchor && next.hash === activeHash)) return;
     stop(); anchor = next.anchor; activeHash = next.hash;
     observer.observe(document.body, { subtree: true, childList: true, attributes: true,
-      attributeFilter: ['data-popper-placement', 'style'] });
+      attributeFilter: ['data-popper-placement', 'style', 'data-aegis-compare-state', 'data-aegis-compare-selected', 'data-aegis-compare-slot'] });
     update();
   }
   function leave(event: Event) {
@@ -219,7 +241,7 @@ export function initPerkRatingTooltips() {
       }
       enabled = data.enabled === true; ratings = data.byHash || {};
     } catch { enabled = false; ratings = {}; }
-    if (!enabled) stop(); else if (anchor) schedule();
+    if (anchor) schedule();
   }
   document.addEventListener('aegis-perk-analysis-updated', readData);
   readData();
@@ -236,4 +258,7 @@ export function initPerkRatingTooltips() {
     if (anchor?.closest('[data-aegis-compare-slot]')) stop();
   });
   window.addEventListener('resize', stop);
+  document.addEventListener('aegis-popup-layer-changed', () => {
+    if (anchor?.closest('[data-aegis-covered-by-armory]')) stop();
+  });
 }

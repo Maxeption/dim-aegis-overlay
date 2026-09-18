@@ -115,6 +115,47 @@ const audit = process.env.DIM_AUDIT_ROOT || path.join(__dirname, 'fixtures/dim')
         await page.evaluate(() => { document.querySelector('#arrow').style.top='37px'; alignment.destroy(); });
         assert.equal(await page.locator('#arrow').evaluate(n => n.style.top), '37px', 'cleanup does not undo a newer DIM write');
       }
+      // Status headers remain independent of the optional rating panel.
+      await page.evaluate(() => {
+        document.querySelector('#owner').dispatchEvent(new PointerEvent('pointerout', { bubbles:true }));
+        document.body.innerHTML = '<div data-aegis-compare-slot="mag"><div id="status-owner" data-aegis-compare-state="selectable" style="position:fixed;left:200px;top:200px;width:32px;height:32px"></div></div><div id="status-tip" data-popper-placement="right" style="position:fixed;left:250px;top:200px;width:200px"><div><h2>Example</h2><h3><div><span id="trait">Magazine</span></div></h3></div><p>Native description</p></div><script id="aegis-perk-analysis-data" type="application/json">{"enabled":false,"byHash":{}}</script>';
+        const owner=document.querySelector('#status-owner'),tip=document.querySelector('#status-tip');
+        const control={memoizedProps:{open:true,triggerRef:{current:owner},tooltip:{props:{plug:{plugDef:{hash:42,plug:{}}}}}}};
+        owner.__reactFiber$status={return:control};tip.__reactFiber$status={return:control};
+        document.dispatchEvent(new Event('aegis-perk-analysis-updated'));
+        owner.dispatchEvent(new PointerEvent('pointerover',{bubbles:true}));
+      });
+      await page.waitForSelector('.aegis-perk-tooltip-status');
+      assert.equal(await page.locator('#trait').textContent(), 'MagazineSelectable');
+      assert.equal(await page.locator('.aegis-compare-rating-panel').count(), 0);
+      await page.evaluate(() => {
+        const owner=document.querySelector('#status-owner');
+        owner.parentElement.setAttribute('data-aegis-covered-by-armory','');
+        document.dispatchEvent(new Event('aegis-popup-layer-changed'));
+      });
+      assert.equal(await page.locator('.aegis-perk-tooltip-status').count(),0,'Covered Overview removes tooltip decoration even while the owner remains mounted');
+      await page.evaluate(() => {
+        const owner=document.querySelector('#status-owner');
+        owner.parentElement.removeAttribute('data-aegis-covered-by-armory');
+        owner.dispatchEvent(new PointerEvent('pointerover',{bubbles:true}));
+      });
+      await page.waitForSelector('.aegis-perk-tooltip-status');
+      assert.equal(await page.locator('.aegis-perk-tooltip-status').evaluate(n=>getComputedStyle(n,'::before').color), 'rgb(143, 143, 148)');
+      for(const [state,selected,label,color] of [['active',true,'Selected','rgb(46, 204, 113)'],['missing',false,'Missing','rgb(255, 154, 168)'],['selectable',false,'Selectable','rgb(128, 191, 255)']]) {
+        await page.evaluate(({state,selected})=>{const owner=document.querySelector('#status-owner');owner.dataset.aegisCompareState=state;owner.toggleAttribute('data-aegis-compare-selected',selected);},{state,selected});
+        await page.waitForFunction(label=>document.querySelector('.aegis-perk-tooltip-status')?.textContent===label,label);
+        assert.equal(await page.locator('.aegis-perk-tooltip-status').evaluate(n=>getComputedStyle(n).color),color);
+      }
+      for(const selected of [false,true]) {
+        await page.evaluate(selected=>{const owner=document.querySelector('#status-owner');owner.dataset.aegisCompareState='other';owner.toggleAttribute('data-aegis-compare-selected',selected);owner.dispatchEvent(new PointerEvent('pointerout',{bubbles:true}));owner.dispatchEvent(new PointerEvent('pointerover',{bubbles:true}));},selected);
+        await page.waitForFunction(()=>!document.querySelector('.aegis-perk-tooltip-status'));
+        assert.equal(await page.locator('#trait').textContent(),'Magazine','Gray perks have no status, including selected perks');
+      }
+      await page.evaluate(()=>document.querySelector('#status-owner').removeAttribute('data-aegis-compare-state'));
+      await page.waitForFunction(()=>!document.querySelector('.aegis-perk-tooltip-status'));
+      assert.equal(await page.locator('#trait').textContent(), 'Magazine', 'Disabling recommendations restores the native header');
+      await page.evaluate(()=>{const owner=document.querySelector('#status-owner');owner.dispatchEvent(new PointerEvent('pointerout',{bubbles:true}));owner.dispatchEvent(new PointerEvent('pointerover',{bubbles:true}));});
+      assert.equal(await page.locator('.aegis-perk-tooltip-status').count(),0,'Ordinary DIM perks have no recommendation status');
       assert.deepEqual(errors, []);
       console.log(`PASS: ${channel} native CSS; nonoverlapping rated cards, late content, native reposition, moving owner, edges, oversized card, all four arrows and cleanup.`);
       await page.close();

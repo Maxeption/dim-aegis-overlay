@@ -77,9 +77,11 @@ recommendations, and gray for other owned perks. Solid outlines identify selecte
 perks; dashed outlines identify unselected perks. Recommendations follow Aegis
 order or your **Owned Perks First** preference.
 
-Choose **Grid** for icons or **List** for selected names beside the icons. List
-columns reserve space for the longest selectable name so changing a selection
-does not shift the columns. The layout preference is shared with Overview.
+Use the layout button beside **Show in Organizer** to switch Compare between
+grid and list layouts. List columns reserve space for the longest selectable
+name so changing a selection does not shift the columns. Overview retains DIM's
+native grid spacing, separators, and layout button. Its list view uses the same
+compact names and bubbles as Compare, following DIM's saved layout preference.
 
 Under **Analysis > Perk Analysis**, Compare recommendations are enabled by default;
 Overview recommendations are optional and disabled by default. Both require a
@@ -98,8 +100,9 @@ information, including when weapon recommendations are set to PvP.
 
 Disable **Show Aegis PvE analysis in Perk tooltip** to keep only DIM's native
 tooltip content. Ratings are cached locally; failed refreshes retain the last
-downloaded data. Interface labels follow your selected language. Spreadsheet
-commentary remains in its original language.
+downloaded data. Interface labels follow your selected language. Perk and origin-trait
+analyses use the same translation bundles as weapon analyses, including bundled
+Korean translations. Missing translations fall back to the spreadsheet text.
 
 ###  2-Tier Weapon Grading System
 Optionally enable **2-Tier Badge Mode** in your settings to display both the archetype meta viability and the specific roll quality at a glance:

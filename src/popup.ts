@@ -1,4 +1,5 @@
 import { refreshOptionDescriptions } from './compact-options';
+import { resolveActivityMode } from './activity-mode';
 import { updateOptionsPreview, renderOptionsPreview } from './options-preview';
 import { refreshOptionHighlights, revealOption } from './options-motion';
 import { initGradeSettings } from './grade-settings';
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set Aegis Mode (PvE vs PvP) segmented control
-        const aegisModeVal = res.aegisMode || 'pve';
+        const aegisModeVal = resolveActivityMode(sourceVal, res.aegisMode);
         const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
         if (aegisModeSegmented) {
           aegisModeSegmented.querySelectorAll('button').forEach(btn => {
@@ -362,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Set Aegis Grade Display Mode segmented control (equipped, dual, potential)
         const gradeDisplayVal = res.aegisGradeDisplayMode || 'equipped';
+        document.documentElement.style.setProperty('--aegis-split-footer-height', gradeDisplayVal === 'dual' ? '25px' : '16px');
         const gradeDisplaySegmented = document.getElementById('aegis-grade-display-segmented');
         if (gradeDisplaySegmented) {
           gradeDisplaySegmented.querySelectorAll('button').forEach(btn => {
@@ -612,13 +614,6 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               if (activeShoppingDb) {
                 updateObj.aegisShoppingDb = activeShoppingDb;
-              }
-
-              // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
-              if (val === 'both') {
-                updateObj.aegisTooltipWidthMode = 'auto';
-              } else {
-                updateObj.aegisTooltipWidthMode = 'fixed';
               }
 
               chrome.storage.local.set(updateObj, () => {

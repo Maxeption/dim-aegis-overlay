@@ -71,7 +71,6 @@ export function initCompareNativeTooltips() {
   let root: HostValue;
   let mount: HTMLElement | null = null;
   let timer = 0;
-  let title: string | null = null;
   let describedBy: string | null = null;
   let hash = '';
   let sequence = 0;
@@ -92,17 +91,16 @@ export function initCompareNativeTooltips() {
     if (previous) {
       previous.removeAttribute('data-aegis-compare-tooltip-open');
       if (describedBy === null) previous.removeAttribute('aria-describedby'); else previous.setAttribute('aria-describedby', describedBy);
-      if (title !== null && previous.dataset.aegisComparePerkHash === hash) previous.setAttribute('title', title);
     }
   }
 
   function show(anchor: HTMLElement) {
     hide();
-    if (!anchor.isConnected || !anchor.closest('[data-aegis-compare-slot]')) return;
+    if (!anchor.isConnected || !anchor.closest('[data-aegis-compare-slot]') || anchor.closest('[data-aegis-covered-by-armory]')) return;
     try {
       runtime ||= discoverTooltipRuntime(window as unknown as Record<string, HostValue>);
       const context = runtime && nativeContext(anchor);
-      if (!runtime || !context) return; // Retain the accessible name/title fallback.
+      if (!runtime || !context) return; // Retain the accessible name if DIM cannot render a rich tooltip.
       const state = context.providerProps.store.getState();
       const definition = state.manifest.d2Manifest?.InventoryItem.get(Number(anchor.dataset.aegisComparePerkHash));
       if (!definition?.plug) return;
@@ -115,7 +113,7 @@ export function initCompareNativeTooltips() {
       const preview = prepareMissingPlug(item, context.socket.socketIndex, definition, state, runtime.overrideSockets);
       if (!preview) return;
       active = anchor; hash = anchor.dataset.aegisComparePerkHash!;
-      title = anchor.getAttribute('title'); describedBy = anchor.getAttribute('aria-describedby');
+      describedBy = anchor.getAttribute('aria-describedby');
       anchor.setAttribute('data-aegis-compare-tooltip-open', ''); anchor.removeAttribute('title');
       mount = document.createElement('span'); mount.className = 'aegis-compare-tooltip-mount'; anchor.append(mount);
       const { react } = runtime;
@@ -182,4 +180,7 @@ export function initCompareNativeTooltips() {
   document.addEventListener('scroll', hide, true);
   window.addEventListener('resize', hide);
   document.addEventListener('aegis-compare-tooltips-hide', hide);
+  document.addEventListener('aegis-popup-layer-changed', () => {
+    if (active?.closest('[data-aegis-covered-by-armory]')) hide();
+  });
 }
