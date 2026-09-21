@@ -22,7 +22,7 @@ function colorGrade(text: string): string {
   return badgeColor === 'archetype' ? twoTierGrades(text)?.[0] || displayGrade(text) : displayGrade(text);
 }
 export function resolveTileGlow(value: unknown, legacy?: boolean): TileGlow {
-  return value === 'archetype' || value === 'perk' || value === 'max' ? value : legacy === true ? 'max' : 'archetype';
+  return value === 'off' || value === 'archetype' || value === 'perk' || value === 'max' ? value : legacy === true ? 'max' : 'archetype';
 }
 export function setTileGlow(value: TileGlow) { tileGlow = value; }
 
@@ -105,6 +105,7 @@ export function hasMaxTierGrade(text: string): boolean {
 }
 
 export function shouldGlow(text: string, mode: TileGlow): boolean {
+  if (mode === 'off') return false;
   if (mode === 'max') return hasMaxTierGrade(text);
   if (mode === 'perk') return displayGrade(text) === 'S+';
   return text.split(/[|/]/).some(part => part.replace(/[★✦▲]/g, '').trim().startsWith('S'));

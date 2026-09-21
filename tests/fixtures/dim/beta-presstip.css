@@ -1,0 +1,29 @@
+/* DIM PressTip excerpt. See README.md and LICENSE. */
+.PressTip-m_control-JcXmq7TF{-webkit-user-select:none;user-select:none;touch-action:none;-webkit-touch-callout:none}
+.PressTip-m_tooltip-SHtI4cRc{background-color:var(--theme-tooltip-body-bg);color:#dadaea;border:1px solid var(--theme-tooltip-border);width:max-content;max-width:306px;box-shadow:var(--theme-drop-shadow);text-align:left;z-index:99999;white-space:pre-wrap;box-sizing:border-box;-webkit-user-select:none;user-select:none;pointer-events:none;border-top-width:6px;border-radius:6px;position:absolute}
+.PressTip-m_tooltip-SHtI4cRc:after{content:"";background-color:var(--tooltip-ribbon-color);border-radius:6px 6px 0 0;height:6px;display:block;position:absolute;top:-6px;left:-1px;right:-1px}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_wideTooltip-edAAXFfv{max-width:100vw}
+.PressTip-m_tooltip-SHtI4cRc hr{border-color:var(--theme-tooltip-border)}
+.PressTip-m_tooltip-SHtI4cRc p{margin-bottom:0}
+.PressTip-m_tooltip-SHtI4cRc p:first-of-type{margin:0}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_header-w1l90OtE{background-color:var(--theme-tooltip-header-bg);padding:6px 11px}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_header-w1l90OtE h2{color:var(--theme-text);text-transform:uppercase;margin:0;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:600}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_header-w1l90OtE h3{color:#8e8e9e;margin:0;font-size:12px}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_content-U0ybf7MG{padding:8px 11px}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_arrow-qrCkcWym{--arrow-size:8px;border-style:solid;border-color:#0000;border-width:var(--arrow-size);position:absolute}
+.PressTip-m_tooltip-SHtI4cRc[data-popper-placement=top] .PressTip-m_arrow-qrCkcWym{border-bottom-width:0;border-top-color:var(--theme-tooltip-border);bottom:calc(var(--arrow-size)*-1)}
+.PressTip-m_tooltip-SHtI4cRc[data-popper-placement=bottom] .PressTip-m_arrow-qrCkcWym{border-top-width:0;border-bottom-color:var(--theme-tooltip-border);top:calc((var(--arrow-size) + 6px)*-1)}
+.PressTip-m_tooltip-SHtI4cRc[data-popper-placement=right] .PressTip-m_arrow-qrCkcWym{border-left-width:0;border-right-color:var(--theme-tooltip-border);left:calc(var(--arrow-size)*-1)}
+.PressTip-m_tooltip-SHtI4cRc[data-popper-placement=left] .PressTip-m_arrow-qrCkcWym{border-right-width:0;border-left-color:var(--theme-tooltip-border);right:calc(var(--arrow-size)*-1)}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl{box-shadow:var(--theme-drop-shadow);background-color:var(--theme-tooltip-minimal-bg);border:none;border-radius:3px}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl .PressTip-m_arrow-qrCkcWym{--arrow-size:5px}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl:after{display:none}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl .PressTip-m_content-U0ybf7MG{padding:3px 6px}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl[data-popper-placement=left] .PressTip-m_arrow-qrCkcWym{border-left-color:var(--theme-tooltip-minimal-bg)}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl[data-popper-placement=right] .PressTip-m_arrow-qrCkcWym{border-right-color:var(--theme-tooltip-minimal-bg)}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl[data-popper-placement=top] .PressTip-m_arrow-qrCkcWym{border-top-color:var(--theme-tooltip-minimal-bg)}
+.PressTip-m_tooltip-SHtI4cRc.PressTip-m_minimalTooltip-SO6eEqfl[data-popper-placement=bottom] .PressTip-m_arrow-qrCkcWym{border-bottom-color:var(--theme-tooltip-minimal-bg);top:calc(var(--arrow-size)*-1)}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_section-MNfYMJ_N:not(:empty){border-top:1px solid #fff3;margin:8px -11px -8px;padding:5px 11px 7px}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_section-MNfYMJ_N:not(:empty)>:first-child{margin-top:0}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_section-MNfYMJ_N:not(:empty)>:last-child{margin-bottom:0}
+.PressTip-m_tooltip-SHtI4cRc .PressTip-m_section-MNfYMJ_N:not(:empty):first-child{border-top:none;margin-top:-7px}
