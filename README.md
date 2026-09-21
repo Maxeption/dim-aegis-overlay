@@ -1,3 +1,5 @@
+# WE WON !!! DESTINY IS COMING BACK !!!!
+
 # DIM Aegis & PvP Roll Overlay
 
 A powerful **Chrome / Opera / Firefox browser extension** that overlays Aegis PvE, Finnald PvP, and LowCo Armor set bonus rankings directly inside [Destiny Item Manager (DIM)](https://app.destinyitemmanager.com) and [Winnower](https://winnower.garden).
