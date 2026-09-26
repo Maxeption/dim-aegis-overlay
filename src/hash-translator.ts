@@ -29,11 +29,12 @@ const ENGLISH_WEAPON_TO_HASH: Record<string, number> = {};
 for (const [hashStr, name] of Object.entries(HASH_TO_ENGLISH_WEAPON)) {
   const hash = Number(hashStr);
   const lower = name.toLowerCase().trim();
+  if (!lower) continue;
   if (!ENGLISH_WEAPON_TO_HASH[lower]) {
     ENGLISH_WEAPON_TO_HASH[lower] = hash;
   }
   const clean = cleanName(lower);
-  if (!ENGLISH_WEAPON_TO_HASH[clean]) ENGLISH_WEAPON_TO_HASH[clean] = hash;
+  if (clean && !ENGLISH_WEAPON_TO_HASH[clean]) ENGLISH_WEAPON_TO_HASH[clean] = hash;
 }
 
 export function getEnglishWeaponNameFromHash(hash: number): string | null {
@@ -90,10 +91,11 @@ export function cleanName(s: string): string {
 export function getPerkHashFromEnglish(englishName: string): number | null {
   if (!englishName) return null;
   const raw = englishName.toLowerCase().trim();
+  if (!raw) return null;
   if (CANONICAL_PERK_HASHES[raw]) return CANONICAL_PERK_HASHES[raw];
 
   const clean = cleanName(raw);
-  if (CANONICAL_PERK_HASHES[clean]) return CANONICAL_PERK_HASHES[clean];
+  if (clean && CANONICAL_PERK_HASHES[clean]) return CANONICAL_PERK_HASHES[clean];
 
   return null;
 }
@@ -104,13 +106,14 @@ export function getPerkHashFromEnglish(englishName: string): number | null {
 export function getWeaponHashFromEnglish(englishName: string): number | null {
   if (!englishName) return null;
   const raw = englishName.toLowerCase().trim();
+  if (!raw) return null;
   if (ENGLISH_WEAPON_TO_HASH[raw]) return ENGLISH_WEAPON_TO_HASH[raw];
 
   const base = raw.replace(/\s*\([^)]+\)\s*$/gi, '').trim();
-  if (ENGLISH_WEAPON_TO_HASH[base]) return ENGLISH_WEAPON_TO_HASH[base];
+  if (base && ENGLISH_WEAPON_TO_HASH[base]) return ENGLISH_WEAPON_TO_HASH[base];
 
   const clean = cleanName(base);
-  if (ENGLISH_WEAPON_TO_HASH[clean]) return ENGLISH_WEAPON_TO_HASH[clean];
+  if (clean && ENGLISH_WEAPON_TO_HASH[clean]) return ENGLISH_WEAPON_TO_HASH[clean];
 
   // Fallback to perk/armor canonical dictionary
   const perkHash = getPerkHashFromEnglish(englishName);
