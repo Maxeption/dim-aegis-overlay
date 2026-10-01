@@ -20,7 +20,7 @@ export function renderOptionsPreview() {
   const tile = document.getElementById('interactive-weapon-tile');
   if (!tile) return;
 
-  setTileGlow(settings.aegisTwoTier ? resolveTileGlow(settings.aegisTileGlow, settings.aegisMaxTierGlow) : 'archetype');
+  setTileGlow(resolveTileGlow(settings.aegisTileGlow, settings.aegisMaxTierGlow));
 
   const badge = tile.querySelector<HTMLElement>('.aegis-badge');
   if (!badge) return;
