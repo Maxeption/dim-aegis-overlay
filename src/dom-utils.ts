@@ -25,6 +25,14 @@ export function outermostElements(elements: Iterable<HTMLElement>): HTMLElement[
   });
 }
 
+/** Ignore our decoration classes while preserving simultaneous DIM search-fade changes. */
+export function dimmingClassesChanged(oldValue: string | null, classList: Iterable<string>, isBody = false): boolean {
+  const relevant = (name: string) => name && name !== 'aegis-gold-glow' && !(isBody && name === 'aegis-scrolling');
+  const previous = new Set((oldValue || '').split(/\s+/).filter(relevant));
+  const current = Array.from(classList).filter(relevant);
+  return previous.size !== current.length || current.some(name => !previous.has(name));
+}
+
 export function withoutTileReorders(mutations: MutationRecord[]): MutationRecord[] {
   type Move = { parent: Node | null; balance: number };
   const moves = new Map<Node, Move>();

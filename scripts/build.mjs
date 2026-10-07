@@ -46,6 +46,7 @@ for (const [name, entryPath] of Object.entries(entries)) {
   await build({
     root,
     configFile: false,
+    resolve: { extensions: ['.ts', '.tsx', '.mjs', '.js', '.mts', '.jsx', '.json'] },
     publicDir: false,
     build: {
       outDir: 'dist',

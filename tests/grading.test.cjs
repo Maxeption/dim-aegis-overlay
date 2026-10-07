@@ -12,7 +12,7 @@ function load(name) {
   return module.exports;
 }
 const { GRADES, computeGrade, defaultRules, defaultGradeSettings, normalizeGradeSettings, evaluateRules, evaluateCustomRoll, gradeValue, unreachableGrades } = load('grading');
-const { displayGrade, rollGradeDisplay, gradeGradient, twoTierGradient, defaultGradeColors, hasMaxTierGrade } = load('grade-colors');
+const { displayGrade, rollGradeDisplay, gradeGradient, twoTierGradient, defaultGradeColors, hasMaxTierGrade, resolveTileGlow, shouldGlow, setTileGlow, applyGradeGlow } = load('grade-colors');
 for (const [base, end] of [['#ffd700','#ff823b'],['#da70d6','#7848e8'],['#00f2fe','#70a7ff'],['#bdc3c7','#5d6062'],['#e67e22','#d23514'],['#e74c3c','#bc2318']]) {
   assert.equal(gradeGradient(base), `linear-gradient(135deg, ${base}, ${end})`);
 }
@@ -199,3 +199,26 @@ console.log('Passed: 100 two-tier color pairs, matching-color parity, custom + g
 for(const grade of ['SS+','S+S+','SA➔S+','SF➔SS+','BS | SS+','SS+ | FA']) assert.equal(hasMaxTierGrade(grade),true,grade);
 for(const grade of ['SS','SA','AS+','S+','S/S','BS+ | SS','S➔S+','FA➔S+','—']) assert.equal(hasMaxTierGrade(grade),false,grade);
 console.log('Passed: SS+-only glow selection, mixed-side eligibility and equipped/potential exclusions.');
+
+assert.equal(resolveTileGlow('off', true), 'off');
+assert.equal(resolveTileGlow(undefined, true), 'max');
+assert.equal(resolveTileGlow(undefined), 'archetype');
+for (const grade of ['S', 'S+', 'SS+', 'S+S+', 'SA➔S+', 'BS | SS+', 'S/S', '']) {
+  assert.equal(shouldGlow(grade, 'off'), false, grade);
+}
+// Turning glow off on an already decorated tile must remove both the inner
+// decoration and the parent's blurred gradient, which also restores DIM's CSS containment.
+const attributes = new Set(), classes = new Set(), properties = new Map();
+const style = { getPropertyValue: key => properties.get(key) || '', setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key) };
+const parent = { matches: () => true, hasAttribute: key => attributes.has(key), toggleAttribute: (key, on) => on ? attributes.add(key) : attributes.delete(key), style };
+const tile = { matches: () => true, parentElement: parent, style,
+  classList: { contains: key => classes.has(key), toggle: (key, on) => on ? classes.add(key) : classes.delete(key) } };
+setTileGlow('archetype'); applyGradeGlow(tile, 'SS+');
+assert.ok(classes.has('aegis-gold-glow'));
+assert.ok(attributes.has('data-aegis-gradient-glow'));
+assert.ok(properties.has('--aegis-glow-image'));
+setTileGlow('off'); applyGradeGlow(tile, 'SS+');
+assert.equal(classes.has('aegis-gold-glow'), false);
+assert.equal(attributes.has('data-aegis-gradient-glow'), false);
+assert.equal(properties.has('--aegis-glow-image'), false);
+console.log('Passed: glow Off persists and removes existing tile and wrapper effects.');

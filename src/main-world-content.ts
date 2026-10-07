@@ -16,6 +16,14 @@ import { outermostElements } from './dom-utils';
 
 import { WEAPON_STAT_HASHES } from './weapon-stats';
 import { masterworkStatName } from './masterwork';
+import { COMPARE_BUCKET_SELECTOR } from './compare-selectors';
+import { getCompareItem } from './compare-item';
+import { annotateOverviewPerks } from './overview-perks';
+import { initCompareNativeTooltips } from './compare-native-tooltips';
+import { initPerkRatingTooltips } from './perk-rating-tooltips';
+
+initCompareNativeTooltips();
+initPerkRatingTooltips();
 
 interface PerkInfo {
   name: string;
@@ -780,13 +788,17 @@ function processElement(el: HTMLElement) {
     const fiber = findReactFiber(el);
     if (!fiber) return;
 
-    const item = findItemInFiber(fiber);
+    let item = findItemInFiber(fiber);
     if (!item || !item.hash) return;
+    item = getCompareItem(el, item);
+    if (isPopupContainer) annotateOverviewPerks(el);
 
     // Verify that this element actually represents the item by matching the icon image src.
     // This prevents annotating mod/socket slots that climb up to the parent item in the fiber tree.
-    // Popups contain other images; inventory tiles can still show a placeholder after regrouping.
-    if (!isPopupContainer && !el.matches('.item-drag-container > .item')) {
+    // Native .item tiles use a CSS background for the weapon. Their first img
+    // can be a champion/status icon, including in Compare outside drag wrappers.
+    // Popups also contain unrelated images; neither is a reliable icon check.
+    if (!isPopupContainer && !el.matches('.item')) {
       const imgEl = el.querySelector('img');
       if (imgEl && item.icon) {
         const imgPath = imgEl.getAttribute('src') || '';
@@ -1027,7 +1039,7 @@ function processElement(el: HTMLElement) {
 
     // Instance ID cache logic (handles async loading and popup-to-grid sync)
     const instanceId = item.id;
-    if (instanceId) {
+    if (instanceId && !el.closest(COMPARE_BUCKET_SELECTOR)) {
       const cached = instanceCache[instanceId];
       if (activePerkHashes.length === 0 && cached) {
         activePerkHashes = [...cached.activePerkHashes];
@@ -1142,6 +1154,19 @@ function queueItem(item: HTMLElement) {
 const pendingNodes = new Set<HTMLElement>();
 let scanScheduled = false;
 
+// A simulated socket change may only update React state or an unobserved DOM property.
+function scheduleCompareScan(event: Event) {
+  const bucket = event.target instanceof Element && event.target.closest<HTMLElement>(COMPARE_BUCKET_SELECTOR);
+  if (!bucket) return;
+  pendingNodes.add(bucket);
+  if (!scanScheduled) {
+    scanScheduled = true;
+    requestAnimationFrame(flushPendingNodes);
+  }
+}
+document.addEventListener('click', scheduleCompareScan, true);
+document.addEventListener('change', scheduleCompareScan, true);
+
 function flushPendingNodes() {
   scanScheduled = false;
   const nodes = outermostElements(pendingNodes);
@@ -1157,7 +1182,7 @@ function flushPendingNodes() {
   }
 }
 
-const OVERLAY_SELECTOR = '.aegis-badge, .aegis-title-badge, .aegis-popup-summary, [data-aegis-details], #aegis-tooltip';
+const OVERLAY_SELECTOR = '.aegis-badge, .aegis-title-badge, .aegis-popup-summary, .aegis-compare-panel, .aegis-perk-label, .aegis-perk-name-sizer, [data-aegis-compare-generated], [data-aegis-details], #aegis-tooltip';
 
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
@@ -1170,6 +1195,8 @@ const observer = new MutationObserver((mutations) => {
         if (node instanceof HTMLElement && !node.matches(OVERLAY_SELECTOR)) pendingNodes.add(node);
       });
     }
+    const compare = target.closest<HTMLElement>(COMPARE_BUCKET_SELECTOR);
+    if (compare) pendingNodes.add(compare);
     const item = target.closest<HTMLElement>('[data-aegis-item-hash]') || target.closest<HTMLElement>(SELECTORS);
     if (item) pendingNodes.add(item);
   }

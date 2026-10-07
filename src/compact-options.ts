@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   move('Badges', [
     'aegis-two-tier-segmented',
     'aegis-two-tier-options',
+    'aegis-tile-glow',
     'aegis-badge-style-segmented',
     'aegis-upgrade-style-group',
     'aegis-badge-scale-slider',
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const analysisSections: [string, string[]][] = [
     ['analysisPerkCard', ['aegis-perk-order-segmented', 'aegis-matrix-segmented', 'aegis-auto-max-height-segmented', 'aegis-tooltip-width-mode-segmented', 'aegis-tooltip-width-slider-group']],
     ['analysisDetailsPopup', ['aegis-layout-segmented', 'aegis-popup-summary-segmented', 'aegis-armory-enabled-segmented']],
+    ['analysisPerkAnalysis', ['aegis-perk-analysis-enabled', 'aegis-compare-recommendations', 'aegis-overview-recommendations']],
     ['inlineHover', ['aegis-hover-enabled-segmented']]
   ];
   for (const [key, ids] of analysisSections) {
@@ -205,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     badgeMode: 'compactFormat', badgeStyle: 'compactStyle', upgradeIndicatorStyle: 'compactUpgrade',
     activeRankingSource: 'compactSource', spreadsheetMode: 'compactActivity',
     perkEvaluation: 'compactEvaluate', armorSource: 'compactArmor', badgeTextScale: 'compactTextSize',
-    badgeScale: 'compactTextSize', badgeTileSize: 'compactTextSize', badgeSize: 'compactTextSize',
+    badgeScale: 'compactBadgeScale', badgeTileSize: 'compactBadgeScale', badgeSize: 'compactBadgeScale',
     badgeExoticWeapons: 'compactExotic', badgeOtherWeapons: 'compactOther',
     scoringEngine: 'inlineEngine', perksLayout: 'inlineLayout', recPerkOrder: 'inlinePerkOrder',
     hoverCard: 'inlineHover', compactPerksMatrix: 'inlineMatrix', popupSummaryTitle: 'inlineSummary',
