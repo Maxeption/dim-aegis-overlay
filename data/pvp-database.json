@@ -3114,11 +3114,11 @@
       "mag": "Accurized Rounds",
       "perk1": "Rangefinder\nMoving Target",
       "perk2": "Mega Kill Clip",
-      "origin": "Nadir Focus\nVanguard Determination",
+      "origin": "Accelerated Assault\nNadir Focus\nVanguard Determination",
       "source": "Vanguard Fireteam Ops / Zavala Vendor",
-      "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. Spam reload after kill to continually refresh timer.",
+      "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. \nSpam reload after kill to continually refresh timer.\nCan achieve 0.33s TtK via buff stacking w/ Mega Kill Clip + Radiant + Surges + Weapons stat.",
       "rank": "",
-      "tier": "A",
+      "tier": "S",
       "mw": "Range\nStability"
     },
     "sixth sense": {
@@ -19546,11 +19546,11 @@
         "mag": "Accurized Rounds",
         "perk1": "Rangefinder\nMoving Target",
         "perk2": "Mega Kill Clip",
-        "origin": "Nadir Focus\nVanguard Determination",
+        "origin": "Accelerated Assault\nNadir Focus\nVanguard Determination",
         "source": "Vanguard Fireteam Ops / Zavala Vendor",
-        "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. Spam reload after kill to continually refresh timer.",
+        "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. \nSpam reload after kill to continually refresh timer.\nCan achieve 0.33s TtK via buff stacking w/ Mega Kill Clip + Radiant + Surges + Weapons stat.",
         "rank": "",
-        "tier": "A",
+        "tier": "S",
         "mw": "Range\nStability"
       }
     ],
@@ -36033,11 +36033,11 @@
         "mag": "Accurized Rounds",
         "perk1": "Rangefinder\nMoving Target",
         "perk2": "Mega Kill Clip",
-        "origin": "Nadir Focus\nVanguard Determination",
+        "origin": "Accelerated Assault\nNadir Focus\nVanguard Determination",
         "source": "Vanguard Fireteam Ops / Zavala Vendor",
-        "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. Spam reload after kill to continually refresh timer.",
+        "notes": "One of two primary weapons w/ access to Mega Kill Clip.\nTtK shift 1.00->0.67 while active. \nSpam reload after kill to continually refresh timer.\nCan achieve 0.33s TtK via buff stacking w/ Mega Kill Clip + Radiant + Surges + Weapons stat.",
         "rank": "",
-        "tier": "A",
+        "tier": "S",
         "mw": "Range\nStability"
       },
       {
