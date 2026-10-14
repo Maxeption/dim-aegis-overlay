@@ -5157,7 +5157,7 @@
       "perk2": "Headseeker\nKill Clip\nDesperado",
       "origin": "Accelerated Assault",
       "source": "Lawless Frontier",
-      "notes": "TTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
+      "notes": "Naturally faster TTK of 0.73 w/ Overclocked Heatsink\nTTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
       "rank": "",
       "tier": "S",
       "mw": "Range\nStability"
@@ -5322,7 +5322,7 @@
       "perk2": "Master of Arms\nHeadseeker\nWithering Gaze",
       "origin": "Imperial Allegiance",
       "source": "Equilibrium Dungeon",
-      "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
+      "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 w/ 130 Weapons & Overclocked Heatsink (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
       "rank": "",
       "tier": "S",
       "mw": "Range\nStability"
@@ -21577,7 +21577,7 @@
         "perk2": "Headseeker\nKill Clip\nDesperado",
         "origin": "Accelerated Assault",
         "source": "Lawless Frontier",
-        "notes": "TTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
+        "notes": "Naturally faster TTK of 0.73 w/ Overclocked Heatsink\nTTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
@@ -21761,7 +21761,7 @@
         "perk2": "Master of Arms\nHeadseeker\nWithering Gaze",
         "origin": "Imperial Allegiance",
         "source": "Equilibrium Dungeon",
-        "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
+        "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 w/ 130 Weapons & Overclocked Heatsink (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
@@ -37986,7 +37986,7 @@
         "perk2": "Headseeker\nKill Clip\nDesperado",
         "origin": "Accelerated Assault",
         "source": "Lawless Frontier",
-        "notes": "TTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
+        "notes": "Naturally faster TTK of 0.73 w/ Overclocked Heatsink\nTTK shift via Kill Clip 0.80 -> 0.67\nDesperado => 0.57\nDesperado + Overclocked + Radiant => 0.50\nOverclocked + Killclip + Weapons stat 145 OR Kill Clip + Radiant => 0.47 TtK",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
@@ -38121,7 +38121,7 @@
         "perk2": "Master of Arms\nHeadseeker\nWithering Gaze",
         "origin": "Imperial Allegiance",
         "source": "Equilibrium Dungeon",
-        "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
+        "notes": "Naturally faster TtK due to being a heat weapon\nBase TtK of 0.73 w/ 130 Weapons & Overclocked Heatsink (instead of the usual 0.80s)\n2 BURST w/ 195 weapons, Overclocked, and x2 MoA => 0.47\nMoA x2 + Radiant => 0.47.\nWithering Gaze.",
         "rank": "",
         "tier": "S",
         "mw": "Range\nStability"
