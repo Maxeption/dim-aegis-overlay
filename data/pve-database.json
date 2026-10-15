@@ -46040,7 +46040,7 @@
       "piece2Rating": "B",
       "piece4Name": "High Noon",
       "piece4Desc": "best-in-class damage booster set bonus, irreplaceable effect",
-      "piece4Numbers": "Trigger: precision damage within ?s of weapon ready | Effect: 7% damage for 3s (doubled for Tex weapons)",
+      "piece4Numbers": "Trigger: precision damage within ?s of weapon ready | Effect: 7% damage (doubled for Tex weapons) for 3s",
       "piece4Rating": "S",
       "source": "Spire of the Watcher",
       "sourceType": "Dungeon"
