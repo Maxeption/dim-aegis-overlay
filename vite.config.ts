@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+  resolve: { extensions: ['.ts', '.tsx', '.mjs', '.js', '.mts', '.jsx', '.json'] },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

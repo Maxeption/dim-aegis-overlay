@@ -1,4 +1,5 @@
 import { refreshOptionDescriptions } from './compact-options';
+import { resolveActivityMode } from './activity-mode';
 import { updateOptionsPreview, renderOptionsPreview } from './options-preview';
 import { refreshOptionHighlights, revealOption } from './options-motion';
 import { initGradeSettings } from './grade-settings';
@@ -7,6 +8,7 @@ import { setGradeColors, setBadgeColor, resolveBadgeColor, resolveTileGlow } fro
 import { initLanguage, t, localizeElements } from './i18n';
 import { LocalStorageSchema, AegisMode } from './types';
 import { normalizeBadgeSize, normalizeBadgeVisibility, type BadgeCategory, type BadgeVisibility } from './badge-presentation';
+import { initVersionPill } from './version-pill';
 
 function localizePopup(storedLang?: string) {
   initLanguage(storedLang);
@@ -66,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'aegisCompactPerksMatrix',
         'aegisPopupSummaryMode',
         'aegisArmoryEnabled',
+        'aegisPerkAnalysisEnabled',
+        'aegisCompareRecommendations',
+        'aegisOverviewRecommendations',
         'aegisAutoMaxHeight',
         'aegisTooltipWidthMode',
         'aegisTooltipWidth',
@@ -214,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set Aegis Mode (PvE vs PvP) segmented control
-        const aegisModeVal = res.aegisMode || 'pve';
+        const aegisModeVal = resolveActivityMode(sourceVal, res.aegisMode);
         const aegisModeSegmented = document.getElementById('aegis-mode-segmented');
         if (aegisModeSegmented) {
           aegisModeSegmented.querySelectorAll('button').forEach(btn => {
@@ -358,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Set Aegis Grade Display Mode segmented control (equipped, dual, potential)
         const gradeDisplayVal = res.aegisGradeDisplayMode || 'equipped';
+        document.documentElement.style.setProperty('--aegis-split-footer-height', gradeDisplayVal === 'dual' ? '25px' : '16px');
         const gradeDisplaySegmented = document.getElementById('aegis-grade-display-segmented');
         if (gradeDisplaySegmented) {
           gradeDisplaySegmented.querySelectorAll('button').forEach(btn => {
@@ -420,6 +426,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           });
         }
+
+        const perkAnalysisCheckbox = document.getElementById('aegis-perk-analysis-enabled') as HTMLInputElement | null;
+        if (perkAnalysisCheckbox) perkAnalysisCheckbox.checked = res.aegisPerkAnalysisEnabled !== false;
+        const compareRecommendations = document.getElementById('aegis-compare-recommendations') as HTMLInputElement | null;
+        if (compareRecommendations) compareRecommendations.checked = res.aegisCompareRecommendations !== false;
+        const overviewRecommendations = document.getElementById('aegis-overview-recommendations') as HTMLInputElement | null;
+        if (overviewRecommendations) overviewRecommendations.checked = res.aegisOverviewRecommendations === true;
 
         // Set Aegis Auto Max-Height segmented control
         const autoMaxHeightVal = res.aegisAutoMaxHeight !== false ? 'true' : 'false';
@@ -603,13 +616,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateObj.aegisShoppingDb = activeShoppingDb;
               }
 
-              // Automatically switch tooltip width mode to fit-content (auto) in dual mode, and reset to fixed in single mode
-              if (val === 'both') {
-                updateObj.aegisTooltipWidthMode = 'auto';
-              } else {
-                updateObj.aegisTooltipWidthMode = 'fixed';
-              }
-
               chrome.storage.local.set(updateObj, () => {
                 updateUI();
               });
@@ -698,6 +704,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
+  }
+
+  const perkAnalysisCheckbox = document.getElementById('aegis-perk-analysis-enabled') as HTMLInputElement | null;
+  perkAnalysisCheckbox?.addEventListener('change', () => {
+    chrome.storage.local.set({ aegisPerkAnalysisEnabled: perkAnalysisCheckbox.checked }, updateUI);
+  });
+  for (const [id, key] of [['aegis-compare-recommendations', 'aegisCompareRecommendations'], ['aegis-overview-recommendations', 'aegisOverviewRecommendations']]) {
+    const checkbox = document.getElementById(id) as HTMLInputElement | null;
+    checkbox?.addEventListener('change', () => chrome.storage.local.set({ [key]: checkbox.checked }, updateUI));
   }
 
   // Handle Auto Max-Height segmented control click
@@ -819,9 +834,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (target && target.tagName === 'BUTTON') {
         const val = target.getAttribute('data-value');
         if (val) {
-          chrome.storage.local.set({ aegisBadgeStyle: val }, () => {
-            updateUI();
-          });
+          // The storage listener refreshes the UI; don't duplicate its read
+          // and preview render for every style click.
+          chrome.storage.local.set({ aegisBadgeStyle: val });
         }
       }
     });
@@ -871,13 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scaleValueText.textContent = `${val}%`;
       }
       document.documentElement.style.setProperty('--aegis-badge-scale', (val / 100).toString());
-    });
-
-    scaleSlider.addEventListener('change', () => {
-      const val = parseInt(scaleSlider.value, 10) || 100;
-      chrome.storage.local.set({ aegisBadgeScale: val }, () => {
-        updateUI();
-      });
+      chrome.storage.local.set({ aegisBadgeScale: val });
     });
   }
 
@@ -1015,46 +1024,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Version click listener to check for updates
-  const updateCheckStatus = document.getElementById('update-check-status');
-  const versionText = document.getElementById('version-text');
+  const versionText = document.getElementById('version-text') as HTMLButtonElement | null;
   if (versionText) {
-    versionText.addEventListener('click', () => {
-      versionText.style.opacity = '0.5';
-      if (updateCheckStatus) {
-        updateCheckStatus.textContent = 'Checking...';
-        updateCheckStatus.style.color = '#88888d';
-        updateCheckStatus.style.display = 'inline';
-      }
-
-      chrome.runtime.sendMessage({ action: 'checkUpdates' }, (response) => {
-        versionText.style.opacity = '1';
-        if (response && response.success) {
-          if (response.updateAvailable) {
-            if (updateCheckStatus) {
-              updateCheckStatus.textContent = 'Update available!';
-              updateCheckStatus.style.color = '#ffb300';
-              updateCheckStatus.style.display = 'inline';
-            }
-            updateUI();
-          } else {
-            if (updateCheckStatus) {
-              updateCheckStatus.textContent = 'Up to date';
-              updateCheckStatus.style.color = '#4caf50';
-              updateCheckStatus.style.display = 'inline';
-              setTimeout(() => {
-                updateCheckStatus.style.display = 'none';
-              }, 3000);
-            }
-          }
-        } else {
-          if (updateCheckStatus) {
-            updateCheckStatus.textContent = 'Check failed';
-            updateCheckStatus.style.color = '#f44336';
-            updateCheckStatus.style.display = 'inline';
-          }
-        }
+    initVersionPill(versionText, chrome.runtime.getManifest().version, () => new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ action: 'checkUpdates' }, response => {
+        const error = chrome.runtime.lastError;
+        if (error) reject(new Error(error.message));
+        else resolve(response);
       });
-    });
+    }), updateUI);
   }
 
   // Initial UI update

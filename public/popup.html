@@ -148,9 +148,11 @@
             </div>
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span id="update-check-status" style="font-size: 9px; font-weight: 600; text-transform: uppercase;"></span>
-          <span class="version" id="version-text" title="Click to check for updates">v1.9.5</span>
+        <div class="version-slot">
+          <span class="version-anchor" aria-hidden="true">v1.9.5</span>
+          <button type="button" class="version" id="version-text" data-state="idle" data-i18n-title="versionCheckHint" title="Click to check for updates">
+            <span class="version-label" aria-live="polite" aria-atomic="true">v1.9.5</span>
+          </button>
         </div>
       </div>
     </header>
@@ -245,8 +247,8 @@
               <button type="button" data-value="gradient" aria-pressed="false" data-i18n="badgeColorGradient">Gradient (Both)</button>
             </div>
           </div>
-          <div class="input-group"><label for="aegis-tile-glow" data-i18n="tileGlow">Tile Glow</label><select id="aegis-tile-glow"><option value="archetype" data-i18n="tileGlowArchetype">S-tier archetypes (default)</option><option value="perk" data-i18n="tileGlowPerk">S+ perks (god rolls)</option><option value="max" data-i18n="tileGlowMax">SS+ only</option></select></div>
         </div>
+        <div class="input-group"><label for="aegis-tile-glow" data-i18n="tileGlow">Tile Glow</label><select id="aegis-tile-glow"><option value="off" data-i18n="inlineOff">Off</option><option value="archetype" data-i18n="tileGlowArchetype">S-tier archetypes (default)</option><option value="perk" data-i18n="tileGlowPerk">S+ perks (god rolls)</option><option value="max" data-i18n="tileGlowMax">SS+ only</option></select></div>
         <div class="input-group">
           <label data-i18n="perkEvaluation">Perk Evaluation Basis</label>
           <div class="segmented-control" id="aegis-grade-display-segmented">
@@ -314,6 +316,24 @@
           </div>
         </div>
         <div class="input-group">
+          <label class="checkbox-label" for="aegis-perk-analysis-enabled">
+            <input type="checkbox" id="aegis-perk-analysis-enabled" checked>
+            <span data-i18n="showPerkAnalysis">Show Aegis PvE analysis in Perk tooltip</span>
+          </label>
+        </div>
+        <div class="input-group">
+          <label class="checkbox-label" for="aegis-compare-recommendations">
+            <input type="checkbox" id="aegis-compare-recommendations" checked>
+            <span data-i18n="showCompareRecommendations">Show recommendations in Compare view</span>
+          </label>
+        </div>
+        <div class="input-group">
+          <label class="checkbox-label" for="aegis-overview-recommendations">
+            <input type="checkbox" id="aegis-overview-recommendations">
+            <span data-i18n="showOverviewRecommendations">Show recommendations in Overview selector</span>
+          </label>
+        </div>
+        <div class="input-group">
           <label data-i18n="autoMaxHeightTitle">Screen-Aware Auto Height</label>
           <div class="segmented-control" id="aegis-auto-max-height-segmented">
             <button type="button" data-value="true" class="active" data-i18n="autoMaxHeightEnabled">Auto Fit & Scroll</button>
@@ -354,14 +374,14 @@
         </div>
         <div class="input-group">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label data-i18n="badgeTextScale">Badge Text Size</label>
+            <label data-i18n="badgeTextScale">Text Size</label>
             <span id="badge-scale-value" style="font-size: 11px; font-weight: 700; color: #ffd700;">100%</span>
           </div>
           <input type="range" id="aegis-badge-scale-slider" min="70" max="130" step="5" value="100" style="width: 100%; accent-color: #ffd700; cursor: pointer; height: 6px;" />
         </div>
         <div class="input-group">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label data-i18n="badgeSize">Badge Size</label>
+            <label data-i18n="badgeSize">Badge Scale</label>
             <span id="badge-size-value">100%</span>
           </div>
           <input type="range" id="aegis-badge-size-slider" min="70" max="150" step="5" value="100" />
