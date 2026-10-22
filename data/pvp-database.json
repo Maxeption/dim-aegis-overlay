@@ -49171,6 +49171,21 @@
         "isExotic": false
       },
       {
+        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
+        "name": "Modified B-7 Pistol",
+        "source": "Lawless Frontier",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "Delicate Tuning\nKeep Away\nFirefly",
+        "column2": "Opening Shot\nEye of the Storm\nHeadstone\nBuilt To Blast",
+        "alternatives": [
+          "Precision Instrument + 170? Weapons stat on Seventh Seraph Officer Revolver, Trust, Sightline Survey, or Word of Crota. Service Revolver w",
+          "Radiant."
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
+      {
         "role": "4-PC Set Bonus (Movement)",
         "name": "Sublime Transit",
         "source": "Competitive PvP",
@@ -49242,6 +49257,34 @@
         "isExotic": false
       },
       {
+        "role": "2-PC Set Bonus (Healing / Orb & Ammo Magnet)",
+        "name": "Emergency Electromagnet",
+        "source": "Nessus Destination",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "N/A",
+        "column2": "N/A",
+        "alternatives": [
+          "Powerful Attraction mod or Shoot To Loot perk"
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
+      {
+        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
+        "name": "Vigilant Watch",
+        "source": "Iron Banner / Saladin Vendor",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "N/A",
+        "column2": "N/A",
+        "alternatives": [
+          "Eye of the Storm weapon perk, Twofold Crown 2-PC, Bushido 2-PC, TM Custom 2-PC, or Crystocrene 2-PC."
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
+      {
         "role": "Easy to use Power Weapon",
         "name": "Legend of Acrius",
         "source": "Monument of Lost Lights",
@@ -49292,7 +49335,7 @@
         "column1": "Wave Frame",
         "column2": "Arc Conductor",
         "alternatives": [
-          "None."
+          "Praxic Blade (Not 1-for-1 equivalent, different use cases)"
         ],
         "isArmor": false,
         "isExotic": false
@@ -49324,34 +49367,6 @@
         ],
         "isArmor": true,
         "isExotic": true
-      },
-      {
-        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
-        "name": "Vigilant Watch",
-        "source": "Iron Banner / Saladin Vendor",
-        "priorityNum": 1,
-        "priority": "high",
-        "column1": "N/A",
-        "column2": "N/A",
-        "alternatives": [
-          "Eye of the Storm weapon perk, Twofold Crown 2-PC, Bushido 2-PC, TM Custom 2-PC, or Crystocrene 2-PC."
-        ],
-        "isArmor": false,
-        "isExotic": false
-      },
-      {
-        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
-        "name": "Modified B-7 Pistol",
-        "source": "Lawless Frontier",
-        "priorityNum": 1,
-        "priority": "high",
-        "column1": "Delicate Tuning\nKeep Away\nFirefly",
-        "column2": "Opening Shot\nEye of the Storm\nHeadstone\nBuilt To Blast",
-        "alternatives": [
-          "Precision Instrument + 170? Weapons stat on Seventh Seraph Officer Revolver, Trust, Sightline Survey, or Word of Crota."
-        ],
-        "isArmor": false,
-        "isExotic": false
       },
       {
         "role": "Shot-Package Pellet Shotgun",
@@ -49466,7 +49481,7 @@
         "column1": "N/A",
         "column2": "N/A",
         "alternatives": [
-          "None for specific use of melee filler."
+          "None for specific use of melee filler Heavy."
         ],
         "isArmor": false,
         "isExotic": false
@@ -50308,6 +50323,21 @@
         "isArmor": false,
         "isExotic": false
       },
+      "modified b-7 pistol": {
+        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
+        "name": "Modified B-7 Pistol",
+        "source": "Lawless Frontier",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "Delicate Tuning\nKeep Away\nFirefly",
+        "column2": "Opening Shot\nEye of the Storm\nHeadstone\nBuilt To Blast",
+        "alternatives": [
+          "Precision Instrument + 170? Weapons stat on Seventh Seraph Officer Revolver, Trust, Sightline Survey, or Word of Crota. Service Revolver w",
+          "Radiant."
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
       "sublime transit": {
         "role": "4-PC Set Bonus (Movement)",
         "name": "Sublime Transit",
@@ -50379,6 +50409,34 @@
         "isArmor": false,
         "isExotic": false
       },
+      "emergency electromagnet": {
+        "role": "2-PC Set Bonus (Healing / Orb & Ammo Magnet)",
+        "name": "Emergency Electromagnet",
+        "source": "Nessus Destination",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "N/A",
+        "column2": "N/A",
+        "alternatives": [
+          "Powerful Attraction mod or Shoot To Loot perk"
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
+      "vigilant watch": {
+        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
+        "name": "Vigilant Watch",
+        "source": "Iron Banner / Saladin Vendor",
+        "priorityNum": 1,
+        "priority": "high",
+        "column1": "N/A",
+        "column2": "N/A",
+        "alternatives": [
+          "Eye of the Storm weapon perk, Twofold Crown 2-PC, Bushido 2-PC, TM Custom 2-PC, or Crystocrene 2-PC."
+        ],
+        "isArmor": false,
+        "isExotic": false
+      },
       "legend of acrius": {
         "role": "Easy to use Power Weapon",
         "name": "Legend of Acrius",
@@ -50430,7 +50488,7 @@
         "column1": "Wave Frame",
         "column2": "Arc Conductor",
         "alternatives": [
-          "None."
+          "Praxic Blade (Not 1-for-1 equivalent, different use cases)"
         ],
         "isArmor": false,
         "isExotic": false
@@ -50462,34 +50520,6 @@
         ],
         "isArmor": true,
         "isExotic": true
-      },
-      "vigilant watch": {
-        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
-        "name": "Vigilant Watch",
-        "source": "Iron Banner / Saladin Vendor",
-        "priorityNum": 1,
-        "priority": "high",
-        "column1": "N/A",
-        "column2": "N/A",
-        "alternatives": [
-          "Eye of the Storm weapon perk, Twofold Crown 2-PC, Bushido 2-PC, TM Custom 2-PC, or Crystocrene 2-PC."
-        ],
-        "isArmor": false,
-        "isExotic": false
-      },
-      "modified b-7 pistol": {
-        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
-        "name": "Modified B-7 Pistol",
-        "source": "Lawless Frontier",
-        "priorityNum": 1,
-        "priority": "high",
-        "column1": "Delicate Tuning\nKeep Away\nFirefly",
-        "column2": "Opening Shot\nEye of the Storm\nHeadstone\nBuilt To Blast",
-        "alternatives": [
-          "Precision Instrument + 170? Weapons stat on Seventh Seraph Officer Revolver, Trust, Sightline Survey, or Word of Crota."
-        ],
-        "isArmor": false,
-        "isExotic": false
       },
       "felwinter's lie (monument of triumph variant)": {
         "role": "Shot-Package Pellet Shotgun",
@@ -50604,7 +50634,7 @@
         "column1": "N/A",
         "column2": "N/A",
         "alternatives": [
-          "None for specific use of melee filler."
+          "None for specific use of melee filler Heavy."
         ],
         "isArmor": false,
         "isExotic": false
@@ -51369,8 +51399,8 @@
         "priorityNum": 1
       },
       "none.": {
-        "primaryName": "Ergo Sum",
-        "role": "Special Ammo Sword",
+        "primaryName": "Conditional Finality",
+        "role": "Anti-Super, Anti-DR, Anti-Cheese, AoE Shotgun",
         "priority": "high",
         "priorityNum": 1
       },
@@ -51434,6 +51464,18 @@
         "priority": "high",
         "priorityNum": 1
       },
+      "precision instrument + 170? weapons stat on seventh seraph officer revolver, trust, sightline survey, or word of crota. service revolver w": {
+        "primaryName": "Modified B-7 Pistol",
+        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
+        "priority": "high",
+        "priorityNum": 1
+      },
+      "radiant.": {
+        "primaryName": "Modified B-7 Pistol",
+        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
+        "priority": "high",
+        "priorityNum": 1
+      },
       "triumphal anthem 4-pc (shoot to scoot)": {
         "primaryName": "Sublime Transit",
         "role": "4-PC Set Bonus (Movement)",
@@ -51470,6 +51512,18 @@
         "priority": "high",
         "priorityNum": 1
       },
+      "powerful attraction mod or shoot to loot perk": {
+        "primaryName": "Emergency Electromagnet",
+        "role": "2-PC Set Bonus (Healing / Orb & Ammo Magnet)",
+        "priority": "high",
+        "priorityNum": 1
+      },
+      "eye of the storm weapon perk, twofold crown 2-pc, bushido 2-pc, tm custom 2-pc, or crystocrene 2-pc.": {
+        "primaryName": "Vigilant Watch",
+        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
+        "priority": "high",
+        "priorityNum": 1
+      },
       "bitter end, half-truths, truth, hammer head, unwavering duty, or briar's contempt": {
         "primaryName": "Legend of Acrius",
         "role": "Easy to use Power Weapon",
@@ -51488,6 +51542,12 @@
         "priority": "high",
         "priorityNum": 1
       },
+      "praxic blade (not 1-for-1 equivalent, different use cases)": {
+        "primaryName": "Ergo Sum",
+        "role": "Special Ammo Sword",
+        "priority": "high",
+        "priorityNum": 1
+      },
       "revision zero, no time to explain, turncoat, tarrabah, or graviton spike grenades": {
         "primaryName": "Hawkmoon",
         "role": "Stalemate Breaker / Stack Grinder",
@@ -51497,18 +51557,6 @@
       "polaris lance, dead man's tale, inbound surveillance, transfiguration, or the scholar": {
         "primaryName": "The Jade Rabbit",
         "role": "Long-Range Laning Weapon",
-        "priority": "high",
-        "priorityNum": 1
-      },
-      "eye of the storm weapon perk, twofold crown 2-pc, bushido 2-pc, tm custom 2-pc, or crystocrene 2-pc.": {
-        "primaryName": "Vigilant Watch",
-        "role": "2-PC Set Bonus (Healing & Weapon Buff)",
-        "priority": "high",
-        "priorityNum": 1
-      },
-      "precision instrument + 170? weapons stat on seventh seraph officer revolver, trust, sightline survey, or word of crota.": {
-        "primaryName": "Modified B-7 Pistol",
-        "role": "3-Tap 180 RPM Hand Cannon w/ 178? Weapons",
         "priority": "high",
         "priorityNum": 1
       },
@@ -51578,7 +51626,7 @@
         "priority": "high",
         "priorityNum": 1
       },
-      "none for specific use of melee filler.": {
+      "none for specific use of melee filler heavy.": {
         "primaryName": "Winterbite",
         "role": "Permanent Glaive-Melee Option",
         "priority": "medium",
