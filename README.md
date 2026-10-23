@@ -71,6 +71,41 @@ Inspect any weapon in DIM to see a dedicated checklist showing exactly which per
 
 <img width="307" height="534" alt="Recommended Perks Checklist" src="https://github.com/user-attachments/assets/db9f72ac-a60f-4009-ab32-20b18e395e74" />
 
+### Compare and Overview perk recommendations
+
+In DIM's Compare view, Aegis colors the native perk bubbles: green for selected
+recommendations, blue for owned but unselected recommendations, red for missing
+recommendations, and gray for other owned perks. Solid outlines identify selected
+perks; dashed outlines identify unselected perks. Recommendations follow Aegis
+order or your **Owned Perks First** preference.
+
+Use the layout button beside **Show in Organizer** to switch Compare between
+grid and list layouts. List columns reserve space for the longest selectable
+name so changing a selection does not shift the columns. Overview retains DIM's
+native grid spacing, separators, and layout button. Its list view uses the same
+compact names and bubbles as Compare, following DIM's saved layout preference.
+
+Under **Analysis > Perk Analysis**, Compare recommendations are enabled by default;
+Overview recommendations are optional and disabled by default. Both require a
+spreadsheet ranking source in DIM. In Both mode, use the PvE/PvP switch to choose
+the recommendation context.
+
+Compare selections are previews. To apply owned perks in-game, select them in the
+weapon's Overview popup and use DIM's **Apply Perks** button. Missing recommendations
+cannot be applied to a roll that does not own them.
+
+### Aegis perk analysis
+
+Perk tooltips can show Aegis PvE tier, rank, and spreadsheet analysis for perks and
+origin traits. Enhanced perks use their base perk's rating. This analysis is PvE
+information, including when weapon recommendations are set to PvP.
+
+Disable **Show Aegis PvE analysis in Perk tooltip** to keep only DIM's native
+tooltip content. Ratings are cached locally; failed refreshes retain the last
+downloaded data. Interface labels follow your selected language. Perk and origin-trait
+analyses use the same translation bundles as weapon analyses, including bundled
+Korean translations. Missing translations fall back to the spreadsheet text.
+
 ###  2-Tier Weapon Grading System
 Optionally enable **2-Tier Badge Mode** in your settings to display both the archetype meta viability and the specific roll quality at a glance:
 - **First Letter**: Archetype meta tier on the master list (`S`, `A`, `B`, `C`, `D`, `F`).
@@ -120,7 +155,56 @@ npm install
 npm run build:all
 ```
 
-The compiled extension and release zips will be generated inside the `/dist` directory. Open `chrome://extensions/` and select **Load unpacked** pointing to `/dist`.
+Compiled files are generated in `dist`. Separate Chromium and Firefox ZIPs and a
+source ZIP are written to the repository root. For Chromium, extract its ZIP and
+select that directory with **Load unpacked** in `chrome://extensions/`.
+
+See [Testing Aegis](docs/TESTING.md) for unit tests, browser fixtures, live checks,
+and packaging requirements. See the [changelog](CHANGELOG.md) for unreleased changes.
+
+### Consolidated Firefox/Zen testing build
+
+Use one installed testing directory for all changes in this checkout. Configure its absolute path in
+`testing-build.local` (ignored by Git):
+
+```json
+{ "extensionDirectory": "/absolute/path/to/testing/extension" }
+```
+
+Run `npm run build:testing` (or `node scripts/build-testing.mjs`) to compile the current working tree,
+sync all extension assets into that directory, and verify every copied file. The installed manifest
+uses the name **DIM Aegis Overlay (Testing Build)** and retains the Firefox extension ID. A
+`build-info.json` beside the extension directory records the source revision, uncommitted changes,
+and file hashes. Reload the existing testing extension and refresh DIM after each build.
+
+`dist` remains build staging/release output; use the configured directory for this testing installation.
+
+For one-click loading on Windows, add a `launcher` object to `testing-build.local` with
+`browserExecutable`, `profileDirectory`, `nodeExecutable` (Node 22 or later), and `port` (an unused
+local port). Run `scripts/load-testing.ps1`, or create a Windows shortcut to run it with PowerShell.
+The launcher starts Zen with a loopback WebDriver BiDi connection, loads this same testing directory
+as a temporary extension, and refreshes open DIM tabs (or opens DIM if none is open).
+Run `scripts/create-testing-shortcuts.ps1` to replace the old desktop shortcut with **Reload Aegis
+Testing**, **Reload DIMSUM Testing**, and **Reload Aegis + DIMSUM Testing**, each with a distinct icon.
+The individual shortcuts reload only their named extension; the combined shortcut reloads both before
+refreshing DIM once. They load the latest files in the testing directories without rebuilding source.
+`scripts/load-testing.ps1 -Extensions Aegis`, `-Extensions DIMSUM`, or `-Extensions Both` selects the
+same behavior from PowerShell (the default is Both). DIMSUM and Both require `launcher.dimsumDirectory`.
+The two extensions keep their own directories and IDs. The launcher checks the selected extensions'
+page markers and reports missing activation separately
+from a successful install. On first use, grant DIM access through Zen's extension menu if prompted by
+a green dot; the launcher does not grant site permissions itself.
+It verifies both the listening process and the browser profile before loading anything.
+
+Close an ordinary Zen session once before using the launcher; afterwards use the launcher to start
+Zen when testing. `-RestartZen` requests a graceful close for the initial switch; it never forces a
+process to exit. Restarting Zen unloads all temporary extensions, including any temporary DIMSUM
+installation. Configure `dimsumDirectory` to reload DIMSUM too. `-ValidateOnly` checks paths without launching or loading.
+
+The launcher adds a marked `remote.prefs.recommended=false` preference to the selected profile's
+`user.js` (backing up an existing file first), so automation does not override normal browsing
+preferences. Debugging is enabled only by the launch argument. `last-load.json` next to the extension
+directory records successful loads. Normal Zen shortcuts still launch normally without debugging.
 
 ---
 
