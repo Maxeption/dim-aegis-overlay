@@ -3039,11 +3039,14 @@ function updateExplorerTitles() {
   }
 }
 
-let explorerUi: { fab: HTMLElement; panel: HTMLElement; close: (event: MouseEvent) => void } | null = null;
+let explorerUi: { fab: HTMLElement; panel: HTMLElement; close: (event: MouseEvent) => void; escape: (event: KeyboardEvent) => void } | null = null;
 
 function initAegisExplorer() {
   if (!document.body || (explorerUi?.fab.isConnected && explorerUi.panel.isConnected)) return;
-  if (explorerUi) document.removeEventListener('click', explorerUi.close);
+  if (explorerUi) {
+    document.removeEventListener('click', explorerUi.close);
+    document.removeEventListener('keydown', explorerUi.escape, true);
+  }
   document.querySelectorAll('.aegis-fab, .aegis-explorer-panel').forEach(element => element.remove());
 
   const author = aegisMode === 'pvp' ? 'Finnald' : (aegisMode === 'both' ? 'Aegis & Finnald' : 'Aegis');
@@ -3169,7 +3172,7 @@ function initAegisExplorer() {
     diagContent.textContent = diagnosticLogs.join('\n') + (diagnosticLogs.length > 0 ? '\n' : '');
   }
 
-  const closeBtn = panel.querySelector('.aegis-explorer-close');
+  const closeBtn = panel.querySelector<HTMLButtonElement>('.aegis-explorer-close');
   const searchInput = panel.querySelector('.aegis-explorer-search-input');
   const hideCompletedCheckbox = panel.querySelector('.aegis-explorer-hide-completed');
 
@@ -3185,6 +3188,10 @@ function initAegisExplorer() {
   });
 
   closeBtn?.addEventListener('click', () => panel.classList.remove('open'));
+  const closeOnEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && panel.classList.contains('open')) closeBtn?.click();
+  };
+  document.addEventListener('keydown', closeOnEscape, true);
   searchInput?.addEventListener('input', renderResults);
 
   // Setup Shopping List Filter chips
@@ -3271,7 +3278,7 @@ function initAegisExplorer() {
     }
   };
   document.addEventListener('click', closeComboboxes);
-  explorerUi = { fab, panel, close: closeComboboxes };
+  explorerUi = { fab, panel, close: closeComboboxes, escape: closeOnEscape };
 
   // Tab switching setup
   const tabs = panel.querySelectorAll('.aegis-explorer-tab');
