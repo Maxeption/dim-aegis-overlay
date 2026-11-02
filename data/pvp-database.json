@@ -48444,17 +48444,17 @@
       "source": "Vault of Glass",
       "sourceType": "Activity"
     },
-    "disaster corps": {
-      "setName": "Disaster Corps",
-      "piece2Name": "Pleas Heard",
-      "piece2Desc": "Currently bugged and heals 5 HP/s; in practice decent sustain, like a pseudo-Heal Clip effect but worse.\nGood for getting back into engagements quickly, or getting healthy as you attempt to escape.",
-      "piece2Numbers": "Trigger: Reloading an Auto rifle, Scout rifle, or Sidearm within 3s of a corresponding weapon kill. | Effect: 2-5? HP/s until interrupted by damage, firing, or casting ability, can be reactivated within time window",
-      "piece2Rating": "B",
-      "piece4Name": "Magnificent Duty",
-      "piece4Desc": "VERY power weapon performance buff which will occur frequently through PvP gameplay.\n+20 Range & Stability, +30 Reload, and a 0.9x Reload duration for specific weapon types which all benefit massively from them.\nAutos & Sidearms in particular benefit massively from this set effect, as they typically cannot reach both 100 Range & Stability simultaneously.",
-      "piece4Numbers": "Trigger: Reaching Critical health or healing an ally in Critical Health. | Effect: Grants +20 Range, 20 Stability, 30 Reload, 0.9x Reload Duration for Auto Rifles, Scout Rifles, and Sidearms for 11s",
-      "piece4Rating": "S",
-      "source": "Crucible",
+    "cyberserpent null": {
+      "setName": "Cyberserpent Null",
+      "piece2Name": "Adrenal Rush",
+      "piece2Desc": "Large amount of free bonus Handling & Reload stats, very easy to activate. Can offset low handling/reload weapons.",
+      "piece2Numbers": "Trigger: Sprinting for 0.5s | Effect: Grants +30 reload and +40 handling for 5s, refreshes to 5s on kill",
+      "piece2Rating": "S",
+      "piece4Name": "Bountiful Munitions",
+      "piece4Desc": "DISABLED IN PVP.",
+      "piece4Numbers": "Trigger: kills with Adrenal Rush active | Effect: Grants +?% special ammo progress, increased to ?% against elite+ and Taken",
+      "piece4Rating": "F",
+      "source": "Gambit",
       "sourceType": "Activity"
     },
     "bushido": {
@@ -48496,17 +48496,17 @@
       "source": "Vow of the Disciple",
       "sourceType": "Activity"
     },
-    "cyberserpent null": {
-      "setName": "Cyberserpent Null",
-      "piece2Name": "Adrenal Rush",
-      "piece2Desc": "Large amount of free bonus Handling & Reload stats, very easy to activate. Can offset low handling/reload weapons.",
-      "piece2Numbers": "Trigger: Sprinting for 0.5s | Effect: Grants +30 reload and +40 handling for 5s, refreshes to 5s on kill",
-      "piece2Rating": "A",
-      "piece4Name": "Bountiful Munitions",
-      "piece4Desc": "DISABLED IN PVP.",
-      "piece4Numbers": "Trigger: kills with Adrenal Rush active | Effect: Grants +?% special ammo progress, increased to ?% against elite+ and Taken",
-      "piece4Rating": "F",
-      "source": "Gambit",
+    "disaster corps": {
+      "setName": "Disaster Corps",
+      "piece2Name": "Pleas Heard",
+      "piece2Desc": "Currently bugged and heals 5 HP/s; in practice decent sustain, like a pseudo-Heal Clip effect but worse.\nGood for getting back into engagements quickly, or getting healthy as you attempt to escape.",
+      "piece2Numbers": "Trigger: Reloading an Auto rifle, Scout rifle, or Sidearm within 3s of a corresponding weapon kill. | Effect: 2-5? HP/s until interrupted by damage, firing, or casting ability, can be reactivated within time window",
+      "piece2Rating": "B",
+      "piece4Name": "Magnificent Duty",
+      "piece4Desc": "VERY powerful weapon performance buff which will occur frequently through PvP gameplay.\n+20 Range & Stability, +30 Reload, and a 0.9x Reload duration for specific weapon types which all benefit massively from them.\nAutos & Sidearms in particular benefit massively from this set effect, as they typically cannot reach both 100 Range & Stability simultaneously.",
+      "piece4Numbers": "Trigger: Reaching Critical health or healing an ally in Critical Health. | Effect: Grants +20 Range, 20 Stability, 30 Reload, 0.9x Reload Duration for Auto Rifles, Scout Rifles, and Sidearms for 11s",
+      "piece4Rating": "A",
+      "source": "Crucible",
       "sourceType": "Activity"
     },
     "oryx's memory": {
